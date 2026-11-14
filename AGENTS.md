@@ -169,11 +169,11 @@ Boundaries: code/commits/PRs written normal.
 <!-- caveman-end -->
 
 
-## Mémoire agent (mise à jour : 2026-11-10)
+## Mémoire agent (mise à jour : 2026-11-14)
 
 Contexte global, valable pour tous les projets de David :
 
-- OpenCode est l'agent principal : 6 serveurs MCP globaux (context7, deepwiki, github — auth PAT via variable d'environnement, playwright, chrome-devtools, notion) et 24 skills globaux dans ~/.agents/skills (usage dans ce projet : section « Skills à utiliser »). Les conventions de ce projet priment sur les skills génériques.
+- OpenCode est l'agent principal : MCP globaux actifs — context7, deepwiki, chrome-devtools, notion, browse, crawl4ai (14 novembre 2026 : playwright désactivé, doublon de chrome-devtools et browse ; github désactivé, gh CLI connecté en remplacement). Claude Code : 4 MCP (caveman, chrome-devtools, leann-server, rea ; caveman-cloud retiré le 14 novembre 2026) et 12 plugins (plugin playwright désactivé). 25 skills globaux dans ~/.agents/skills (copie dans ~/.claude/skills ; usage dans ce projet : section « Skills à utiliser »). Les conventions de ce projet priment sur les skills génériques.
 - Préférences : travail en français ; recommandations vérifiées (installations, étoiles, réputation de la source, scans de sécurité) avant d'installer un outil ; jamais de secret en clair dans les fichiers de config (variables d'environnement uniquement, syntaxe {env:VAR}) ; diagnostic de la cause avant de corriger.
 - GitHub : compte mrbabilo. Clones locaux : /Volumes/BABILODONNEES/GitHub.
 - Mémoire complète : page Notion « Mémoire agent — OpenCode (David) » — https://app.notion.com/p/4149fa0959e381cd944dfe54e3838b9d
