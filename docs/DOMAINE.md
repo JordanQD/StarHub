@@ -227,5 +227,5 @@ la même chirurgie ciblée sur les mêmes bornes de balises, pour la même raiso
 L'architecture, le découpage en couches et l'ordre des extractions sont dans
 [`REFACTORING.md`](REFACTORING.md) — source de vérité unique pour la migration en
 cours. Les fonctionnalités à venir sont dans [`ROADMAP.md`](ROADMAP.md). Les
-procédures de build, de test et de release sont dans `CLAUDE.md` et les skills.
+procédures de build, de test et de release sont dans `AGENTS.md` et les skills.
 Ce document ne porte que le **métier**.

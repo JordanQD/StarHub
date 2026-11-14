@@ -1,11 +1,10 @@
 # AGENTS.md — StarHubFR (fork de StarHubTH)
 
 > **LIRE OBLIGATOIREMENT avant toute modification de ce projet.**
-> Conventions, pièges techniques, commandes validées. Complète `CLAUDE.md`
-> (pointe vers skills + sources), `docs/DOMAINE.md` (vocabulaire métier),
-> `docs/SOURCES.md` (carte hors-dépôt : API, dumps, code repris) et
-> `docs/archive/kilo-plans/` — plans ère Kilo, raisonnement derrière choix en place.
-> Plans = **archives** : lire pour « pourquoi », jamais comme spec courante.
+> Conventions, pièges techniques, commandes validées. **Source unique** des
+> consignes pour tous agents : `CLAUDE.md` l'importe (`@AGENTS.md`) et ne
+> garde que le propre à Claude Code. *Procédures* détaillées → skills
+> (`.claude/skills/`, copiés dans `.agents/skills/`) ; sources → §1 bis.
 
 ---
 
@@ -16,6 +15,19 @@
 - Bundle ID `com.mrbabilo.StarHubFR` (F5, 2026-09-10) : préférences + Trousseau séparés de l'upstream. Ancien `com.appleboiy.StarHubTH` lu **en secours** (`KeychainSecret.legacyService`, `DefaultsMigration`).
 - Données sous `~/Library/Application Support/StarHubFR/` (`Backups/` compris, depuis X105).
 - UI **bilingue** : `en` + `fr`. Thaï UI retiré, « Thai Translation Hub » aussi (C5-T1, 2026-09-24) : remplacé par page « Traductions FR ».
+
+**Avant toucher mods, SMAPI, Nexus, profils, sauvegardes ou fichiers traduction : lire `docs/DOMAINE.md`.**
+
+## 1 bis. Sources à consulter — au-delà de ce fichier
+
+Ordre d'utilité (chaque doc porte ce que code ne dit pas) :
+
+- **`docs/DOMAINE.md`** — vocabulaire métier (« pack », « profil », « sauvegarde » ≠ sens upstream).
+- **`docs/ROADMAP.md`** — ce qui **reste** à faire. ⚠️ Cases en retard sur code livré : vérifier `git log` avant tâche « à faire ». Identifiant absent roadmap = livré : chercher dans `docs/roadmap-archive.md` (mesures à ne pas refaire).
+- **`docs/SOURCES.md`** — carte hors-dépôt : API interrogées, dumps, code repris. Obligatoire avant client réseau (Nexus, smapi.io, DeepL, IA locale) ou parseur format externe. Valeurs relevées par `check_sources.py`.
+- **`docs/REFACTORING.md`** — plan refacto ViewModel (règle F1-T2, §5.1). État en retard : vérifier `git log`.
+- **`docs/archive/kilo-plans/`** — archives ère Kilo : **raisonnement** derrière choix en place. Lire pour « pourquoi », jamais comme consigne (cases sans valeur, partie livrée autrement). Reste de `.kilo/` ignoré.
+- **`docs/superpowers/`** — specs + plans récents, gitignorés (absents d'un clone frais).
 
 ---
 
@@ -30,7 +42,8 @@ python3 build_app.py
 - Lire code de sortie direct : `python3 build_app.py | tail` rend celui de `tail`.
 - **Toujours `python3`**, jamais `python` (absent du PATH).
 - Valide **parité clés** `en.json`/`fr.json` (build en erreur sinon).
-- Génère `assets/*.lproj/Localizable.strings` + `compile_commands.json` (gitignoré).
+- Génère `assets/*.lproj/Localizable.strings` + `compile_commands.json` (racine, gitignoré : alimente SourceKit-LSP sur *tous* fichiers ; seul : `python3 build_app.py --gen-compile-commands`).
+- Vérif logique si `swift test` inaccessible → skill `build-app`.
 
 ### Tests SPM
 ```bash
@@ -89,6 +102,20 @@ python3 check_sources.py --offline       # sources externes, contrôles locaux s
 ---
 
 ## 4. Conventions de code — PIÈGES CRITIQUES
+
+### 4.0 Traps détaillés — rappel par sujet (cavemem)
+
+Pièges techniques détaillés, **chers à retrouver**, vivent dans cavemem. **Rappeler bloc AVANT toucher domaine**, pas après accident :
+
+- SwiftUI / AppKit → `caveman mem recall "starhubfr traps swiftui"`
+- Process, Pipe, système de fichiers → `caveman mem recall "starhubfr traps process"`
+- Concurrence, caches, threads → `caveman mem recall "starhubfr traps concurrence"`
+- Manifestes, i18n, Nexus, smapi.io, parsing → `caveman mem recall "starhubfr traps parsing"`
+- Build, release, tests, cliquets → `caveman mem recall "starhubfr traps build"`
+- UI, listes, sidebar, toggles de mods → `caveman mem recall "starhubfr traps ui"`
+- Sonde, parc, HUD en jeu, mesure guidée → `caveman mem recall "starhubfr traps sonde"`
+
+Sur hit, sortie = forme compacte ; `caveman mem recover <handle>` rend original octet pour octet.
 
 ### 4.1 Toggle de mods = préfixe point (DEPUIS juillet 2026)
 - **Mod désactivé vit dans `Mods/` préfixé d'un point** : `Mods/.CJBCheats` (SMAPI ignore dossiers pointés).
@@ -190,8 +217,12 @@ python3 check_sources.py --offline       # sources externes, contrôles locaux s
 - Travailler sur `main`.
 - **Pousser uniquement sur demande explicite de l'utilisateur.** Fetch + rebase avant : d'autres sessions poussent aussi sur `main`.
 - Commits : style conventional (`feat:`, `fix:`, `chore:`, `docs:`).
+- Terminer messages commit par trailer nommant **modèle ayant réellement écrit commit** — jamais nom figé :
+  - Claude : `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` (ou `Claude Sonnet 5`, `Claude Haiku 4.5`… selon modèle actif).
+  - GLM : `Co-Authored-By: GLM 5.3 <noreply@z.ai>`.
+- ⚠️ Dépôt travaillé par **plusieurs modèles**, dont GLM via `glm.sh` (route Claude Code vers API z.ai : modèle *actif* = GLM, quel que soit alias `sonnet`/`opus` affiché). Vérifier modèle actif avant signer. Historique avant 2026-07-30 porte `Claude Sonnet 5` sur 167 commits, y compris ceux d'autres modèles : pas source de vérité.
 - `CHANGELOG.md` : Keep a Changelog. Section `[Unreleased]` **intégrée à la prochaine release, jamais supprimée**.
-- Release : version affichée (`CFBundleShortVersionString`) et section du CHANGELOG changées **à la main** ; `python3 release.py` incrémente `CFBundleVersion`, construit et zippe dans `bundles/StarHubFR_v<version>.zip`, sans rien publier ; commit d'`Info.plist`, tag signé, notes écrites à la main puis `gh release create --verify-tag`.
+- Release : version affichée (`CFBundleShortVersionString`) et section du CHANGELOG changées **à la main** ; `python3 release.py` incrémente `CFBundleVersion`, construit et zippe dans `bundles/StarHubFR_v<version>.zip`, sans rien publier ; commit d'`Info.plist`, tag signé, notes écrites à la main puis `gh release create --verify-tag`. → skill `release`.
 
 ---
 
@@ -249,7 +280,7 @@ Contexte global, valable pour tous les projets de David :
 Noms des skills : OpenCode les lit dans `~/.agents/skills`. Claude Code les voit dans `~/.claude/skills`, sauf `brainstorming`, `writing-plans`, `test-driven-development` et `systematic-debugging`, qu'il appelle `superpowers:<nom>`. « Claude Code seul » marque un skill de plugin absent d'OpenCode. Les règles de ce fichier priment sur celles d'un skill.
 
 - Méthode : `brainstorming` avant une fonction nouvelle, `writing-plans` avant un chantier en plusieurs étapes, `systematic-debugging` avant de corriger un bug, `test-driven-development` pour le code couvert par des tests.
-- Skills du dépôt (`.claude/skills/`, copiés dans `.agents/skills/`) : `build-app`, `localization`, `release`, `audit-code`, `audit-ux`, `caveman-learn`. Quand les lancer : voir `CLAUDE.md`.
+- Skills du dépôt (`.claude/skills/`, copiés dans `.agents/skills/`) : `build-app` (vérifier un changement Swift, gate scindé), `localization` (ajouter ou modifier un texte affiché), `release` (couper une version), `audit-code` (audit du code fichier par fichier), `audit-ux` (audit ou refonte UX/UI), `caveman-learn` (réduire le coût en jetons d'un agent).
 - `check-sources` : tout changement d'une source externe (API appelée, dump téléchargé, code repris), avec le cliquet `check_sources.py`.
 - `swift-expert` : ingénierie Swift (concurrence, SPM, tests).
 - `swiftui-design-skill` : esthétique des vues SwiftUI, dans les contraintes de la section 6.
