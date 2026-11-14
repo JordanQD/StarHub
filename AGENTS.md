@@ -1,88 +1,42 @@
 # AGENTS.md — StarHubFR (fork de StarHubTH)
 
 > **LIRE OBLIGATOIREMENT avant toute modification de ce projet.**
-> Conventions, pièges techniques, commandes validées. **Source unique** des
-> consignes pour tous agents : `CLAUDE.md` l'importe (`@AGENTS.md`) et ne
-> garde que le propre à Claude Code. *Procédures* détaillées → skills
-> (`.claude/skills/`, copiés dans `.agents/skills/`) ; sources → §1 bis.
+> **Source unique** des consignes pour tous agents : `CLAUDE.md` l'importe (`@AGENTS.md`), garde seulement le propre à Claude Code. Procédures → skills (`.claude/skills/`, copiés dans `.agents/skills/`) ; détail et pourquoi des règles → `docs/agents/` (index `docs/agents/README.md`, renvoi dans chaque section).
 
 ---
 
 ## 1. Identité du projet
 
-- **StarHubFR** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+).
-- Fork de **StarHubTH** (AppleBoiy). Source : `StarHubTH/`. Bundle : `StarHubFR.app` (exécutable `StarHubFR`).
-- Bundle ID `com.mrbabilo.StarHubFR` (F5, 2026-09-10) : préférences + Trousseau séparés de l'upstream. Ancien `com.appleboiy.StarHubTH` lu **en secours** (`KeychainSecret.legacyService`, `DefaultsMigration`).
-- Données sous `~/Library/Application Support/StarHubFR/` (`Backups/` compris, depuis X105).
-- UI **bilingue** : `en` + `fr`. Thaï UI retiré, « Thai Translation Hub » aussi (C5-T1, 2026-09-24) : remplacé par page « Traductions FR ».
+- **StarHubFR** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHubFR.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en` + `fr` seulement. Détail : `docs/agents/README.md`.
 
 **Avant toucher mods, SMAPI, Nexus, profils, sauvegardes ou fichiers traduction : lire `docs/DOMAINE.md`.**
 
 ## 1 bis. Sources à consulter — au-delà de ce fichier
 
-Ordre d'utilité (chaque doc porte ce que code ne dit pas) :
-
-- **`docs/DOMAINE.md`** — vocabulaire métier (« pack », « profil », « sauvegarde » ≠ sens upstream).
-- **`docs/ROADMAP.md`** — ce qui **reste** à faire. ⚠️ Cases en retard sur code livré : vérifier `git log` avant tâche « à faire ». Identifiant absent roadmap = livré : chercher dans `docs/roadmap-archive.md` (mesures à ne pas refaire).
-- **`docs/SOURCES.md`** — carte hors-dépôt : API interrogées, dumps, code repris. Obligatoire avant client réseau (Nexus, smapi.io, DeepL, IA locale) ou parseur format externe. Valeurs relevées par `check_sources.py`.
-- **`docs/REFACTORING.md`** — plan refacto ViewModel (règle F1-T2, §5.1). État en retard : vérifier `git log`.
-- **`docs/archive/kilo-plans/`** — archives ère Kilo : **raisonnement** derrière choix en place. Lire pour « pourquoi », jamais comme consigne (cases sans valeur, partie livrée autrement). Reste de `.kilo/` ignoré.
-- **`docs/superpowers/`** — specs + plans récents, gitignorés (absents d'un clone frais).
+- `docs/DOMAINE.md` — vocabulaire métier (≠ sens upstream).
+- `docs/ROADMAP.md` — ce qui **reste** ; cases en retard : vérifier `git log`. Identifiant absent = livré → `docs/roadmap-archive.md`.
+- `docs/SOURCES.md` — obligatoire avant client réseau ou parseur de format externe.
+- `docs/REFACTORING.md` — plan refacto ViewModel (§5.1) ; état en retard : `git log`.
+- `docs/archive/kilo-plans/` — pourquoi des choix, jamais consigne. `docs/superpowers/` — specs récentes, gitignorées.
+- Texte complet : `docs/agents/README.md`.
 
 ---
 
 ## 2. Build & test — COMMANDES EXACTES
 
-### Build de l'app (le vrai gate)
 ```bash
-python3 build_app.py
+python3 build_app.py                     # vrai gate : swiftc mode Swift 6 + parité en/fr
+./run_tests.sh                           # = DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+python3 check_standards.py --report      # cliquet conventions Swift
+python3 check_sources.py --offline       # cliquet sources externes (agent : --offline)
 ```
-- `swiftc` brut sur **tous** `.swift` sous `StarHubTH/` (un module), **mode Swift 6** (`-swift-version 6`). Incrémental ; `--whole-module` = ancien chemin.
-- Si `xcode-select -p` pointe sur Command Line Tools : échec `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found` — pas erreur de code. Préfixer `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
-- Lire code de sortie direct : `python3 build_app.py | tail` rend celui de `tail`.
+
 - **Toujours `python3`**, jamais `python` (absent du PATH).
-- Valide **parité clés** `en.json`/`fr.json` (build en erreur sinon).
-- Génère `assets/*.lproj/Localizable.strings` + `compile_commands.json` (racine, gitignoré : alimente SourceKit-LSP sur *tous* fichiers ; seul : `python3 build_app.py --gen-compile-commands`).
-- Vérif logique si `swift test` inaccessible → skill `build-app`.
-
-### Tests SPM
-```bash
-./run_tests.sh
-# ou manuellement :
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-```
-- **`DEVELOPER_DIR` OBLIGATOIRE** : `Testing` (Swift Testing, `import Testing`) exige **Xcode.app complet**, pas Command Line Tools.
-- Sans `DEVELOPER_DIR` : `no such module 'Testing'` — **limite d'environnement, pas régression**.
-- 4 877 `@Test`, 213 `@Suite` explicites, 262 cibles (relevé 2026-11-05).
-- CI GitHub (Xcode 16.4, Swift 6.0) = juge : chaîne locale plus récente, écart de mode de langage invisible en local.
-
-### `swift build` (Core seulement)
-- Compile seulement sous-ensemble `Package.swift` (`ModItem`, managers backup, `SaveManager`, `L10n`, etc.) — **pas** UI ni ViewModel complet.
-- Check rapide logique Core ; ne remplace pas `build_app.py`.
-
-### Les deux cliquets
-
-```bash
-python3 check_standards.py --report      # conventions Swift (état, sans juger)
-python3 check_sources.py --offline       # sources externes, contrôles locaux seuls
-```
-
-- **`check_standards.py`** / `.standards-baseline.json` — cliquet conventions
-  Swift, lancé par `build_app.py` après compilation réussie. Échoue seulement
-  si compteur **augmente** (code viole massivement ces règles aujourd'hui).
-  Baisser puis `--update` pour resserrer ; ajout délibéré = `--update`
-  explicite, visible au diff. `--skip-standards` débloque build ponctuel.
-  **Taille** verrouillée **par fichier** (clés `file:<chemin>`, une par
-  fichier > 400 lignes) : les deux sommes se compensaient entre fichiers,
-  ~16 000 lignes de marge muette au ViewModel (mesuré 2026-09-11 —
-  `docs/REFACTORING.md` §3 bis).
-- **`check_sources.py`** / `.sources-baseline.json` — pendant pour le **hors**
-  dépôt : API appelées, dumps téléchargés, projets dont code repris. Carte +
-  raisonnement : `docs/SOURCES.md`.
-  ⚠️ **Écart ≠ échec** : nouvelle version SMAPI = chose à regarder, pas bug
-  — l'expliquer, pas la taire ; `--update` jamais pour faire taire le script.
-  Depuis agent : `--offline` (passe complète sonde smapi.io, GitHub raw,
-  Nexus ; sources injoignables reportées à part, hors écarts).
+- **`DEVELOPER_DIR` obligatoire** pour tests ; `no such module 'Testing'` ou `StateMacro could not be found` = Command Line Tools, pas régression.
+- Code de sortie : `python3 build_app.py | tail` rend celui de `tail`.
+- `swift build` = Core seulement, ne remplace pas `build_app.py`. Sans `swift test` → skill `build-app`. CI GitHub (Swift 6.0) = juge.
+- Cliquets : échec seulement si compteur **augmente** ; `--update` explicite, visible au diff, **jamais pour faire taire** ; écart de `check_sources.py` ≠ échec : l'expliquer (skill `check-sources`).
+- Détail : `docs/agents/build-et-cliquets.md` (échec inattendu, avant toucher un cliquet).
 
 ### Règle absolue
 **Ne jamais lancer l'app ni prendre de capture depuis un agent.** Vérif GUI déléguée à l'humain ; agents valident par build + tests.
@@ -91,157 +45,110 @@ python3 check_sources.py --offline       # sources externes, contrôles locaux s
 
 ## 3. Localisation — RÈGLES STRICTES
 
-- **Source de vérité** : `assets/{en,fr}.json` (JSON).
-- **Ne JAMAIS éditer** `assets/*.lproj/Localizable.strings` — générés par `build_app.py`.
-- **Parité obligatoire** : `en.json` et `fr.json` = **exactement mêmes clés**. Build valide.
-- Clés référencées via `L10n.swift` (constantes `static let`).
-- `localizedString` rend clé brute si traduction absente (fallback) — pas de crash.
-- Après édition JSON : relancer `build_app.py` pour régénérer `.strings`.
-- **Français naturel, pas calqué sur l'anglais** (consigne de l'auteur, 2026-10-18) : libellés, aide, README, CHANGELOG et notes de version se rédigent en français, pas en traduction littérale. La tournure est visée, pas le vocabulaire déjà affiché par l'app (« Configs », « benchmark ») : ne pas le changer sans demande. Avant chaque release, relire le CHANGELOG de la version, le README et les notes pour éviter les tournures de phrases anglaises (consigne de l'auteur, 2026-11-05). Exemples dans le skill `localization`.
+- **Source de vérité** : `assets/{en,fr}.json` ; `assets/*.lproj/Localizable.strings` générés par `build_app.py` (relancer après édition JSON), **jamais édités**.
+- **Parité obligatoire** : `en.json` et `fr.json` = **exactement mêmes clés** (build valide). Clés via `L10n.swift` (`static let`) ; clé absente → clé brute, pas crash.
+- **Français naturel, pas calqué sur anglais** (libellés, aide, README, CHANGELOG, notes) ; vocabulaire déjà affiché gardé sauf demande ; relire avant release → `docs/agents/redaction-git-release.md`, skill `localization`.
 
 ---
 
 ## 4. Conventions de code — PIÈGES CRITIQUES
 
 ### 4.0 Traps détaillés — rappel par sujet (cavemem)
-
-Pièges techniques détaillés, **chers à retrouver**, vivent dans cavemem. **Rappeler bloc AVANT toucher domaine**, pas après accident :
-
-- SwiftUI / AppKit → `caveman mem recall "starhubfr traps swiftui"`
-- Process, Pipe, système de fichiers → `caveman mem recall "starhubfr traps process"`
-- Concurrence, caches, threads → `caveman mem recall "starhubfr traps concurrence"`
-- Manifestes, i18n, Nexus, smapi.io, parsing → `caveman mem recall "starhubfr traps parsing"`
-- Build, release, tests, cliquets → `caveman mem recall "starhubfr traps build"`
-- UI, listes, sidebar, toggles de mods → `caveman mem recall "starhubfr traps ui"`
-- Sonde, parc, HUD en jeu, mesure guidée → `caveman mem recall "starhubfr traps sonde"`
-
-Sur hit, sortie = forme compacte ; `caveman mem recover <handle>` rend original octet pour octet.
+Rappeler bloc **AVANT** toucher domaine : `caveman mem recall "starhubfr traps <sujet>"` — `swiftui` (SwiftUI/AppKit), `process` (Process, Pipe, fichiers), `concurrence` (caches, threads), `parsing` (manifestes, i18n, Nexus, smapi.io), `build` (release, tests, cliquets), `ui` (listes, sidebar, toggles), `sonde` (parc, HUD, mesure guidée). Hit compact ; `caveman mem recover <handle>` rend original octet pour octet.
 
 ### 4.1 Toggle de mods = préfixe point (DEPUIS juillet 2026)
-- **Mod désactivé vit dans `Mods/` préfixé d'un point** : `Mods/.CJBCheats` (SMAPI ignore dossiers pointés).
-- **`ModItem.folderName` est LOGIQUE** (jamais de point) — clé du registre, profils, timestamps, backups.
-- **`ModItem.physicalFolderName`** (computed) = nom disque : `.` + folderName si désactivé.
-- Toggle = **rename atomique même-parent** O(1), pas déplacement.
-- **Tout chemin disque** utilise `physicalFolderName`, pas `folderName`.
-- **`Mods_disabled/` n'existe plus** sauf legacy (migration one-shot + avertissement permanent).
+- Mod désactivé = `Mods/.CJBCheats` (SMAPI ignore dossiers pointés) ; toggle = **rename atomique même-parent**.
+- **`ModItem.folderName` LOGIQUE** (jamais de point : clé registre, profils, timestamps, backups) ; **tout chemin disque** via `physicalFolderName`.
+- `Mods_disabled/` = legacy seulement (migration one-shot + avertissement).
 
 ### 4.2 Parsing de manifest.json
-- **Jamais `.allowFragments`** : manifest DOIT être objet JSON ; accepter scalaire masquerait fichier corrompu.
-- Options : `.json5Allowed` (macOS 12+) — mods Stardew ont commentaires/trailing commas.
-- Stripper commentaires bloc `/* ... */` avant parsing : `rawString.replacingOccurrences(of: "/\\*[\\s\\S]*?\\*/", with: "", options: .regularExpression)`.
+- **Jamais `.allowFragments`** (manifest = objet JSON) ; `.json5Allowed` ; stripper `/* ... */` avant : `rawString.replacingOccurrences(of: "/\\*[\\s\\S]*?\\*/", with: "", options: .regularExpression)`.
 
 ### 4.3 UserDefaults — clés centralisées
-- **Toutes clés dans `UDKey.swift`** — jamais string littérale dans le code.
-- Clé de migration one-shot **retirée à version N+1** (commentaire dans UDKey.swift).
+- **Toutes clés dans `UDKey.swift`**, jamais littérale ; clé de migration one-shot **retirée à version N+1**.
 
 ### 4.4 Appels réseau Nexus
-- **Tous via `NexusRequestBuilder.makeRequest(...)`** (`Models/NexusRequestBuilder.swift`).
-- Source unique : `apiBase`, `gameDomain`, `appName`, headers.
-- Requêtes **sérielles** (pas de parallélisme) : rate limit.
+- **Tous via `NexusRequestBuilder.makeRequest(...)`** (`apiBase`, `gameDomain`, `appName`, headers) ; requêtes **sérielles** (rate limit).
 
 ### 4.5 Parsing des uniqueIds SMAPI
-- Format `Author.ModName`. Centralisé `Extensions/SmapiUniqueId.swift` : `.smapiModName`, `.smapiAuthor`.
+- `Author.ModName` via `Extensions/SmapiUniqueId.swift` (`.smapiModName`, `.smapiAuthor`).
 
 ### 4.6 Concurrency / DispatchQueue
-- **`weak self` obligatoire** dans toute closure passée à `DispatchQueue.global().async`.
-- ViewModel + stores = `@MainActor @Observable` : **pas de `@Published`** (ne compile plus chez eux) — `var` stockée déjà suivie, état observable `private(set)`. Mutations d'état observé **toujours sur main thread**. Cinq types restent `ObservableObject` (`SmapiInstaller`, `BisectionRunner`, `KeybindScanService`, `LocalizationStore`, `ModListFilters`).
-- **Méthode `@MainActor` appelée depuis fil de fond tue l'app** : mode Swift 6 vérifie à l'exécution. Ni gate ni tests ne le voient.
-- **Structure mutable partagée entre scans** (cache manifests, registre) protégée par `NSLock` dédié. `scanMods()` tourne en background et peut tourner **en concurrence avec lui-même** (refresh + initial load, activation de profil vs refresh). Sans lock, subscript setter d'un `Dictionary` → `EXC_BAD_ACCESS` (crash confirmé juillet 2026 sur `manifestCache`).
+- **`weak self` obligatoire** dans closure passée à `DispatchQueue.global().async`.
+- ViewModel + stores = `@MainActor @Observable` : **pas de `@Published`** ; mutations d'état observé **toujours sur main thread** (cinq `ObservableObject` restants : `docs/agents/README.md`).
+- **Méthode `@MainActor` appelée depuis fil de fond tue l'app** (vérif à l'exécution, invisible au gate et aux tests).
+- Structure partagée entre scans (cache manifests, registre) sous `NSLock` dédié : `scanMods()` concurrent avec lui-même (crash confirmé → `docs/agents/architecture.md`).
 
 ### 4.7 `Process()` (sous-processus)
-- Toujours **setter locale** `en_US_POSIX` : parsing indépendant de la langue système (unzip, etc.).
+- Toujours locale `en_US_POSIX` (parsing indépendant de la langue système).
 
 ### 4.8 Force-unwrap
-- **Interdit dans `CodeEditorView`**, à éviter partout. Préférer `guard let` / `if let`.
+- **Interdit dans `CodeEditorView`**, à éviter partout : `guard let` / `if let`.
 
 ### 4.9 Symlink `/tmp` → `/private/tmp` (PIÈGE macOS)
-- `FileManager.enumerator` rend chemins **résolus** (`/private/tmp/...`) même si root `/tmp/...`.
-- **Toujours résoudre `fileURL.path`** via `resolvingSymlinksInPath()` avant `replacingOccurrences(of: resolvedRoot)`.
-- Sinon chemin relatif corrompu (`private/.X/...` au lieu de `.X/...`).
+- `FileManager.enumerator` rend chemins **résolus** : `resolvingSymlinksInPath()` sur `fileURL.path` avant `replacingOccurrences(of: resolvedRoot)`, sinon `private/.X/...`.
 
 ### 4.10 `findExistingMod` — group-aware
-- Chercher dans `children` des groupes (packs), en-têtes à `uniqueId` vide, pour détecter conflits sur mods installés en pack.
+- Chercher aussi dans `children` des packs (en-têtes à `uniqueId` vide).
 
 ---
 
 ## 5. Architecture — points sensibles
 
+Détail : `docs/agents/architecture.md` (avant toucher VM, scan, registre, cache, install, backups) ; carte : `docs/ARCHITECTURE.md`.
+
 ### 5.1 `StarHubTHViewModel` = god-object
-- ~7 800 lignes (7 843 au 2026-11-05). `scanMods()`, `performToggle`, `applyProfileToFilesystem`, `toggleAllMods`, `deleteMod`, `cleanDisabledMods`, `syncInstalledModRegistry` y vivent encore.
-- Scan de `Mods/` (dont `parseModFolder`) dans `Models/ModScanner.swift`, détenu par VM (`private let scanner`).
-- Refacto **en cours** (`docs/REFACTORING.md`) : état sort vers `StarHubTH/Stores/` (64 fichiers). Règle F1-T2 : fonctionnalité neuve naît dans son type (store ou type pur dans `Models/`), jamais dans VM. Taille VM verrouillée par cliquet.
+- Règle F1-T2 : fonctionnalité neuve dans son store (`Stores/`) ou type pur (`Models/`), jamais VM (taille verrouillée par cliquet).
 
 ### 5.2 Registre des mods installés
-- Porté par `Stores/InstalledModRegistryStore.swift`. Clé UserDefaults `installedModRegistry` (blob JSON, ~90 Ko).
-- Clé de secours `installedModRegistryBackup` + **restauration auto si corruption** + **reconstruction depuis disque**. ⚠️ Secours reçoit **mêmes octets** à chaque écriture : couvre clé illisible, pas retour à génération précédente.
-- Cache mémoire (thread-safe, NSLock) — un decode par session au lieu de 100+ par scan.
-- Sync fin de chaque `scanMods()` : capture installs par tous moyens (drag-drop, copie manuelle, installer).
+- `Stores/InstalledModRegistryStore.swift` ; secours `installedModRegistryBackup` = **mêmes octets** (pas génération précédente).
 
 ### 5.3 Cache de manifests (DEPUIS juillet 2026)
-- `manifestCache: [String: (mtime: Date, manifest: [String: Any])]` dans `ModScanner` (`Models/ModScanner.swift`), sous `manifestCacheLock`. Classe, pas valeur : deux scans concurrents partagent même cache.
-- Key = chemin absolu du manifest.json. Hit = mtime identique → reuse JSON décodé.
-- Rescan sans changement = ~N `stat()` + 0 decode.
+- `ModScanner.manifestCache` sous `manifestCacheLock` ; hit = mtime identique.
 
 ### 5.4 Scanner — énumération à deux niveaux
-- **Niveau 1 (top-level)** : `contentsOfDirectory` **sans** `skipsHiddenFiles` → voit les `.X`.
-- Classification manuelle : `.X` = désactivé, `X` = activé, OS junk = skip.
-- **Niveau 2 (sous-scan récursif)** : `enumerator` **avec** `.skipsHiddenFiles` → cache junk imbriqué (`.DS_Store`, `.git/`, `._Foo`).
-- `relativePath` calculé **relativement au physicalRoot** (dossier entry), pas à `modsPath` — sinon point fuit dans `folderName`.
+- Niveau 1 sans `skipsHiddenFiles`, niveau 2 avec ; `relativePath` relatif au **physicalRoot**.
 
 ### 5.5 Drag-and-drop install
-- **NE JAMAIS écraser** `config.json` ni `fr.json` d'un mod existant (conflit signalé).
-  **Seule exception (X136)** : à la mise à jour, un `config.json` identique octet pour octet à celui d'une version de l'auteur (empreinte Nexus ou journal local de l'archive livrée), quand l'archive neuve en livre un autre — jamais modifié, il ne porte aucun réglage ; le neuf le remplace, le bilan le dit, l'ancien reste dans la sauvegarde d'installation. Sans preuve d'empreinte : gardé.
-- Nouveau mod → désactivé par défaut (`Mods/.X`).
-- Update d'un mod **activé** → reste activé (`Mods/X`).
+- **Garder toujours** `config.json` et `fr.json` d'un mod existant (seule exception : X136). Nouveau mod → désactivé ; update d'un activé → reste activé.
 
 ### 5.6 Backups
-- `ModInstallBackupManager` (install) et `ModConfigBackupManager` (config) **distincts, non consolidés**.
-- Rétention hybride 3 niveaux pour backups d'installation.
-- `restoreBackup` restaure en **désactivé** (`Mods/.X`).
+- Managers install et config **distincts** ; `restoreBackup` restaure en **désactivé**.
 
 ---
 
 ## 6. UI — contraintes fixes
 
 - **Sidebar** : pas de barre de recherche. « Mod Updates » **toujours visible** (badge caché si 0).
-- **Pages de liste** (`ModListView`, `LogsView`) : pattern `VStack(spacing: 0)` — header fixe + Divider + ScrollView + footer/pagination fixe.
-- **Pagination** : 12 mods/page (`ModListView.pageSize`), saut de page direct.
-- **Boutons à libellé, fenêtre minimale** (consigne de l'auteur, 2026-09-25) : un bouton textuel reste lisible au volet le plus étroit (560 pt) **ou** se réduit à son icône, titre en infobulle. Jamais de libellé tronqué ou replié. Outil : `AdaptiveLabels` (`Label(titre, systemImage:)` + `.help(titre)` sur chaque bouton) ; un sélecteur segmenté pose deux variantes dans un `ViewThatFits` (`ModScopePicker`). ⚠️ Un segment macOS (`Picker(.segmented)`) rend du texte **ou** une image, jamais les deux : ni l'icône d'un `Label` ni une `Image` interpolée dans un `Text` n'y survivent. Icône + texte = boutons faits main (`ModScopePicker`).
-- **Rangée trop large, autres formes** (revue de tous les écrans, 2026-09-25) : `SplitRow { gauche } trailing: { droite }` remplace `HStack { … ; Spacer() ; … }` et passe la droite à la ligne ; `WrapHStack` (Layout) replie des puces ou des colonnes figées en gardant l'alignement d'une ligne à l'autre. Symptômes d'une rangée qui ne tient pas : un texte écrit lettre par lettre à la verticale, ou toute la colonne décentrée et coupée des deux côtés. Mesurer les libellés FR (`NSString.size(withAttributes:)`), pas à l'œil ; dans `WrapHStack`, un `Divider` est horizontal — tracer un `Rectangle` 1×16.
-- **Splash de lancement** : fenêtre séparée (`NSPanel`, `Views/LaunchSplashWindow.swift`), cover art, progression par phases ; les menus natifs restent en place, la fenêtre principale n'étant pas à l'écran. Deux pièges AppKit ont tué l'app au lancement : `applicationShouldTerminateAfterLastWindowClosed` doit rendre `false`, et fenêtre principale masquée dans `applicationWillFinishLaunching`, pas `.onAppear`.
+- **Pages de liste** (`ModListView`, `LogsView`) : `VStack(spacing: 0)` — header fixe + Divider + ScrollView + footer fixe. **Pagination** : 12 mods/page, saut direct.
+- Bouton textuel lisible à 560 pt **ou** icône seule + infobulle, jamais tronqué (`AdaptiveLabels`) ; rangée trop large → `SplitRow`, `WrapHStack`.
+- Détail (segments, mesure des libellés, splash `NSPanel` et ses deux pièges AppKit) : `docs/agents/ui.md`.
 
 ---
 
 ## 7. Git & release
 
-- Travailler sur `main`.
-- **Pousser uniquement sur demande explicite de l'utilisateur.** Fetch + rebase avant : d'autres sessions poussent aussi sur `main`.
-- Commits : style conventional (`feat:`, `fix:`, `chore:`, `docs:`).
-- Terminer messages commit par trailer nommant **modèle ayant réellement écrit commit** — jamais nom figé :
-  - Claude : `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` (ou `Claude Sonnet 5`, `Claude Haiku 4.5`… selon modèle actif).
-  - GLM : `Co-Authored-By: GLM 5.3 <noreply@z.ai>`.
-- ⚠️ Dépôt travaillé par **plusieurs modèles**, dont GLM via `glm.sh` (route Claude Code vers API z.ai : modèle *actif* = GLM, quel que soit alias `sonnet`/`opus` affiché). Vérifier modèle actif avant signer. Historique avant 2026-07-30 porte `Claude Sonnet 5` sur 167 commits, y compris ceux d'autres modèles : pas source de vérité.
-- `CHANGELOG.md` : Keep a Changelog. Section `[Unreleased]` **intégrée à la prochaine release, jamais supprimée**.
-- Release : version affichée (`CFBundleShortVersionString`) et section du CHANGELOG changées **à la main** ; `python3 release.py` incrémente `CFBundleVersion`, construit et zippe dans `bundles/StarHubFR_v<version>.zip`, sans rien publier ; commit d'`Info.plist`, tag signé, notes écrites à la main puis `gh release create --verify-tag`. → skill `release`.
+- Travailler sur `main`. **Pousser uniquement sur demande explicite** ; fetch + rebase avant (autres sessions poussent).
+- Commits conventional (`feat:`, `fix:`, `chore:`, `docs:`), trailer nommant **modèle ayant réellement écrit** : `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` (ou Sonnet, Haiku… selon modèle actif) ; GLM : `Co-Authored-By: GLM 5.3 <noreply@z.ai>`. Vérifier modèle actif (GLM via `glm.sh` affiche `sonnet`/`opus`).
+- `CHANGELOG.md` : Keep a Changelog ; `[Unreleased]` **intégrée à la prochaine release, jamais supprimée**.
+- Release → skill `release`. Détail signature et release : `docs/agents/redaction-git-release.md`.
 
 ---
 
 ## 8. Résumé — checklist avant de valider un changement
 
 1. [ ] `python3 build_app.py` passe (compile + parité L10n).
-2. [ ] `./run_tests.sh` passe (~4 900 tests).
-3. [ ] Touché `en.json`/`fr.json` : parité clés + messages cohérents dans les deux langues.
-4. [ ] Touché chemin disque de mod : `physicalFolderName`, pas `folderName`.
-5. [ ] Nouveau code réseau : via `NexusRequestBuilder`.
-6. [ ] Nouveau code asynchrone : `weak self` + mutations sur main ; aucune méthode `@MainActor` appelée depuis fil de fond.
-7. [ ] Nouvelle fonctionnalité : store ou type pur, pas ViewModel (F1-T2).
-8. [ ] Parsing de manifest : pas de `.allowFragments`, strip commentaires.
-9. [ ] Énumération de fichiers : résoudre symlinks avant comparaison de chemins.
-10. [ ] Touché URL, chemin d'API, en-tête ou constante de contrat externe :
-       `python3 check_sources.py --offline` — **expliquer** l'écart, pas le
-       taire (écart ≠ échec ; `--update` ne fait pas taire le script).
-11. [ ] CHANGELOG à jour si changement visible par l'utilisateur.
-12. [ ] Pas de lancement d'app ni capture depuis l'agent.
+2. [ ] `./run_tests.sh` passe.
+3. [ ] Touché `en.json`/`fr.json` : parité + messages cohérents.
+4. [ ] Chemin disque de mod : `physicalFolderName`.
+5. [ ] Réseau : via `NexusRequestBuilder`.
+6. [ ] Asynchrone : `weak self`, mutations sur main, aucune `@MainActor` depuis fil de fond.
+7. [ ] Nouvelle fonctionnalité : store ou type pur (F1-T2).
+8. [ ] Manifest : pas de `.allowFragments`, strip commentaires.
+9. [ ] Énumération : symlinks résolus avant comparaison.
+10. [ ] Touché URL, chemin d'API, en-tête ou constante de contrat externe : `python3 check_sources.py --offline`, **expliquer** l'écart.
+11. [ ] CHANGELOG à jour si visible par l'utilisateur.
+12. [ ] Pas de lancement d'app ni capture.
 
 <!-- caveman-begin -->
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
