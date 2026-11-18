@@ -63,6 +63,7 @@ let package = Package(
                 "Models/ModCatalog.swift",
                 "Models/InstalledTranslation.swift",
                 "Models/InstalledTranslationStore.swift",
+                "Models/TranslationLinkConfirmation.swift",
                 "Models/ManifestlessArchive.swift",
                 "Models/ManifestlessArchive+Locale.swift",
                 "Models/ArchivePaths.swift",

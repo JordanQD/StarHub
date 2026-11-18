@@ -81,19 +81,33 @@ extension InstalledTranslation {
 }
 
 public struct DeclaredTranslation: Codable, Equatable, Sendable {
-    public let nexusModId: Int
+    /// L'identité Nexus **de la traduction** — sa page à elle, jamais celle
+    /// de l'hôte. `nil` depuis l'option B du design C7-T1 (2026-11-18) : un
+    /// pack-traduction posé comme un mod peut n'avoir aucune page (pas
+    /// d'`UpdateKeys`) — le lien hôte ↔ pack existe alors sans suivi de
+    /// version, et l'UI le dit. Les règles de mise à jour ignorent une
+    /// déclaration sans id (`asTracked` repasse par l'idiome 0 existant).
+    public let nexusModId: Int?
     public let nexusName: String
     public let version: String?
     public let updatedAt: Date?
     public let declaredAt: Date
+    /// Le dossier du **pack-traduction** que cette déclaration rattache
+    /// (C7-T1) — `nil` pour les déclarations écrites à la main depuis la
+    /// fiche de l'hôte, qui ne désignent pas de dossier particulier. C'est
+    /// lui qui fait matcher une proposition de lien au registre et empêche
+    /// la re-proposition d'un pack déjà rattaché.
+    public let packFolderName: String?
 
-    public init(nexusModId: Int, nexusName: String, version: String?,
-                updatedAt: Date?, declaredAt: Date) {
+    public init(nexusModId: Int?, nexusName: String, version: String?,
+                updatedAt: Date?, declaredAt: Date,
+                packFolderName: String? = nil) {
         self.nexusModId = nexusModId
         self.nexusName = nexusName
         self.version = version
         self.updatedAt = updatedAt
         self.declaredAt = declaredAt
+        self.packFolderName = packFolderName
     }
 
     /// La déclaration vue comme une traduction suivie : l'identité passe, les
@@ -110,7 +124,7 @@ public struct DeclaredTranslation: Codable, Equatable, Sendable {
     /// la feuille de déclaration ne relève pas la date Nexus, et une base
     /// inconnue ne prétend ni à jour ni en retard.
     public func asTracked(hostFolderName: String) -> InstalledTranslation {
-        InstalledTranslation(hostFolderName: hostFolderName, nexusModId: nexusModId,
+        InstalledTranslation(hostFolderName: hostFolderName, nexusModId: nexusModId ?? 0,
                              nexusName: nexusName, version: version ?? "",
                              updatedAt: updatedAt, installedAt: declaredAt,
                              files: [], replacedFiles: [:])
@@ -123,13 +137,14 @@ public struct DeclaredTranslation: Codable, Equatable, Sendable {
     /// deviendrait la base de comparaison et ferait taire la mise à jour qui
     /// les sépare ; une base fausse vaut moins qu'une base absente.
     public func adopting(_ hit: NexusModSearch.Hit) -> DeclaredTranslation? {
-        guard hit.modId == nexusModId,
+        guard let nexusModId, hit.modId == nexusModId,
               let version, version == hit.version,
               let date = hit.updatedAt
         else { return nil }
         return DeclaredTranslation(nexusModId: nexusModId, nexusName: nexusName,
                                    version: version, updatedAt: date,
-                                   declaredAt: declaredAt)
+                                   declaredAt: declaredAt,
+                                   packFolderName: packFolderName)
     }
 }
 
