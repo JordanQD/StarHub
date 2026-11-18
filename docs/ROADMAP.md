@@ -107,6 +107,9 @@ ont été corrigés le jour même et sont partis à l'archive ; **X128** (page Q
       le journal de l'auteur dit l'étalement élargi à Content Patcher, Farm
       Type Manager, SpaceCore et Automate. La capture de confirmation compte
       donc davantage : la part de coût imputée à UltraSmooth peut grandir.
+      **Relevé le 2026-11-18 sur la 2.9.2 décompilée** : l'option reste vraie
+      par défaut et un correctif 2.8.x empêche une copie de configuration de
+      l'éteindre — [`audit-ultrasmooth-2.9.2.md`](audit-ultrasmooth-2.9.2.md).
 
 ---
 

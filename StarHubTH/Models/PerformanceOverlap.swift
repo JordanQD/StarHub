@@ -9,13 +9,18 @@ import Foundation
 /// sur un parc sain apprend à l'ignorer.
 ///
 /// La table est tenue à la main, chaque paire **mesurée par décompilation**
-/// (ilspycmd ; dernière remesure le 2026-11-11 : UltraSmooth 2.8.4 et Radiance
-/// 2.4.7, delta sans paire nouvelle — `docs/audit-ultrasmooth-2.8.4.md` ; le
-/// 2026-11-05 portait UltraSmooth 2.7.6, celui du 2026-11-02 UltraSmooth 2.7.2,
-/// Radiance 2.4.5, Stardropium 0.3.0 — détail dans
-/// `docs/audit-ultrasmooth-2.7.2.md` ; la précédente, du 2026-10-19, portait
-/// 2.6.2 / 2.3.4 / 0.3.0, la première, du 2026-09-26, 2.4.1 / 2.2.1 /
-/// 0.2.0-beta) :
+/// (ilspycmd ; dernière remesure le 2026-11-18 : UltraSmooth 2.9.2 et Radiance
+/// 2.4.9, delta sans paire nouvelle ni retirée — toutes les cibles du
+/// catalogue sont encore posées, et le seul recouvrement littéral nouveau
+/// (`XnaDisplayDevice.m_tileSheetTextures`) est une **lecture de champ** chez
+/// les deux, pas un patch ; UltraSmooth 2.9.x a en revanche **retiré** son
+/// patch de `GameContentHelper.InvalidateCache` (réécriture de son module
+/// Content Patcher), ce qui ramène la seule commune avec PureBinarySave 2.0.6
+/// à zéro — `docs/audit-ultrasmooth-2.9.2.md`. La remesure du 2026-11-11
+/// portait UltraSmooth 2.8.4 et Radiance 2.4.7 ; celles du 2026-11-05
+/// (2.7.6), 2026-11-02 (2.7.2, Radiance 2.4.5, Stardropium 0.3.0),
+/// 2026-10-19 (2.6.2 / 2.3.4) et 2026-09-26 (2.4.1 / 2.2.1 / 0.2.0-beta)
+/// sont dans les audits cités) :
 /// une méthode compte quand les deux DLL posent un `harmony.Patch` dessus,
 /// **y compris par balayage dynamique des assemblies** (`Monster.update` est
 /// posée ainsi par UltraSmooth comme par StardewOptimizer — noté « balayage
@@ -91,16 +96,23 @@ public struct PerformanceOverlap: Equatable, Sendable {
 }
 
 extension PerformanceOverlap {
-    // Remesure 2026-11-11 (audit-ultrasmooth-2.8.4.md) : les 43 méthodes du
-    // catalogue côté UltraSmooth sont toutes encore patchées en 2.8.4 ; une
-    // seule change de statut, `GameLocation.timeUpdate` avec Stardropium
-    // (conditionnelle → par défaut). Radiance re-décompilée en 2.4.7 : mêmes
-    // cibles qu'en 2.4.5.
-    private static let ultraSmooth = Member(uniqueId: "palmhacker13.UltraSmooth", measuredVersion: "2.8.4",
+    // Remesure 2026-11-18 (audit-ultrasmooth-2.9.2.md) : UltraSmooth 2.9.2 et
+    // Radiance 2.4.9 décompilées (avec Stardropium 0.3.0 re-décompilé — la
+    // passe du 2026-11-02 avait échoué et reposait sur la carte de la sonde).
+    // Les 21 méthodes US×Stardropium, 15 US×Radiance et 5 Radiance×Stardropium
+    // sont toutes encore posées ; aucun recouvrement littéral nouveau (la
+    // seule commune de plus, `XnaDisplayDevice.m_tileSheetTextures`, est un
+    // champ lu par AccessTools.Field chez les deux, pas une cible de patch).
+    // UltraSmooth 2.9.x a réécrit son module Content Patcher : le préfixe
+    // `UpdateContext` et le patch `InvalidateCache` disparaissent au profit
+    // d'un nouveau préfixe sur `Condition.UpdateContext` et les internes
+    // d'énumérateurs — méthodes internes de Content Patcher, hors jeu, hors
+    // catalogue (aucun autre mod du catalogue ne les touche).
+    private static let ultraSmooth = Member(uniqueId: "palmhacker13.UltraSmooth", measuredVersion: "2.9.2",
                                             assemblyName: "UltraSmooth")
     private static let stardropium = Member(uniqueId: "Arshia1381.Stardropium", measuredVersion: "0.3.0",
                                             assemblyName: "Stardropium")
-    private static let radiance = Member(uniqueId: "phuicmt.SDVRadiance", measuredVersion: "2.4.7",
+    private static let radiance = Member(uniqueId: "phuicmt.SDVRadiance", measuredVersion: "2.4.9",
                                          assemblyName: "SDV-Radiance")
     private static let stardewOptimizer = Member(uniqueId: "baiyu.StardewOptimizer", measuredVersion: "3.0.3",
                                                  assemblyName: "StardewOptimizer")

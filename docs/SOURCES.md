@@ -534,9 +534,17 @@ par les seuls journaux.
 | `mod/global-settings` | journal jamais lu | aucun journal publié pour la 1.0.0 |
 | `mod/translation-hub` | journal jamais lu | aucun journal publié pour la 0.6.1 |
 
-**À suivre de près** : la garde `.bin.sync` de PureBinarySave 2.0.6 (X138) et
+**À suivre de près** : ~~la garde `.bin.sync` de PureBinarySave 2.0.6 (X138) et
 l'extension d'`us_trace` (D2-T2) — les deux se tranchent par décompilation des
-DLL déjà posées sur le parc, pas par le journal seul.
+DLL déjà posées sur le parc, pas par le journal seul.~~ **Tranché le jour
+même**, décompilation faite : la garde est réelle et stricte (voir
+[`audit-ultrasmooth-2.9.2.md`](audit-ultrasmooth-2.9.2.md)) — le scénario
+X138 est traité en amont, l'alerte de l'app reste posée comme filet jusqu'à
+validation en jeu ; `us_trace` gagne un quatrième type de pic
+(`10-Minute In-Game Clock Tick`) et le `Details` du pic de rendu porte le
+découpage Update/Draw/Present/GC — à accepter par le parseur D2 quand le
+chantier D2 rouvrira. Catalogue A5-T7 remesuré : aucune paire ne change,
+versions passées à 2.9.2 / 2.4.9 dans `PerformanceOverlap.swift`.
 
 ### Ce que Stardrop a livré depuis notre audit
 

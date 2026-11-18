@@ -85,16 +85,15 @@ struct PerformanceOverlapTests {
         }
     }
 
-    /// Remesure du 2026-11-05 sur les versions du parc : UltraSmooth 2.7.6 ;
-    /// Radiance 2.4.5 depuis le 2026-11-02, Stardropium 0.3.0 et
-    /// StardewOptimizer 3.0.3 depuis le 2026-10-19.
+    /// Remesure du 2026-11-18 sur les versions du parc : UltraSmooth 2.9.2 et
+    /// Radiance 2.4.9 ; Stardropium 0.3.0, StardewOptimizer 3.0.3.
     @Test func lesVersionsMesureesSontCellesDuParc() {
         func measured(_ id: String) -> String? {
             PerformanceOverlap.catalog.flatMap { [$0.first, $0.second] }
                 .first { $0.uniqueId == id }?.measuredVersion
         }
-        #expect(measured("palmhacker13.UltraSmooth") == "2.8.4")
-        #expect(measured("phuicmt.SDVRadiance") == "2.4.7")
+        #expect(measured("palmhacker13.UltraSmooth") == "2.9.2")
+        #expect(measured("phuicmt.SDVRadiance") == "2.4.9")
         #expect(measured("Arshia1381.Stardropium") == "0.3.0")
         #expect(measured("baiyu.StardewOptimizer") == "3.0.3")
     }

@@ -558,16 +558,23 @@ SOURCES = [
 
     {"key": "mod/pure-binary-save", "kind": "smapi-mod", "probe": probe_smapi_mod,
      "nexusId": 54266, "uniqueId": "palmhacker13.PureBinarySave",
-     "role": "moteur de sauvegarde binaire de l'auteur d'UltraSmooth (1.0.10 "
-             "sur le parc, actif ; 1.0.8 corrige le .bin non réécrit sans "
-             "SpaceCore ou sur macOS, l'alerte X138 s'arrête là) : la partie s'écrit "
-             "d'abord dans un .bin, le XML vanilla n'est recopié que ~6 s après "
-             "le réveil, et plus du tout en mode disque pur ; le chargement "
-             "lit le .bin dès qu'il existe, sans comparer de date — ce que "
-             "l'app écrit dans le XML est ignoré puis écrasé (X138). Décompilé "
-             "le 2026-11-02 ; hors du catalogue A5-T7 (une méthode commune au "
-             "plus avec chaque mod de perf)",
-     "used_by": "docs/audit-ultrasmooth-2.7.2.md, docs/SOURCES.md §5"},
+     "role": "moteur de sauvegarde binaire de l'auteur d'UltraSmooth (2.0.6 "
+             "sur le parc, actif ; la série 2.0.x a réécrit la fiabilité) : "
+             "la partie s'écrit d'abord dans un .bin, le XML vanilla n'est "
+             "recopié que ~6 s après le réveil, et plus du tout en mode "
+             "disque pur. Depuis la 2.0.4, un suivi <partie>.bin.sync (date "
+             "UTC + longueur du XML) fait gagner le XML à la lecture dès "
+             "qu'il a été modifié ou restauré hors du mod : le .bin périmé "
+             "est jeté et re-migré (AutoHeal), pas l'inverse — le scénario "
+             "X138 est traité en amont, garde vérifiée en DLL le "
+             "2026-11-18, alerte de l'app maintenue comme filet jusqu'à "
+             "validation en jeu. 2.0.2 protège spacecore-serialization.json ; "
+             "2.0.3 charge les caches en priorité Low (plus de conflit avec "
+             "les packs CP) ; 2.0.5 surveille Centre communautaire et Musée. "
+             "Décompilé le 2026-11-02 (1.0.10) puis le 2026-11-18 (2.0.6) ; "
+             "hors du catalogue A5-T7 (l'unique commune avec UltraSmooth "
+             "2.8.4, InvalidateCache, a disparu : 2.9.x ne la patche plus)",
+     "used_by": "docs/audit-ultrasmooth-2.7.2.md, docs/audit-ultrasmooth-2.9.2.md, docs/SOURCES.md §5"},
 
     {"key": "mod/faster-menu-load", "kind": "smapi-mod", "probe": probe_smapi_mod,
      "nexusId": 41564, "uniqueId": "ZeroXPatch.FasterMenuLoad",
