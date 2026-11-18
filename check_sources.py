@@ -685,6 +685,44 @@ SOURCES = [
              "2026-11-02 : rejoue les touches des autres mods",
      "used_by": "docs/SOURCES.md §5"},
 
+    {"key": "mod/global-settings", "kind": "smapi-mod", "probe": probe_smapi_mod,
+     "nexusId": 55454, "uniqueId": "yousv.GlobalSettings",
+     "role": "menu Options refait en jeu (Yousv, 1.0.0, paru le 2026-11-14) : "
+             "recherche dans tous les onglets, réglages globaux partagés entre "
+             "parties avec exclusions par save, rebinding des contrôles vanilla "
+             "avec alertes de conflit en direct — même terrain que GCSR "
+             "(Nexus 33653), actif sur le parc, contre lequel il est gardé en "
+             "pause ; sans GMCM : ses options passent ni par l'API, ni par la "
+             "convention config.* — hors des relevés de la sonde (D4-T7) et de "
+             "l'éditeur",
+     "used_by": "docs/SOURCES.md §5, §6 ter"},
+
+    {"key": "mod/profile-manager", "kind": "smapi-mod", "probe": probe_smapi_mod,
+     "nexusId": 55509, "uniqueId": "ModProfileManager",
+     "role": "profils de mods gérés en jeu (Cielestia, « Mod Profiles » sur "
+             "Nexus, 1.0.0, paru le 2026-11-14 ; lien Nexus déduit — UpdateKeys "
+             "vide) : profils créés depuis Mods/, import de dossiers, bascule "
+             "au redémarrage avec sauvegarde du dossier Mods actif avant "
+             "switch — la manipulation de dossiers entiers que notre préfixe "
+             "point évite. UniqueID SANS namespace (« ModProfileManager »), "
+             "hors convention auteur.mod ; smapi.io ne le couvre pas encore "
+             "(état relevé, pas alerte). En pause sur le parc",
+     "used_by": "docs/SOURCES.md §5"},
+
+    {"key": "mod/translation-hub", "kind": "smapi-mod", "probe": probe_smapi_mod,
+     "nexusId": 55410, "uniqueId": "Hazel.TranslationHub",
+     "role": "hub de traductions i18n en jeu (Hazel — 4Moonnnn sur Nexus, "
+             "0.6.1, paru le 2026-11-12), concurrent direct de l'axe C : "
+             "dossier de traduction déposé dans Mods/TranslationHub/Inbox, "
+             "rattaché au bon mod automatiquement (UniqueID du manifeste → "
+             "nom de dossier nettoyé → comparaison des clés avec chaque mod "
+             "installé) puis fusionné en mémoire, sans toucher aux fichiers "
+             "du mod — survit aux mises à jour ; jetons incohérents ignorés, "
+             "deux traductions actives d'un même mod mises en pause ensemble, "
+             "12 langues d'interface, pack compagnon "
+             "Hazel.TranslationHub.Data. En pause sur le parc (les deux dossiers)",
+     "used_by": "docs/SOURCES.md §5"},
+
     {"key": "mod/savesaver", "kind": "smapi-mod", "probe": probe_smapi_mod,
      "nexusId": 52709, "uniqueId": "Sky.SaveSaver",
      "role": "sanitation de sauvegardes au chargement (types orphelins, "

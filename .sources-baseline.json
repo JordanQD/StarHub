@@ -124,6 +124,11 @@
     "name": "Faster Menu Load",
     "version": "1.5.0"
   },
+  "mod/global-settings": {
+    "gitHubRepo": null,
+    "name": null,
+    "version": "1.0.0"
+  },
   "mod/gmcm": {
     "changelog_reviewed": "1.16.0",
     "gitHubRepo": "spacechase0/StardewValleyMods",
@@ -171,6 +176,11 @@
     "gitHubRepo": null,
     "name": null,
     "version": "2.4.1"
+  },
+  "mod/profile-manager": {
+    "gitHubRepo": null,
+    "name": null,
+    "version": null
   },
   "mod/profiler": {
     "changelog_reviewed": "2.0.0",
@@ -229,6 +239,11 @@
     "gitHubRepo": null,
     "name": null,
     "version": null
+  },
+  "mod/translation-hub": {
+    "gitHubRepo": null,
+    "name": null,
+    "version": "0.6.1"
   },
   "mod/ui-framework": {
     "changelog_reviewed": "1.8.3",
