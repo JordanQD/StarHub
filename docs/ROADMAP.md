@@ -223,6 +223,38 @@ total, la plus récente créée le 2025-01-03, aucune en 2026 (70 issues depuis 
 des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas livré.**
 À rouvrir seulement si le dépôt reprend vie.
 
+#### C7 — Ce que Translation Hub montre *(idées à peser, ajoutées le 2026-11-18)*
+
+> Issu de la décompilation de **Translation Hub** (Nexus 55410, voir
+> [SOURCES.md](SOURCES.md) §5 et sa note datée du 2026-11-18) : un hub i18n en
+> jeu concurrent de l'axe C, qui fusionne en mémoire par un postfixe sur
+> l'interne SMAPI. Rien d'engagé — la phase 2 reste refermée ; ces items ne
+> s'ouvrent que si l'axe C rouvre.
+
+- [ ] **C7-T1 — Preuve du lien hors Nexus par empreinte de clés** *(idée à
+      peser)*. Leur chaîne d'évidence à cinq niveaux (manifeste, confirmation,
+      identifiant exact, nom + clés, **empreinte des clés**) rattache une
+      traduction à son mod hôte même sans page Nexus : comparer l'ensemble des
+      clés d'un `i18n/default.json` candidat aux mods installés. Notre
+      recherche d'identité interroge Nexus ; la voie hors-ligne couvrirait les
+      traductions sans identifiant. **Mesure avant engagement** : sur les
+      traductions du parc sans id Nexus, combien d'hôtes uniques l'empreinte
+      retrouve-t-elle ?
+- [ ] **C7-T2 — Détection de doublon avant écrasement** *(idée à peser)*.
+      Deux traductions actives d'un même mod + locale = **les deux suspendues**
+      chez eux ; chez nous, une seconde traduction FR posée remplace la
+      première en silence (fichier compagnon réécrit). Idée : avertir à
+      l'installation quand une traduction FR existe déjà pour ce mod, avec
+      choix remplacer / garder. Recoupe X137 (recherche du lot ZIP).
+- [ ] **C7-T3 — Compteurs par locale avant écriture** *(idée à peser)*. Leur
+      fusion compte par locale les clés posées, **rejetées** (ensemble de
+      jetons `{{…}}` divergent de l'original) et **manquantes** (clés de
+      l'original absentes de la traduction). Notre éditeur juge les jetons à
+      la saisie (`TranslationTokenCheck`) et la couverture de profil
+      (`ProfileTranslationStore`) dit l'écart ; ce qui manque, c'est l'aperçu
+      « ce que cette traduction ne couvrira pas » **avant** d'écrire. À peser
+      avec C3-T2 (décision au cas).
+
 **Risques** : c'est la version la plus exposée à la perte de données utilisateur (écriture
 dans les fichiers des mods). Aucune écriture sans backup préalable ni diff affiché.
 **Critère de succès** : traduire un mod moyen de bout en bout sans quitter StarHubFR, et
