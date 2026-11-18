@@ -235,14 +235,26 @@ des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas liv
 > s'ouvrent que si l'axe C rouvre.
 
 - [ ] **C7-T1 — Preuve du lien hors Nexus par empreinte de clés** *(idée à
-      peser)*. Leur chaîne d'évidence à cinq niveaux (manifeste, confirmation,
-      identifiant exact, nom + clés, **empreinte des clés**) rattache une
-      traduction à son mod hôte même sans page Nexus : comparer l'ensemble des
-      clés d'un `i18n/default.json` candidat aux mods installés. Notre
-      recherche d'identité interroge Nexus ; la voie hors-ligne couvrirait les
-      traductions sans identifiant. **Mesure avant engagement** : sur les
-      traductions du parc sans id Nexus, combien d'hôtes uniques l'empreinte
-      retrouve-t-elle ?
+      peser — **mesurée le 2026-11-18, verdict favorable**)*. Leur chaîne
+      d'évidence à cinq niveaux (manifeste, confirmation, identifiant exact,
+      nom + clés, **empreinte des clés**) rattache une traduction à son mod
+      hôte même sans page Nexus : comparer l'ensemble des clés d'un
+      `i18n/default.json` candidat aux mods installés. Notre recherche
+      d'identité interroge Nexus ; la voie hors-ligne couvrirait les
+      traductions sans identifiant. **Mesure faite sur le parc** (script
+      jetable, parseur i18n lenient — les 313 traductions JSONC du parc
+      exigent la lecture tolérante, strict JSON en perd 300+) : 598
+      traductions posées (565 `fr`, 33 `th`), **586 mesurables** ; l'hôte
+      vrai sort **en tête pour 97,6 %** d'entre elles et **sans ex-æquo pour
+      95,6 %**. Les 14 ratés se réduisent à deux familles : dix packs sociaux
+      d'une même série dont les clés `fr` ne recouvrent pas leur propre i18n
+      d'origine (aucun critère de clés ne peut les joindre — Translation Hub
+      les rejetterait pareil) et un pack de buissons dont les clés sont
+      identiques à celles de ses voisins Cornucopia (l'ex-æquo se tranche par
+      le nom de dossier — leur niveau « nom + clés »). L'empreinte seule
+      suffit dans ~95 cas sur 100, le nom du dossier tranche le reste ;
+      reste à décider l'engagement (où vit le matching dans
+      `TranslationHubStore` : repli hors Nexus de la recherche d'identité).
 - [ ] **C7-T2 — Détection de doublon avant écrasement** *(idée à peser)*.
       Deux traductions actives d'un même mod + locale = **les deux suspendues**
       chez eux ; chez nous, une seconde traduction FR posée remplace la
