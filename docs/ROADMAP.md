@@ -266,12 +266,23 @@ des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas liv
       discret au panorama, refus mémorisés par `folderName|mtime`.
       Spec et plan : `docs/superpowers/{specs,plans}/…-translation-link-
       proposals*` (gitignorés). C7-T2/C7-T3 restent à peser.
-- [ ] **C7-T2 — Détection de doublon avant écrasement** *(idée à peser)*.
+- [x] **C7-T2 — Détection de doublon avant écrasement** *(idée à peser —
+      **livrée le 2026-11-19** ; validation écran à faire)*.
       Deux traductions actives d'un même mod + locale = **les deux suspendues**
       chez eux ; chez nous, une seconde traduction FR posée remplace la
       première en silence (fichier compagnon réécrit). Idée : avertir à
       l'installation quand une traduction FR existe déjà pour ce mod, avec
       choix remplacer / garder. Recoupe X137 (recherche du lot ZIP).
+      **Livrée** : la garde pure (`Models/TranslationDuplicateGuard.swift`)
+      nomme l'existant **avant** l'écriture — traduction posée par l'app
+      (identité exacte : même id Nexus ou même nom = mise à jour muette ;
+      fantôme B4-T4 muet), lien C7-T1 déclaré (avec pause annoncée du pack :
+      « Remplacer » = oubli de déclaration **+ pause réversible du pack**,
+      jamais une suppression, refus C7-T1 mémorisé pour ne pas re-proposer
+      le pack à l'hôte qu'il vient de perdre), packs du parc en simple
+      ligne d'information. Dialogue Remplacer/Garder hébergé au niveau
+      racine **et** dans la feuille d'installation (elle couvre la racine) ;
+      une seule confirmation à la fois ; « Garder » n'écrit rien.
 - [ ] **C7-T3 — Compteurs par locale avant écriture** *(idée à peser)*. Leur
       fusion compte par locale les clés posées, **rejetées** (ensemble de
       jetons `{{…}}` divergent de l'original) et **manquantes** (clés de

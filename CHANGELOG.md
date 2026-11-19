@@ -14,6 +14,16 @@ where the exact log format was verified.
 
 ### Added
 
+- **Duplicate guard before overwriting a translation (C7-T2)**: installing a
+  French translation for a mod that already carries one now asks
+  Replace/Keep first, naming what exists — the app-installed translation,
+  a declared external translation pack (Replacing also pauses that pack,
+  reversible), and parc packs also targeting the same mod (informational).
+  Same-identity installs (updates) stay silent, as do ghosts whose files a
+  mod update already wiped. Keep writes nothing.
+
+### Added
+
 - **Link proposals for translations installed as mods (C7-T1)**: when a pack
   that looks like a French translation (name marker, French values, strong
   key-set overlap with another installed mod) arrives or sits on the parc
