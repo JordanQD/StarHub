@@ -64,6 +64,7 @@ let package = Package(
                 "Models/InstalledTranslation.swift",
                 "Models/InstalledTranslationStore.swift",
                 "Models/TranslationLinkConfirmation.swift",
+                "Models/TranslationLinkProposal.swift",
                 "Models/ManifestlessArchive.swift",
                 "Models/ManifestlessArchive+Locale.swift",
                 "Models/ArchivePaths.swift",
@@ -1029,6 +1030,11 @@ let package = Package(
             name: "TranslationHubStoreTests",
             dependencies: ["StarHubTHCore"],
             path: "Tests/TranslationHubStoreTests"
+        ),
+        .testTarget(
+            name: "TranslationLinkProposalTests",
+            dependencies: ["StarHubTHCore"],
+            path: "Tests/TranslationLinkProposalTests"
         ),
         .testTarget(
             name: "ProfileStoreTests",
