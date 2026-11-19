@@ -471,6 +471,7 @@ enum L10n {
         static let translationLinkNoTracking  = "mods_translation_link_no_tracking"
         static let translationLinkHostTracked = "mods_translation_link_host_tracked"
         static let translationLinkCounter     = "mods_translation_link_counter"
+        static let translationLinkCoverage    = "mods_translation_link_coverage"
 
         // MARK: Compatibilité smapi.io (A2-T2)
         static let compatStatusBroken       = "mods_compat_status_broken"

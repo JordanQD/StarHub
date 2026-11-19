@@ -1219,6 +1219,7 @@
   "mods_translation_link_no_tracking": "Aucune page Nexus sur ce pack : le lien ne suivra pas les mises à jour.",
   "mods_translation_link_host_tracked": "Cet hôte suit déjà une traduction posée par l'app.",
   "mods_translation_link_counter": "%lld traductions non rattachées",
+  "mods_translation_link_coverage": "%lld %% des clés",
   "mods_translation_undeclared": "Traduction présente, origine inconnue",
   "mods_translation_undeclared_hint": "Un i18n/fr.json est sur le disque mais l'app ne l'a pas installé. Déclarez-le pour qu'on suive ses mises à jour — l'app n'écrit rien tant que vous ne le faites pas.",
   "mods_translation_unloadable_expected": "« %@ » ne sera jamais lu par le jeu — il ne charge que des codes de langue nus. Il devrait s'appeler « %@ », sauf si un mod ajoute une langue portant exactement ce code via Data/AdditionalLanguages de SMAPI.",
