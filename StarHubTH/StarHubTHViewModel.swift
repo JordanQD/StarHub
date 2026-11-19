@@ -1874,6 +1874,9 @@ final class StarHubTHViewModel {
             DispatchQueue.main.async { [weak self] in
                 self?.launchStep = self?.localization.L(L10n.Main.launchStepDone) ?? ""
                 self?.launchProgress = 1.0
+                // C7-T1 — les propositions de lien se calculent au lancement
+                // aussi : la passe de lancement ne passe pas par `refresh`.
+                self?.refreshTranslationLinkProposals()
             }
             // 0,45 s : laisse voir le remplissage final (~0,25 s) de la barre.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
