@@ -91,4 +91,85 @@ import Foundation
                                             files: ["i18n/th.json"]))
         #expect(c?.existing == [.appManaged(name: "Wallet FR 1.0")])
     }
+
+    // MARK: - Volet b (lien C7-T1) + advisory c
+
+    private func registryDeclaring(pack folder: String, name: String,
+                                   onHost host: String) -> InstalledTranslationRegistry {
+        var registry = InstalledTranslationRegistry()
+        registry.declare(
+            DeclaredTranslation(nexusModId: nil, nexusName: name, version: "1.0",
+                                updatedAt: nil, declaredAt: Date(),
+                                packFolderName: folder),
+            forHost: host)
+        return registry
+    }
+
+    private func proposal(pack: String, host: String) -> TranslationLinkProposal {
+        TranslationLinkProposal(packFolderName: pack, packName: pack,
+                                packVersion: "1.0", nexusId: nil,
+                                hostFolderName: host, coverage: 1.0,
+                                evidence: .keys, alternates: [])
+    }
+
+    @Test func aDeclaredLinkConflictsAndNamesThePack() {
+        let registry = registryDeclaring(pack: "SomeModFR", name: "Some Mod FR",
+                                         onHost: "Wallet")
+        let c = TranslationDuplicateGuard.conflict(
+            hostFolderName: "Wallet", incoming: incoming(id: 99, name: "Autre trad FR"),
+            registry: registry, proposedLinks: [:],
+            hostPath: makeHost(filesWritten: 0).hostPath, declaredPackEnabled: true)
+        #expect(c?.existing == [.declaredPack(folderName: "SomeModFR",
+                                              name: "Some Mod FR", isEnabled: true)])
+    }
+
+    @Test func anAppIncumbentAndADeclaredLinkCombineInOrder() {
+        let (hostPath, incumbent) = makeHost(filesWritten: 2)
+        var registry = registryDeclaring(pack: "SomeModFR", name: "Some Mod FR",
+                                         onHost: "Wallet")
+        registry.record(incumbent)
+        let c = TranslationDuplicateGuard.conflict(
+            hostFolderName: "Wallet", incoming: incoming(id: 99, name: "Autre trad FR"),
+            registry: registry, proposedLinks: [:], hostPath: hostPath,
+            declaredPackEnabled: false)
+        #expect(c?.existing == [.appManaged(name: "Wallet FR 1.0"),
+                                .declaredPack(folderName: "SomeModFR",
+                                              name: "Some Mod FR", isEnabled: false)])
+    }
+
+    @Test func parcCandidatesAreCountedAsAdvisoryOnly() {
+        let (hostPath, incumbent) = makeHost(filesWritten: 2)
+        let links = ["Pack1": proposal(pack: "Pack1", host: "Wallet"),
+                     "Pack2": proposal(pack: "Pack2", host: "Wallet"),
+                     "Pack3": proposal(pack: "Pack3", host: "AutreMod")]
+        var registry = InstalledTranslationRegistry()
+        registry.record(incumbent)
+        let c = TranslationDuplicateGuard.conflict(
+            hostFolderName: "Wallet", incoming: incoming(id: 99, name: "Autre trad FR"),
+            registry: registry, proposedLinks: links, hostPath: hostPath)
+        #expect(c?.parcCandidateCount == 2)
+        #expect(c?.existing == [.appManaged(name: "Wallet FR 1.0")])
+    }
+
+    @Test func dismissedProposalsAreNotAdvisory() {
+        // Limite documentée : l'appelant passe le vivant seulement — un pack
+        // écarté (Ignorer) n'entre plus dans proposedLinks.
+        let (hostPath, incumbent) = makeHost(filesWritten: 2)
+        let links = ["Pack1": proposal(pack: "Pack1", host: "AutreMod")]
+        var registry = InstalledTranslationRegistry()
+        registry.record(incumbent)
+        let c = TranslationDuplicateGuard.conflict(
+            hostFolderName: "Wallet", incoming: incoming(id: 99, name: "Autre trad FR"),
+            registry: registry, proposedLinks: links, hostPath: hostPath)
+        #expect(c?.parcCandidateCount == 0)
+    }
+
+    @Test func declaredOnlySilenceWhenNothingExists() {
+        // Ni incumbent, ni déclaration, ni candidat : la garde ne se déclenche pas.
+        let c = TranslationDuplicateGuard.conflict(
+            hostFolderName: "Wallet", incoming: incoming(id: 99, name: "Autre trad FR"),
+            registry: InstalledTranslationRegistry(), proposedLinks: [:],
+            hostPath: makeHost(filesWritten: 0).hostPath)
+        #expect(c == nil)
+    }
 }
