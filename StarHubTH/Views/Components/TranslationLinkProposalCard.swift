@@ -11,7 +11,6 @@ struct TranslationLinkProposalCard: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let proposal: TranslationLinkProposal
-    let mod: ModItem
 
     /// L'hôte choisi dans le menu quand un ex-æquo subsiste — vide tant que
     /// l'utilisateur n'a pas touché, l'hôte du calcul fait foi.

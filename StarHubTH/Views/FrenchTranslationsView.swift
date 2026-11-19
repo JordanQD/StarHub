@@ -30,6 +30,8 @@ struct FrenchTranslationsView: View {
     /// R3 — fixé une fois à l'apparition (« À finir », sauf liste vide et
     /// mesure finie) : la page ne bascule pas sous les yeux.
     @State private var segment: Segment?
+    /// C7-T1 — la revue des propositions de lien, ouverte depuis le compteur.
+    @State private var showLinkProposals = false
 
     private enum Segment: Hashable { case worklist, nexus }
 
@@ -54,6 +56,13 @@ struct FrenchTranslationsView: View {
         VStack(alignment: .leading, spacing: 0) {
             header(all, shown: shown, workCount: work.count)
                 .padding(AppDesign.Spacing.lg)
+            // C7-T1 — compteur discret : masqué si zéro, la liste s'ouvre en
+            // feuille et se vide sous les yeux (confirmation et écart).
+            if !linkProposals.isEmpty {
+                linkCounter
+                    .padding(.horizontal, AppDesign.Spacing.lg)
+                    .padding(.bottom, AppDesign.Spacing.sm)
+            }
             Divider()
             if shown == .worklist {
                 BackToTopScrollView(localization) {
@@ -88,6 +97,12 @@ struct FrenchTranslationsView: View {
             }
         }
         .onAppear { if segment == nil { segment = shown } }
+        .sheet(isPresented: $showLinkProposals) {
+            TranslationLinkProposalsView(viewModel: viewModel,
+                                         localization: localization,
+                                         proposals: linkProposals,
+                                         onClose: { showLinkProposals = false })
+        }
         .sheet(isPresented: $showArbitration) {
             TranslationArbitrationSheet(store: mergeStore, viewModel: viewModel,
                                         localization: localization,
@@ -100,6 +115,30 @@ struct FrenchTranslationsView: View {
                                             mergeStore.reset()
                                         })
         }
+    }
+
+    // MARK: - C7-T1 — le compteur des propositions de lien
+
+    /// Le relevé courant, trié par nom de pack — le store est le vivant :
+    /// confirmations et écarts réduisent la liste sous les yeux.
+    private var linkProposals: [TranslationLinkProposal] {
+        viewModel.translationHub.proposedLinks.values
+            .sorted { $0.packFolderName < $1.packFolderName }
+    }
+
+    @ViewBuilder
+    private var linkCounter: some View {
+        Button {
+            showLinkProposals = true
+        } label: {
+            Label(String(format: localization.L(L10n.Mods.translationLinkCounter),
+                         linkProposals.count),
+                  systemImage: "link")
+        }
+        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
+        .controlSize(.small)
+        .pointingHandCursor()
+        .help(localization.L(L10n.Mods.translationLinkCardTitle))
     }
 
     // MARK: - En-tête

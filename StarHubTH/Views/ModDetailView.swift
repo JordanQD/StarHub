@@ -703,7 +703,7 @@ struct ModDetailView: View {
             // C7-T1 — une proposition de lien pour ce pack-traduction.
             if let proposal = vm.translationHub.proposedLinks[mod.folderName] {
                 TranslationLinkProposalCard(vm: vm, localization: localization,
-                                            proposal: proposal, mod: mod)
+                                            proposal: proposal)
             }
         }
     }
