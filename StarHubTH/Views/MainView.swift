@@ -373,6 +373,9 @@ struct MainView: View {
                 dismissButton: .default(Text(localization.L(L10n.Main.ok)))
             )
         }
+        // C7-T2 — Remplacer/Garder avant écrasement d'une traduction :
+        // pending sur le VM, présenté au niveau racine (comme R2).
+        .modifier(TranslationReplaceDialog(vm: vm, localization: localization))
         // A1-T8 — au niveau racine : l'état suspendu dans le VM doit survivre au changement d'onglet.
         .saveFingerprintPauseGate(vm: vm)
         .bulkConflictGate(vm: vm) // A5-T8, même raison

@@ -173,6 +173,9 @@ struct ModInstallView: View {
                 }
             }
         }
+        // C7-T2 — même pending que le dialogue racine : présenté ici car la
+        // feuille couvre MainView, et le chemin déposé vit dedans.
+        .modifier(TranslationReplaceDialog(vm: vm, localization: localization))
         .alert(localization.L(L10n.Mods.compatInstallTitle),
                isPresented: Binding(get: { pendingBrokenInstall != nil },
                                     set: { if !$0 { pendingBrokenInstall = nil } })) {
@@ -619,9 +622,13 @@ struct ModInstallView: View {
         // Id de page retenu pour l'archive téléchargée seulement (sinon un lot
         // `nxm://` entrait sans suivi).
         let downloadedModId = analyzedURL == preloadedZip ? vm.pendingNexusSource?.modId : nil
-        let result = vm.depositIntoMod(plan: plan, extractedRoot: tempDir, host: host,
-                                       sourceName: analyzedArchiveName, nexus: nil,
-                                       downloadedModId: downloadedModId)
+        // C7-T2 — la garde avant l'écriture : `nil` = demande différée au
+        // dialogue global (l'extrait `tempDir` reste en vie pour « Remplacer »
+        // et la vue le nettoie à sa fermeture habituelle).
+        guard let result = vm.requestTranslationDeposit(plan: plan, extractedRoot: tempDir,
+                                                        sourceName: analyzedArchiveName,
+                                                        downloadedModId: downloadedModId,
+                                                        host: host) else { return }
         guard let outcome = result.outcome else {
             showFailure(result.message ?? localization.L(L10n.ModInstall.depositFailed))
             showError = true
