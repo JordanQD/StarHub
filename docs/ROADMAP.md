@@ -235,8 +235,12 @@ des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas liv
 > s'ouvrent que si l'axe C rouvre.
 
 - [x] **C7-T1 — Preuve du lien hors Nexus par empreinte de clés** *(idée à
-      peser — **mesurée le 2026-11-18, verdict favorable, livrée et
-      validée à l'écran le 2026-11-19** ;)*. Leur chaîne
+      peser — **mesurée le 2026-11-18, verdict favorable, livrée le
+      2026-11-19** ; la « validation écran » du même jour portait sur un
+      **faux positif** — `EasyAccessButtonsFR` est un fork complet (DLL
+      propre), pas un pack : un candidat à `EntryDll` est désormais exclu.
+      Le parc n'a plus de vrai cas ; validation à refaire sur un vrai pack
+      i18n posé comme un mod ;)*. Leur chaîne
       d'évidence à cinq niveaux (manifeste, confirmation, identifiant exact,
       nom + clés, **empreinte des clés**) rattache une traduction à son mod
       hôte même sans page Nexus : comparer l'ensemble des clés d'un

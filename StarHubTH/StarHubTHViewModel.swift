@@ -4267,10 +4267,11 @@ final class StarHubTHViewModel {
                                      dismissed: Set<String>) -> [String: TranslationLinkProposal] {
         var keySets: [String: Set<String>] = [:]
         var fingerprints: [String: String] = [:]
-        var frenchValues: [String: [String]] = [:]
+        var frenchValues: [String: [String]] = [:], manifestPaths: [String: String] = [:]
         for mod in packs {
             let root = ((gameDir as NSString).appendingPathComponent("Mods") as NSString)
                 .appendingPathComponent(mod.physicalFolderName)
+            manifestPaths[mod.folderName] = (root as NSString).appendingPathComponent("manifest.json")
             let i18nDir = (root as NSString).appendingPathComponent("i18n")
             let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
             let frenchPath = (i18nDir as NSString).appendingPathComponent("fr.json")
@@ -4291,17 +4292,15 @@ final class StarHubTHViewModel {
         }
         let built = packs.compactMap { mod -> TranslationLinkPack? in
             guard let keySet = keySets[mod.folderName] else { return nil }
+            let marked = TranslationLinkMatcher.isMarked(name: mod.name + " " + mod.folderName)
             return TranslationLinkPack(
-                folderName: mod.folderName,
-                physicalFolderName: mod.physicalFolderName,
-                name: mod.name,
-                uniqueId: mod.uniqueId,
-                isMarked: TranslationLinkMatcher.isMarked(
-                    name: mod.name + " " + mod.folderName),
+                folderName: mod.folderName, physicalFolderName: mod.physicalFolderName,
+                name: mod.name, uniqueId: mod.uniqueId, isMarked: marked,
                 isFrench: TranslationLinkMatcher.isFrench(
                     values: frenchValues[mod.folderName] ?? []),
                 keySet: keySet,
-                nexusId: TranslationLinkMatcher.nexusId(fromUpdateKeys: mod.updateKeys))
+                nexusId: TranslationLinkMatcher.nexusId(fromUpdateKeys: mod.updateKeys),
+                hasCode: marked && TranslationLinkManifest.hasCode(manifestAt: manifestPaths[mod.folderName] ?? ""))
         }
         var byPack: [String: TranslationLinkProposal] = [:]
         for proposal in TranslationLinkMatcher.propose(packs: built) {

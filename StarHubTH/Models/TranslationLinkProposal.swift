@@ -57,10 +57,14 @@ public struct TranslationLinkPack: Equatable, Sendable {
     public let isFrench: Bool
     public let keySet: Set<String>?
     public let nexusId: Int?
+    /// Le manifeste déclare un `EntryDll` : mod de **code** (fork, réécriture),
+    /// jamais un pack de traduction — reste hôte possible, jamais candidat.
+    public let hasCode: Bool
 
     public init(folderName: String, physicalFolderName: String, name: String,
                 uniqueId: String, isMarked: Bool, isFrench: Bool,
-                keySet: Set<String>?, nexusId: Int?) {
+                keySet: Set<String>?, nexusId: Int?, hasCode: Bool = false) {
+        self.hasCode = hasCode
         self.folderName = folderName
         self.physicalFolderName = physicalFolderName
         self.name = name
@@ -132,7 +136,7 @@ public enum TranslationLinkMatcher {
         let pool = packs.filter { ($0.keySet?.count ?? 0) > 0 }
         var out: [TranslationLinkProposal] = []
         for candidate in packs {
-            guard candidate.isMarked, candidate.isFrench,
+            guard !candidate.hasCode, candidate.isMarked, candidate.isFrench,
                   let ck = candidate.keySet, ck.count >= 5
             else { continue }
             var scored: [(coverage: Double, pack: TranslationLinkPack)] = []

@@ -72,6 +72,21 @@ import Foundation
 
     // MARK: - La proposition
 
+    /// Vérif écran du 2026-11-19 : `EasyAccessButtonsFR` du parc est un
+    /// **fork complet** (`EntryDll` propre), pas un pack de traduction — les
+    /// trois signaux (nom, langue, clés) le désignaient pourtant. Un mod de
+    /// code n'est jamais candidat.
+    @Test func aCodeModIsNeverACandidateEvenWithAllSignals() {
+        let fork = TranslationLinkPack(
+            folderName: easyAccessButtonsFR.folderName,
+            physicalFolderName: easyAccessButtonsFR.physicalFolderName,
+            name: easyAccessButtonsFR.name, uniqueId: easyAccessButtonsFR.uniqueId,
+            isMarked: true, isFrench: true, keySet: easyAccessButtonsFR.keySet,
+            nexusId: nil, hasCode: true)
+        #expect(TranslationLinkMatcher.propose(packs: [easyAccessButtons, fork]).isEmpty)
+    }
+
+    /// Le même couple **sans DLL** côté candidat (vrai pack i18n) propose.
     @Test func theParcPairProposesItsHostWithoutAmbiguity() {
         let packs = [easyAccessButtons, easyAccessButtonsFR]
         let proposals = TranslationLinkMatcher.propose(packs: packs)
