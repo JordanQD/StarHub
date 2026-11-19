@@ -4269,7 +4269,7 @@ final class StarHubTHViewModel {
         var fingerprints: [String: String] = [:]
         var frenchValues: [String: [String]] = [:]
         for mod in packs {
-            let root = (gameDir as NSString)
+            let root = ((gameDir as NSString).appendingPathComponent("Mods") as NSString)
                 .appendingPathComponent(mod.physicalFolderName)
             let i18nDir = (root as NSString).appendingPathComponent("i18n")
             let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
@@ -4345,7 +4345,7 @@ final class StarHubTHViewModel {
                 level: .warning)
             return
         }
-        let manifestPath = ((gameDir as NSString)
+        let manifestPath = (((gameDir as NSString).appendingPathComponent("Mods") as NSString)
             .appendingPathComponent(pack.physicalFolderName) as NSString)
             .appendingPathComponent("manifest.json")
         var name = pack.name
@@ -4408,7 +4408,7 @@ final class StarHubTHViewModel {
                                 gameDir: String, packs: [ModItem]) -> String {
         guard let pack = packs.first(where: { $0.folderName == packFolderName })
         else { return "" }
-        let i18nDir = ((gameDir as NSString)
+        let i18nDir = (((gameDir as NSString).appendingPathComponent("Mods") as NSString)
             .appendingPathComponent(pack.physicalFolderName) as NSString)
             .appendingPathComponent("i18n")
         let reference = ["default.json", "fr.json"]
