@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// L'aide des raccourcis clavier : une feuille, ouverte par l'icône clavier
-/// du pied de la barre latérale ou par ⌘/ (menu Aide).
+/// L'aide des raccourcis clavier, ouverte depuis les Réglages ou par ⌘/ (menu Aide).
 ///
 /// Tout vient de `KeyboardShortcutCatalog` (Core) : la vue ne décide d'aucun
 /// raccourci, elle les dessine — touches en pastilles, action à côté.

@@ -73,7 +73,7 @@ struct HomeAgendaSections: View {
     private var recentSection: some View {
         let recent = HomeAgenda.recentlyInstalled(viewModel.scanStore.mods)
         let relative = RelativeDateTimeFormatter()
-        relative.locale = Locale(identifier: localization.currentLanguage)
+        relative.locale = Locale.autoupdatingCurrent
         return section(localization.L(L10n.Home.recentTitle)) {
             if recent.isEmpty {
                 calmLine(localization.L(L10n.Home.recentEmpty), icon: "clock")

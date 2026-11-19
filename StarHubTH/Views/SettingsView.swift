@@ -4,6 +4,8 @@ struct SettingsView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
 
+    @AppStorage(UDKey.settingsGroup) private var group = SettingsGroup.game
+
     @AppStorage("launchProfile") private var launchProfile: String = "SMAPI"
     @AppStorage("closeAfterLaunch") private var closeAfterLaunch: Bool = false
     @AppStorage("showDeveloperLogs") private var showDeveloperLogs: Bool = false
@@ -18,114 +20,59 @@ struct SettingsView: View {
     // Nexus Mods API key entry (only used when no key is stored yet).
     @State private var nexusApiKeyInput: String = ""
     @State private var nexusKeySavedFlash: Bool = false
-    /// Les dossiers relevés au clic, que la confirmation chiffre et que la
-    /// suppression reprend tels quels — annoncer un compte puis en supprimer
-    /// un autre serait pire que de ne rien annoncer.
-
-    init(vm: StarHubTHViewModel, localization: LocalizationStore) {
-        self.localization = localization
-        self.vm = vm
-    }
+    @State private var alerts = AlertStore()
 
     var body: some View {
-        // Un onglet par groupe (2026-09-25) : la page empilait 12 sections sur
-        // ~3 écrans. L'ordre et le groupement restent des données
-        // (`SettingsSectionOrder`, Core, sous test) ; le `switch` de
-        // `sectionView` reste exhaustif — jamais de `default:`.
-        let group = vm.navigationStore.settingsGroup
-        return VStack(spacing: 0) {
-            PageHeader(icon: "gearshape.fill", title: localization.L(L10n.Settings.settings),
-                       subtitle: String(format: localization.L(L10n.Settings.appVersion), currentAppVersion),
-                       tint: .gray) {
-                Picker(localization.L(L10n.Settings.settings),
-                       selection: Bindable(vm.navigationStore).settingsGroup) {
-                    ForEach(SettingsSectionOrder.groups, id: \.self) { g in
-                        Text(localization.L(titleKey(for: g))).tag(g)
+        TabView(selection: $group) {
+            settingsPane(.game)
+                .tabItem { Label(tabTitle(.game), systemImage: "gamecontroller") }
+                .tag(SettingsGroup.game)
+            settingsPane(.content)
+                .tabItem { Label(tabTitle(.content), systemImage: "puzzlepiece.extension") }
+                .tag(SettingsGroup.content)
+            settingsPane(.about)
+                .tabItem { Label(tabTitle(.about), systemImage: "info.circle") }
+                .tag(SettingsGroup.about)
+        }
+        .navigationTitle(tabTitle(group))
+        .frame(width: 640, height: 520)
+        .alert(localization.L(L10n.Main.alert), isPresented: Bindable(alerts).shown) {
+            Button(localization.L(L10n.Main.ok), role: .cancel) {}
+        } message: { Text(alerts.message) }
+        .onChange(of: vm.navigationStore.pendingSettingsSection, initial: true) { _, section in
+            if let section { group = SettingsSectionOrder.group(of: section) }
+        }
+    }
+
+    private func settingsPane(_ pane: SettingsGroup) -> some View {
+        let pendingSection = group == pane ? vm.navigationStore.pendingSettingsSection : nil
+        return ScrollViewReader { proxy in
+            BackToTopScrollView(localization) {
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.xl) {
+                    ForEach(SettingsSectionOrder.sections(in: pane), id: \.self) { section in
+                        sectionView(section).id(section)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
+                .padding(AppDesign.Spacing.xl)
             }
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.md)
-            Divider()
-            ScrollViewReader { proxy in
-                BackToTopScrollView(localization) {
-                    VStack(alignment: .leading, spacing: AppDesignCore.Spacing.xxl) {
-                        ForEach(SettingsSectionOrder.sections(in: group), id: \.self) { section in
-                            sectionView(section).id(section)
-                        }
-                        if group == .about {
-                            // État de mise à jour — dérivé de la dernière réponse
-                            // réussie (releaseLastKnown), PAS du tag acquitté.
-                            releaseStatusRow
-                        }
-                    }
-                    .padding(40)
-                }
-                .onAppear { showPendingSection(proxy) }
-                .onChange(of: vm.navigationStore.pendingSettingsSection) { _, _ in showPendingSection(proxy) }
+            .task(id: pendingSection) {
+                guard let pendingSection, SettingsSectionOrder.group(of: pendingSection) == pane else { return }
+                await Task.yield()
+                guard !Task.isCancelled, group == pane,
+                      vm.navigationStore.pendingSettingsSection == pendingSection else { return }
+                withMotion { proxy.scrollTo(pendingSection, anchor: .top) }
+                vm.navigationStore.pendingSettingsSection = nil
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     // MARK: - Groupes
 
-    /// L'état de mise à jour + le bouton de vérification manuelle. Le
-    /// check manuel bypass le throttle ; l'échec, lui, ne se dit qu'ICI —
-    /// au lancement, une app hors-ligne ne doit pas brair (spec §7.5).
-    @ViewBuilder private var releaseStatusRow: some View {
-        HStack(spacing: 8) {
-            if vm.releaseCheckInFlight {
-                Text(localization.L(L10n.Settings.appChecking))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-            } else if let known = vm.lastKnownRelease,
-                      NexusUpdateChecker.compare(known.tagName, currentAppVersion) == .orderedDescending {
-                Text(String(format: localization.L(L10n.Settings.appUpdateAvailableState), known.tagName))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.orange)
-            } else {
-                Text(localization.L(L10n.Settings.appUpToDate))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            Button(localization.L(L10n.Settings.appCheckUpdates)) {
-                vm.checkForAppRelease(bypassThrottle: true)
-            }
-            .disabled(vm.releaseCheckInFlight)
-            .font(AppDesign.Font.footnote)
-        }
-        if let failure = vm.releaseCheckFailedMessage {
-            Text(failure)
-                .font(AppDesign.Font.footnote)
-                .foregroundColor(.red)
-        }
-    }
-
-    private var currentAppVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-    }
-
-    /// Ouvre l'onglet d'une section demandée par un lien, puis y défile.
-    private func showPendingSection(_ proxy: ScrollViewProxy) {
-        guard let section = vm.navigationStore.pendingSettingsSection else { return }
-        vm.navigationStore.pendingSettingsSection = nil
-        vm.navigationStore.settingsGroup = SettingsSectionOrder.group(of: section)
-        Task { @MainActor in
-            await Task.yield()
-            withMotion { proxy.scrollTo(section, anchor: .top) }
-        }
-    }
-
-    private func titleKey(for group: SettingsGroup) -> String {
+    private func tabTitle(_ group: SettingsGroup) -> String {
         switch group {
-        case .game:    return L10n.Settings.groupGame
-        case .content: return L10n.Settings.groupContent
-        case .about:   return L10n.Settings.groupAbout
+        case .game:    return localization.L(L10n.Settings.groupGame)
+        case .content: return localization.L(L10n.Settings.groupContent)
+        case .about:   return localization.L(L10n.Settings.groupAbout)
         }
     }
 
@@ -133,15 +80,15 @@ struct SettingsView: View {
     private func sectionView(_ section: SettingsSection) -> some View {
         switch section {
         case .gameFolder:     gameFolderSection
-        case .smapi:          SettingsSmapiSection(vm: vm, localization: localization)
+        case .smapi:          SettingsSmapiSection(vm: vm, localization: localization, alerts: alerts)
         case .launch:         launchSection
         case .coreExtensions: coreExtensionsSection
         case .nexus:          nexusSection
         case .translationAI:  translationAISection
         case .modBehavior:    modBehaviorSection
         case .developer:      developerSection
-        case .display:        TextScaleSettingsSection(localization: localization)
-        case .appInfo:        appInfoSection
+        case .appInfo:        SettingsAppInfoSection(vm: vm, localization: localization)
+        case .support:        SettingsSupportSection(localization: localization)
         }
     }
 
@@ -241,19 +188,6 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .labelsHidden()
                 }
-
-                // A1-T7 (suite). Section installation, pas « Données » :
-                // c'est au moment d'une mise à jour qu'on se demande ce que
-                // deviennent les fichiers écrits en jouant. Le défaut est
-                // actif (comportement livré) ; l'installer lit la clé via
-                // `PreservedModData.shouldRestore`, jamais `bool` nu.
-                SettingsRow(title: localization.L(L10n.Settings.restoreModData), hint: localization.L(L10n.Settings.restoreModDataHint)) {
-                    Toggle(localization.L(L10n.Settings.restoreModData), isOn: $restoreModData)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .labelsHidden()
-                }
-
             }
         }
     }
@@ -296,8 +230,6 @@ struct SettingsView: View {
     @ViewBuilder
     private var developerSection: some View {
         // ── Developer ──
-        // (App theme and language now live as toggles at the bottom of
-        // the sidebar; this section keeps the developer-logs setting.)
         StandardSection(
             title: localization.L(L10n.Settings.developer), icon: ("hammer.fill", .gray),
             footer: localization.L(L10n.Settings.footerAppearance)
@@ -319,27 +251,23 @@ struct SettingsView: View {
         StandardSection(
             title: localization.L(L10n.Settings.modBehavior), icon: ("link", .teal)
         ) {
-            SettingsRow(title: localization.L(L10n.Settings.chainToggle), hint: localization.L(L10n.Settings.chainToggleHint)) {
-                Toggle(localization.L(L10n.Settings.chainToggle), isOn: Binding(
-                    get: { vm.chainToggleDependencies },
-                    set: { vm.chainToggleDependencies = $0 }
-                ))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var appInfoSection: some View {
-        // ── App ──
-        StandardSection(title: localization.L(L10n.Home.appInfo), icon: ("info.circle.fill", .blue)) {
-            StandardRow(title: LocalizedStringKey(localization.L(L10n.Home.developer)), detail: "AppleBoiy (original) · mrbabilo (fork)", showDivider: true)
-            // Le `@AppStorage` de `MainView` publie le changement et présente
-            // la sheet — aucun état local ici.
-            Button(localization.L(L10n.Onboarding.settingsCard)) {
-                UserDefaults.standard.set(false, forKey: UDKey.onboardingCompleted)
+            VStack(spacing: AppDesign.Spacing.md) {
+                SettingsRow(title: localization.L(L10n.Settings.chainToggle), hint: localization.L(L10n.Settings.chainToggleHint)) {
+                    Toggle(localization.L(L10n.Settings.chainToggle), isOn: Binding(
+                        get: { vm.chainToggleDependencies },
+                        set: { vm.chainToggleDependencies = $0 }
+                    ))
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
+                }
+                Divider()
+                SettingsRow(title: localization.L(L10n.Settings.restoreModData), hint: localization.L(L10n.Settings.restoreModDataHint)) {
+                    Toggle(localization.L(L10n.Settings.restoreModData), isOn: $restoreModData)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                }
             }
         }
     }
@@ -365,7 +293,7 @@ struct SettingsView: View {
                     }
                 }
                 Spacer()
-                Button(localization.L(L10n.Home.selectFolder)) { vm.selectGameDir() }
+                Button(localization.L(L10n.Home.selectFolder)) { vm.selectGameDir(alerts: alerts) }
             }
         }
     }

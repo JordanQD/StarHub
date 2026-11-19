@@ -10,7 +10,7 @@
 
 - [ ] `python3 build_app.py` se termine sans erreur (conventions comprises)
 - [ ] `./run_tests.sh` passe ; une logique nouvelle a ses tests dans le cœur
-- [ ] Chaque nouveau libellé existe dans `assets/en.json` **et** `assets/fr.json`
+- [ ] Chaque nouveau libellé existe dans `assets/{en,fr,zh-Hans}.json`
 - [ ] Une ligne sous `## [Unreleased]` dans `CHANGELOG.md` (en français, côté utilisateur)
 - [ ] Capture d'écran jointe si l'interface change
-- [ ] Un écran change ? `GUIDE.md` et `GUIDE_EN.md` décrivent le nouveau comportement
+- [ ] Un écran change ? Les trois guides embarqués décrivent le nouveau comportement

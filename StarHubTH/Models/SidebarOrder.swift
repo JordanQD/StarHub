@@ -8,9 +8,6 @@ import Foundation
 public enum SidebarGroup: String, CaseIterable, Sendable {
     case top
     case library, saves, health, app
-    /// Pas un groupe dessiné non plus : un bouton du pied épinglé
-    /// (`SidebarFooterIconButton`). Même raison que `top` d'être ici.
-    case footer
 }
 
 /// Une **ligne** de la barre : la destination plus ce qu'il faut pour la
@@ -103,13 +100,6 @@ public enum SidebarOrder {
         SidebarEntry(.maintenance, icon: "internaldrive",
                      labelKey: L10n.Maintenance.title, group: .health),
 
-        // Au pied épinglé : toujours visible, même quand la liste défile.
-        SidebarEntry(.settings, icon: "gearshape.fill",
-                     labelKey: L10n.Settings.settings, group: .footer),
-        // Au pied de la barre, en bouton (2026-09-25) : dernière de la
-        // liste, elle n'avait pas de raccourci à céder.
-        SidebarEntry(.appChangelog, icon: "doc.text.fill",
-                     labelKey: L10n.Main.appChangelog, group: .footer),
     ]
 
     public static func entries(in group: SidebarGroup) -> [SidebarEntry] {

@@ -246,7 +246,7 @@ struct ModInstallBackupsView: View {
     private var noMatchState: some View {
         VStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: AppDesign.Font.scaled(26)))
+                .font(.system(size: 26))
                 .foregroundColor(AppDesign.Color.dimmedSecondary(0.6))
             Text(String(format: localization.L(L10n.ModInstall.backupsNoMatch), search))
                 .font(AppDesign.Font.caption)
@@ -331,7 +331,7 @@ struct ModInstallBackupsView: View {
                         // qu'une sauvegarde, et le rappeler serait du bruit.
                         if group.versions.count > 1 {
                             Text("v\(version.version)")
-                                .font(.system(size: AppDesign.Font.scaled(10), weight: .semibold, design: .monospaced))
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
                                 .foregroundColor(.secondary)
                                 .padding(.top, 2)
                         }

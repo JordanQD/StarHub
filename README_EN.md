@@ -15,19 +15,19 @@
   <a href="https://github.com/mrbabilo/StarHubFR/releases/latest"><img src="https://img.shields.io/github/v/release/mrbabilo/StarHubFR?label=Version&color=2ea44f" alt="Version"></a>
   <a href="https://www.stardewvalley.net"><img src="https://img.shields.io/badge/Stardew%20Valley-1.6-5BA04E" alt="Stardew Valley 1.6"></a>
   <a href="https://smapi.io"><img src="https://img.shields.io/badge/SMAPI-4.x-6A5ACD" alt="SMAPI 4.x"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Languages-FR%20%7C%20EN-0055A4" alt="Languages FR and EN"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Languages-FR%20%7C%20EN%20%7C%20ZH--Hans-0055A4" alt="French, English, and Simplified Chinese"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow" alt="MIT License"></a>
   <a href="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml"><img src="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
-**StarHubFR is a native macOS mod manager for Stardew Valley, in French and English.**
+**StarHubFR is a native macOS mod manager for Stardew Valley, in French, English, and Simplified Chinese.**
 Install, organise and troubleshoot your mods without opening Finder or a terminal, even with several hundred mods.
 
 The **[user guide](GUIDE_EN.md)** walks through first launch and everyday use: installing, pausing, profiles, updates, troubleshooting, shortcuts, performance, translation, recovering replaced files and uninstalling cleanly.
 
 ## Why StarHubFR
 
-*   🇫🇷 **French throughout** — interface, errors and diagnostics, with an instant switch to English.
+*   **Interface and help in French, English, and Simplified Chinese.** Choose StarHubFR’s language in macOS System Settings. [简体中文用户指南](GUIDE_ZH_HANS.md).
 *   🩺 **It tells you what's wrong** — it reads the SMAPI log for you and says what to do, in plain words.
 *   ✍️ **Translate mods inside the app** — a key-by-key editor writes the `fr.json` without breaking the game's markers.
 *   🍎 **Truly native** — Swift and SwiftUI, no web layer, usable with VoiceOver.

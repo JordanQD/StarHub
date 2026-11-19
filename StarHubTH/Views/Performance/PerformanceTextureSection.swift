@@ -10,7 +10,6 @@ struct PerformanceTextureSection: View {
     @State private var showAll = false
 
     private var store: ModImpactStore { viewModel.modImpactStore }
-    private var language: String { localization.currentLanguage }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
@@ -42,7 +41,7 @@ struct PerformanceTextureSection: View {
 
     private func megabytes(_ value: Double) -> String {
         String(format: localization.L(L10n.PerformanceTextures.value),
-               ModImpactFormat.number(value, language: language))
+               ModImpactFormat.number(value))
     }
 
     private var list: some View {
@@ -79,7 +78,7 @@ struct PerformanceTextureSection: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let remainder = store.textureRemainder {
                     Text(String(format: localization.L(L10n.PerformanceTextures.remainder),
-                                ModImpactFormat.number(remainder.mb, language: language),
+                                ModImpactFormat.number(remainder.mb),
                                 remainder.date.formatted(date: .abbreviated, time: .shortened)))
                         .help(String(format: localization.L(L10n.PerformanceTextures.remainderHelp),
                                      remainder.owners.joined(separator: ", ")))

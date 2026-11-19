@@ -40,6 +40,4 @@ public enum SidebarDestination: String, Equatable, Sendable {
 
     // APPLICATION.
     case logs = "Logs"
-    case settings = "Settings"
-    case appChangelog = "AppChangelog"
 }

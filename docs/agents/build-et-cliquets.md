@@ -6,7 +6,7 @@ Déplacé d'`AGENTS.md` §2 le 2026-11-14 (allègement) : le pourquoi et les dé
 
 - `swiftc` brut sur **tous** `.swift` sous `StarHubTH/` (un module), **mode Swift 6** (`-swift-version 6`). Incrémental ; `--whole-module` = ancien chemin.
 - Si `xcode-select -p` pointe sur Command Line Tools : échec `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found` — pas erreur de code. Préfixer `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
-- Valide **parité clés** `en.json`/`fr.json` (build en erreur sinon).
+- Valide la **parité des clés** d’interface entre les langues (build en erreur sinon).
 - Génère `assets/*.lproj/Localizable.strings` + `compile_commands.json` (racine, gitignoré : alimente SourceKit-LSP sur *tous* fichiers ; seul : `python3 build_app.py --gen-compile-commands`).
 
 ## Tests SPM

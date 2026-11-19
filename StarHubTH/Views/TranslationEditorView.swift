@@ -366,11 +366,8 @@ struct TranslationEditorView: View {
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
                 if let section = failureMessage.settings {
-                    // N-11. Ouvrir les Réglages ferme la feuille : grisé si un brouillon s'y perdrait.
                     SettingsLinkButton(section: section, title: localization.L(L10n.TranslationAssist.openSettings),
-                                       navigation: viewModel.navigationStore) { isPresented = false }
-                        .disabled(draft != row.french)
-                        .help(draft != row.french ? localization.L(L10n.TranslationAssist.saveFirst) : "")
+                                       navigation: viewModel.navigationStore)
                 }
             }
         } else if !blocked.isEmpty {

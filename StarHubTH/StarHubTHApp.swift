@@ -121,28 +121,18 @@ struct StarHubTHApp: App {
     /// l'ancien plist. La reprise est idempotente : deux déclencheurs, un seul
     /// effet.
     /// Propriété à valeur initiale : elle s'évalue avant le corps d'`init()`,
-    /// donc avant `LocalizationStore`, premier lecteur defaults de l'App.
+    /// donc avant la construction du ViewModel, qui lit les préférences.
     private let bootstrapDefaults: Void = DefaultsMigration.runOnce
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    // La langue d'interface appartient à l'App (REFACTORING §6, domaine
-    // Localisation) : les menus de `CommandMenu` résolvent leurs libellés
-    // avant toute vue, ils observent la source elle-même. Le ViewModel la
-    // reçoit à l'init et ne la possède pas.
-    @StateObject private var localization: LocalizationStore
+    private let localization: LocalizationStore
     @State private var vm: StarHubTHViewModel
     private var navigation: NavigationStore { vm.navigationStore }
 
     init() {
-        // Une seule instance du store, habillée deux fois : les menus et le
-        // VM doivent observer le même objet, et un `@StateObject` ne peut pas
-        // lire un autre `@StateObject` de la même struct dans son init.
         let store = LocalizationStore()
-        _localization = StateObject(wrappedValue: store)
+        localization = store
         _vm = State(initialValue: StarHubTHViewModel(localization: store))
-        // currentLanguage (désormais `LocalizationStore`) reste l'unique
-        // source de vérité. Son didSet resynchronise `AppleLanguages` (via
-        // UDKey.appleLanguagesOverride) — aucune écriture à faire ici.
     }
 
     var body: some Scene {
@@ -234,8 +224,8 @@ struct StarHubTHApp: App {
         // `@State` de MainView. Il n'appelle donc que les canaux du ViewModel.
         .commands {
             CommandMenu(localization.L(L10n.Palette.goMenu)) {
-                // Construits depuis SidebarOrder — jamais réécrits ici, sinon
-                // le menu et la barre divergeraient au premier ajout.
+                // Les pages viennent de SidebarOrder pour garder le même
+                // ordre que la barre latérale.
                 ForEach(SidebarOrder.all) { entry in
                     let open = { vm.requestTab(entry.destination) }
                     if let shortcut = SidebarOrder.shortcutIndex(of: entry.destination) {
@@ -246,6 +236,7 @@ struct StarHubTHApp: App {
                         Button(localization.L(entry.sidebarLabelKey), action: open)
                     }
                 }
+                SettingsLink { Text(localization.L(L10n.Settings.settings)) }
                 Divider()
                 // N-00 : ⌘[ et ⌘], la convention macOS de Retour et Avancer.
                 Button(localization.L(L10n.Main.navBack)) { navigation.requestHistoryStep(.back) }
@@ -258,7 +249,6 @@ struct StarHubTHApp: App {
             }
             // Le menu Aide propose « Aide StarHubFR » (⌘?, le guide intégré),
             // puis l'écran des raccourcis clavier (⌘/).
-            // ⌘, : la convention macOS pour les réglages (audit UX 2026-10-02).
             // N-07 : les gestes de la séance sans passer par l'Accueil ni une page.
             CommandGroup(after: .newItem) {
                 Button(localization.L(L10n.ModInstall.installButton) + "…") { navigation.requestInstall() }
@@ -275,13 +265,13 @@ struct StarHubTHApp: App {
                     .keyboardShortcut("u", modifiers: [.command, .shift])
                     .disabled(vm.isCheckingNexusUpdates)
             }
-            CommandGroup(replacing: .appSettings) {
-                Button(localization.L(L10n.Settings.settings) + "…") { navigation.requestTab(.settings) }
-                    .keyboardShortcut(",", modifiers: .command)
-            }
             CommandGroup(replacing: .help) {
                 HelpCommands(navigation: navigation, localization: localization)
             }
+        }
+
+        Settings {
+            SettingsView(vm: vm, localization: localization)
         }
 
         // Le bilan post-installation — une fenêtre dédiée, redimensionnable,

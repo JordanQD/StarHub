@@ -22,7 +22,7 @@ extension UpdatesView {
     }
 
     private func headerSubtitle(_ verdict: UpdateCheckVerdict, counts: PendingUpdateCounts, now: Date) -> String {
-        let locale = Locale(identifier: localization.currentLanguage)
+        let locale = Locale.autoupdatingCurrent
         switch verdict {
         case .pending(_, let checkedAt?):
             return String(format: localization.L(L10n.Updates.headerPendingChecked),  // E8

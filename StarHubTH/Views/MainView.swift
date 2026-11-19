@@ -19,9 +19,7 @@ struct MainView: View {
     /// Piles, saut d'origine et règle de « Retour » : `NavigationHistory` (Core, N-00).
     @State private var history = NavigationHistory()
     
-    @AppStorage("appColorScheme") private var appColorScheme: String = "System"
     @AppStorage("launchProfile") private var launchProfile: String = "SMAPI"
-    @AppStorage(TextScale.defaultsKey) private var textScale = TextScale.normal.rawValue
     /// Le drapeau et la clé du guide de premier lancement vivent dans
     /// `OnboardingPresentation` — ici, seul l'état de présentation.
     @State private var showOnboarding = false
@@ -79,9 +77,7 @@ struct MainView: View {
         case .quarantine:     return localization.L(L10n.Main.quarantine)
         case .frenchTranslations: return localization.L(L10n.FrTranslations.title)
         case .saves:          return localization.L(L10n.Saves.saves)
-        case .settings:       return localization.L(L10n.Settings.settings)
         case .logs:           return localization.L(L10n.Logs.logs)
-        case .appChangelog:   return localization.L(L10n.Main.appChangelog)
         case .home:           return localization.L(L10n.Main.home)
         }
     }
@@ -164,12 +160,8 @@ struct MainView: View {
                         DiscoverView(vm: vm, localization: localization)
                     case .frenchTranslations:
                         FrenchTranslationsView(viewModel: vm, localization: localization, currentTab: $currentTab)
-                    case .settings:
-                        SettingsView(vm: vm, localization: localization)
                     case .logs:
                         DiagnosticsView(viewModel: vm, localization: localization)
-                    case .appChangelog:
-                        AppChangelogView(vm: vm, localization: localization)
                     case .home:
                         HomeView(viewModel: vm, localization: localization, currentTab: $currentTab)
                     }
@@ -242,17 +234,18 @@ struct MainView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 16)
     
-                    // En fenêtre basse, ce sont les groupes qui défilent :
-                    // l'ancienne pile plein-fixe écrêtait d'abord le bas de la
-                    // colonne — poids de `Mods/`, thème, langue — sous la hauteur
-                    // disponible. Patron des pages de liste : haut fixe, milieu
-                    // défilant, pied épinglé.
+                    NexusDownloadStatus(vm: vm, localization: localization)
+                        .padding(.horizontal, 10)
+
                     ScrollView(.vertical) {
                         SidebarNavGroups(vm: vm, localization: localization, currentTab: $currentTab)
                             .padding(.horizontal, 10)
                     }
     
-                    SidebarPinnedFooter(vm: vm, localization: localization, appColorScheme: $appColorScheme, currentTab: $currentTab)
+                    ModsWeightFooter(vm: vm, localization: localization)
+                        .padding(.horizontal, 10)
+                        .padding(.top, AppDesign.Spacing.sm)
+                        .padding(.bottom, 10)
                 }
                 .frame(minWidth: 240, idealWidth: 240, maxWidth: 240, maxHeight: .infinity, alignment: .top).focusSection() // Tab : sortir de la barre (I-T6)
                 .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
@@ -326,11 +319,8 @@ struct MainView: View {
                     .zIndex(10)
             }
         } // End of outer ZStack
-        .id(textScale) // un cran de texte changé : tout se redessine aux nouvelles tailles (I-T4)
         // No launch overlay: the splash is its own window (`LaunchSplashController`).
         .frame(minWidth: 820, minHeight: 520)
-        .preferredColorScheme(colorScheme)
-        .environment(\.locale, Locale(identifier: localization.currentLanguage))
         .refreshesStatsWhenGameQuits(vm)
         .onReceive(NotificationCenter.default.publisher(for: .jumpToMod)) { notification in
             if let modName = notification.object as? String {
@@ -457,9 +447,9 @@ struct MainView: View {
                            isPresented: $showDropInstall,
                            preloadedZip: vm.pendingDropPresentation)
         }
-        // « Voir la fiche » depuis la fenêtre de bilan : la décision vit
+        // « Voir la fiche » depuis une autre fenêtre : la décision vit
         // ici, où seul vit `currentTab` (patron B3-T4).
-        .onChange(of: vm.reportDetailFocus) { _, folder in
+        .onChange(of: vm.reportDetailFocus, initial: true) { _, folder in
             guard let folder else { return }
             if currentTab == .mods,
                let target = ModFocusResolver.resolve(folder, in: vm.scanStore.mods) {
@@ -496,15 +486,6 @@ struct MainView: View {
             }
         )) { release in
             AppUpdateAlertView(vm: vm, localization: localization, release: release)
-        }
-    }
-    
-
-    var colorScheme: ColorScheme? {
-        switch appColorScheme {
-        case "Light": return .light
-        case "Dark": return .dark
-        default: return nil
         }
     }
 }

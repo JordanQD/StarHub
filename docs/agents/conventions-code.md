@@ -67,7 +67,7 @@ Sur hit, sortie = forme compacte ; `caveman mem recover <handle>` rend original 
 
 1. [ ] `python3 build_app.py` passe (compile + parité L10n).
 2. [ ] `./run_tests.sh` passe (~4 900 tests).
-3. [ ] Touché `en.json`/`fr.json` : parité clés + messages cohérents dans les deux langues.
+3. [ ] Touché un catalogue de l’interface : mêmes clés et arguments de format dans les trois langues.
 4. [ ] Touché chemin disque de mod : `physicalFolderName`, pas `folderName`.
 5. [ ] Nouveau code réseau : via `NexusRequestBuilder`.
 6. [ ] Nouveau code asynchrone : `weak self` + mutations sur main ; aucune méthode `@MainActor` appelée depuis fil de fond.

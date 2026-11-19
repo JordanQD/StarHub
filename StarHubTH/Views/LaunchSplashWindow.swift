@@ -222,10 +222,10 @@ struct LaunchSplashView: View {
                 // would push the bar down for a detail that belongs to the title.
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text("StarHubFR")
-                        .font(.system(size: AppDesign.Font.scaled(19), weight: .bold, design: .rounded))
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Text("v\(Self.appVersion)")
-                        .font(.system(size: AppDesign.Font.scaled(11), weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.55))
                 }
                 Text(localization.L(L10n.Main.launching))

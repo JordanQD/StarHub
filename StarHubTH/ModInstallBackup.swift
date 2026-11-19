@@ -55,9 +55,7 @@ public struct ModInstallBackup: Identifiable, Codable, Equatable, Sendable {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        // Matches the app's selected language rather than the system
-        // locale — same key StarHubTHViewModel.currentLanguage reads.
-        formatter.locale = Locale(identifier: UserDefaults.standard.string(forKey: UDKey.currentLanguage) ?? "en")
+        formatter.locale = .autoupdatingCurrent
         return formatter.string(from: timestamp)
     }
 }

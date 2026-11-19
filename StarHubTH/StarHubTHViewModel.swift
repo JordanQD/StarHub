@@ -1567,8 +1567,7 @@ final class StarHubTHViewModel {
                 self.keybindScanService.scanIfNeeded(mods: self.mods, gameDir: self.gameDir)
             }
         })
-        // `AppleLanguages` is resynced by `LocalizationStore`; no write here.
-        
+
         // Restore the saved game path, or detect the default Steam one.
         environment.restoreGameDir()
         // Remède §3 bis : `$report` est isolé au main ; l'init du VM est
@@ -1595,8 +1594,7 @@ final class StarHubTHViewModel {
         // (appelée par `persistCategories`/`persistModIds`) ; sans elle, une
         // catégorie épinglée laisserait des lignes périmées.
         nexusMetadata.setOnInvalidate { [weak self] in self?.invalidateCategoryCache() }
-        // F3 — `healthIssues` en cache : la langue (titres) et l'index Content Patcher, posé après le scan (X146).
-        localization.onLanguageChange = { [weak self] in self?.recomputeHealthIssues() }
+        // F3 — recalculer les alertes après le rafraîchissement de l'index Content Patcher (X146).
         contentPatcherLoadIndex.onRefreshed = { [weak self] in self?.recomputeHealthIssues() }
         // L'historique d'erreurs ne se rebâtit pas : une panne d'écriture ne se
         // verrait qu'au lancement suivant, par une perte.
@@ -1702,15 +1700,15 @@ final class StarHubTHViewModel {
     /// Façade provisoire (REFACTORING §6, cond. 1) — HomeView et
     /// SettingsView. Décision dans `GameEnvironmentStore.selectGameDir` ;
     /// `refresh()` et le message restent ici.
-    func selectGameDir() {
+    func selectGameDir(alerts: AlertStore? = nil) {
         let previousGameDir = gameDir
         environment.selectGameDir { [weak self] problem in
             guard let self else { return }
             switch problem {
             case .notAGameFolder:
-                self.showModal(message: self.localization.L(L10n.VM.gameDirNotRecognised))
+                (alerts ?? self.alertStore).show(self.localization.L(L10n.VM.gameDirNotRecognised))
             case .modsFolderUnavailable:
-                self.showModal(message: self.localization.L(L10n.VM.modsFolderUnavailable))
+                (alerts ?? self.alertStore).show(self.localization.L(L10n.VM.modsFolderUnavailable))
             case nil:
                 break
             }
@@ -2439,24 +2437,24 @@ final class StarHubTHViewModel {
 
     // Install SMAPI via Installer Helper. Complétion `@Sendable` (P5-L4) :
     // les touches au VM passent par `Task { @MainActor in }`.
-    func installSmapi() {
+    func installSmapi(alerts: AlertStore? = nil) {
         smapiInstaller.install(gameDir: gameDir) { success, key, detail in
             Task { @MainActor in
                 self.environment.checkSmapiVersion()
                 let message = self.resolveSmapiMessage(key, detail)
-                self.showModal(message: message)
+                (alerts ?? self.alertStore).show(message)
                 self.log(message)
             }
         }
     }
 
     // Uninstall SMAPI — même hop `@MainActor` que `installSmapi`.
-    func uninstallSmapi() {
+    func uninstallSmapi(alerts: AlertStore? = nil) {
         smapiInstaller.uninstall(gameDir: gameDir) { success, key, detail in
             Task { @MainActor in
                 self.environment.checkSmapiVersion()
                 let message = self.resolveSmapiMessage(key, detail)
-                self.showModal(message: message)
+                (alerts ?? self.alertStore).show(message)
                 self.log(message)
             }
         }

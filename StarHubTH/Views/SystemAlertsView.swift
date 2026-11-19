@@ -186,7 +186,7 @@ struct SystemAlertsView: View {
     @ViewBuilder
     private var logSourceLine: some View {
         if let source = SmapiLogSource(logDate: viewModel.smapiLogDate, isStale: viewModel.smapiLogStale,
-                                       locale: Locale(identifier: localization.currentLanguage)) {
+                                       locale: Locale.autoupdatingCurrent) {
             SplitRow {
                 Text(String(format: localization.L(L10n.Health.logSource), source.date)
                      + (source.staleAge.map { " — " + String(format: localization.L(L10n.Health.logStaleAge), $0) } ?? ""))

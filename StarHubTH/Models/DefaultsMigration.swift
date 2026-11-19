@@ -17,9 +17,8 @@ import Foundation
 /// `showThaiTranslationHub`) : la recopie doit les couvrir le jour où elles
 /// existent.
 ///
-/// **`AppleLanguages` est exclue à dessein** : l'app la re-dérive de
-/// `currentLanguage` après la recopie (`StarHubTHApp`), et la recopier
-/// figerait le choix de langue de l'installation précédente.
+/// macOS gère la langue de chaque application. La reprise exclut la clé
+/// système `AppleLanguages` et l'ancien réglage interne `currentLanguage`.
 ///
 /// Les clés d'état de fenêtre d'AppKit (`NSWindow Frame …`, `NSSplitView
 /// Subview Frames …`) ne sont **pas** recopiées : elles se reconstruisent
@@ -27,8 +26,8 @@ import Foundation
 public enum DefaultsMigration {
     /// Les clés que l'application possède, et qu'elle perdrait sans recopie.
     public static let ownedKeys: [String] = [
-        "SaveNotes_v2", "activeProfileId", "appColorScheme", "autoCheckNexusUpdates",
-        "blacklistedMods", "chainToggleDependencies", "closeAfterLaunch", "currentLanguage",
+        "SaveNotes_v2", "activeProfileId", "autoCheckNexusUpdates",
+        "blacklistedMods", "chainToggleDependencies", "closeAfterLaunch",
         "deepLFallbackEnabled", "defaultProfileId", "didSeedDefaultProfile",
         "disabledModsMigratedToDotPrefix",
         "discoveryHideInstalled", "favoriteMods", "gameDir", "installDateGraceFolders",

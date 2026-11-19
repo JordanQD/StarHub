@@ -7,7 +7,7 @@
 
 ## 1. Identité du projet
 
-- **StarHubFR** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHubFR.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en` + `fr` seulement. Détail : `docs/agents/README.md`.
+- **StarHubFR** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHubFR.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en`, `fr` et `zh-Hans`. Détail : `docs/agents/README.md`.
 
 **Avant toucher mods, SMAPI, Nexus, profils, sauvegardes ou fichiers traduction : lire `docs/DOMAINE.md`.**
 
@@ -25,7 +25,7 @@
 ## 2. Build & test — COMMANDES EXACTES
 
 ```bash
-python3 build_app.py                     # vrai gate : swiftc mode Swift 6 + parité en/fr
+python3 build_app.py                     # vrai gate : swiftc mode Swift 6 + parité des langues
 ./run_tests.sh                           # = DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 python3 check_standards.py --report      # cliquet conventions Swift
 python3 check_sources.py --offline       # cliquet sources externes (agent : --offline)
@@ -45,8 +45,8 @@ python3 check_sources.py --offline       # cliquet sources externes (agent : --o
 
 ## 3. Localisation — RÈGLES STRICTES
 
-- **Source de vérité** : `assets/{en,fr}.json` ; `assets/*.lproj/Localizable.strings` générés par `build_app.py` (relancer après édition JSON), **jamais édités**.
-- **Parité obligatoire** : `en.json` et `fr.json` = **exactement mêmes clés** (build valide). Clés via `L10n.swift` (`static let`) ; clé absente → clé brute, pas crash.
+- **Source de vérité** : `assets/{en,fr,zh-Hans}.json` ; `assets/*.lproj/Localizable.strings` générés par `build_app.py` (relancer après édition JSON), **jamais édités**.
+- **Parité obligatoire** : les trois catalogues ont **exactement les mêmes clés** (build valide). Clés via `L10n.swift` (`static let`) ; clé absente → clé brute, pas crash.
 - **Français naturel, pas calqué sur anglais** (libellés, aide, README, CHANGELOG, notes) ; vocabulaire déjà affiché gardé sauf demande ; relire avant release → `docs/agents/redaction-git-release.md`, skill `localization`.
 
 ---
@@ -139,7 +139,7 @@ Détail : `docs/agents/architecture.md` (avant toucher VM, scan, registre, cache
 
 1. [ ] `python3 build_app.py` passe (compile + parité L10n).
 2. [ ] `./run_tests.sh` passe.
-3. [ ] Touché `en.json`/`fr.json` : parité + messages cohérents.
+3. [ ] Touché un catalogue de l’interface : parité + messages cohérents.
 4. [ ] Chemin disque de mod : `physicalFolderName`.
 5. [ ] Réseau : via `NexusRequestBuilder`.
 6. [ ] Asynchrone : `weak self`, mutations sur main, aucune `@MainActor` depuis fil de fond.

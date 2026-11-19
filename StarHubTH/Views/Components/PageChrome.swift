@@ -112,7 +112,7 @@ struct MetricTile: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text("\(value)")
-                    .font(.system(size: AppDesign.Font.scaled(22), weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(Motion.animation(.snappy), value: value)

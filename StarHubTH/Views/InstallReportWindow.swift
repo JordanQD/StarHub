@@ -146,12 +146,12 @@ private struct ReportContent: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: AppDesign.Font.scaled(28)))
+                    .font(.system(size: 28))
                     .foregroundColor(.green)
                 Text(localization.L(summary.modsUpdated > 0
                           ? L10n.InstallReport.titleUpdate
                           : L10n.InstallReport.titleInstall))
-                    .font(.system(size: AppDesign.Font.scaled(18), weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
             }
             if !summaryParts.isEmpty {
                 Text(summaryParts.joined(separator: " · "))

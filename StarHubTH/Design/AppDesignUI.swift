@@ -30,46 +30,20 @@ enum AppDesign {
     typealias Icon = AppDesignCore.Icon
 
     // MARK: - Typography (SwiftUI.Font)
-    // Déduit des tailles réellement utilisées (inventaire spec §1.2) :
-    // 74× size 12, 64× size 11, 45× size 13, 30× size 14, etc.
     enum Font {
-        /// La taille réelle d'un jeton : sa taille de base, au cran choisi
-        /// dans Réglages › Affichage (`TextScale`, I-T4). Les jetons sont
-        /// calculés, pas figés : un changement de cran vaut au rendu suivant.
-        static func scaled(_ size: CGFloat) -> CGFloat {
-            size * CGFloat(TextScale.stored().factor)
-        }
+        static var iconXXS: SwiftUI.Font { .system(size: 9) }
+        static var iconXS: SwiftUI.Font { .system(size: 10) }
+        static var footnote: SwiftUI.Font { .footnote }
+        static var caption: SwiftUI.Font { .callout }
+        static var body: SwiftUI.Font { .body }
+        static var rowTitle: SwiftUI.Font { .headline.weight(.regular) }
+        static var headline: SwiftUI.Font { .title3 }
+        static var viewTitle: SwiftUI.Font { .title2.weight(.semibold) }
+        static var heroTitle: SwiftUI.Font { .largeTitle.weight(.semibold) }
+        static var heroSubtitle: SwiftUI.Font { .subheadline.weight(.medium) }
 
-        // Icônes de bande de métadonnées (9 pt) : plus petites que `iconXS`,
-        // elles accompagnent une valeur, pas un geste.
-        static var iconXXS: SwiftUI.Font { .system(size: scaled(9)) }
-        // Micro (icônes, chevrons, labels minuscules — 36 occ. pour size 10)
-        static var iconXS: SwiftUI.Font { .system(size: scaled(10)) }
-        // Captions / footnotes (64 occ. pour size 11)
-        static var footnote: SwiftUI.Font { .system(size: scaled(11)) }
-        // Texte secondaire (74 occ. pour size 12 — le plus utilisé)
-        static var caption: SwiftUI.Font { .system(size: scaled(12)) }
-        // Corps standard (45 occ. pour size 13 — StandardRow, corps)
-        static var body: SwiftUI.Font { .system(size: scaled(13)) }
-        // Titres de ligne / sidebar (30 occ. pour size 14)
-        static var rowTitle: SwiftUI.Font { .system(size: scaled(14)) }
-        // Sous-titres (7 occ. pour size 16)
-        static var headline: SwiftUI.Font { .system(size: scaled(16)) }
-        // Titres de vue (utilise déjà .title2/.title3 système)
-        static var viewTitle: SwiftUI.Font { .system(size: scaled(20), weight: .semibold) }
-        // Titre posé sur un bandeau illustré (26 pt). Distinct de `viewTitle` :
-        // un titre lu par-dessus une image demande plus de corps qu'un titre
-        // sur fond uni, et `viewTitle` sert ailleurs sur fond neutre — les
-        // fusionner grossirait des titres qui n'en ont pas besoin.
-        static var heroTitle: SwiftUI.Font { .system(size: scaled(26), weight: .semibold) }
-        // Sous-titre du même bandeau (15 pt medium) : `caption` (12) s'y perd.
-        static var heroSubtitle: SwiftUI.Font { .system(size: scaled(15), weight: .medium) }
-
-        // Glyphe décoratif des états vides de recherche (48 pt) — pas un texte.
-        static var emptyStateGlyph: SwiftUI.Font { .system(size: scaled(48)) }
-        // Glyphe des scopes vides / « aucun problème » (40 pt) — distinct du
-        // précédent : fusionner serait un changement visuel.
-        static var emptyScopeGlyph: SwiftUI.Font { .system(size: scaled(40)) }
+        static var emptyStateGlyph: SwiftUI.Font { .system(size: 48) }
+        static var emptyScopeGlyph: SwiftUI.Font { .system(size: 40) }
 
         // Journal, chemins, clés d'API : tout ce qui se lit colonne par
         // colonne. Dérivés des tokens proportionnels plutôt que redéclarés,
@@ -83,27 +57,26 @@ enum AppDesign {
         static var monoIconXS: SwiftUI.Font { iconXS.monospaced() }
         static var monoIconXXS: SwiftUI.Font { iconXXS.monospaced() }
 
-        // Helpers avec weight — évite de répéter .system(size:weight:)
         static func iconXXS(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(9), weight: w)
+            iconXXS.weight(w)
         }
         static func iconXS(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(10), weight: w)
+            iconXS.weight(w)
         }
         static func footnote(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(11), weight: w)
+            footnote.weight(w)
         }
         static func caption(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(12), weight: w)
+            caption.weight(w)
         }
         static func body(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(13), weight: w)
+            body.weight(w)
         }
         static func rowTitle(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(14), weight: w)
+            rowTitle.weight(w)
         }
         static func headline(_ w: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .system(size: scaled(16), weight: w)
+            headline.weight(w)
         }
     }
 

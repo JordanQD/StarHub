@@ -51,7 +51,7 @@ struct FrenchTranslationsOverview: View {
             .frame(width: 104, height: 104)
             .overlay {
                 Text("\(total)")
-                    .font(.system(size: AppDesign.Font.scaled(22), weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(Motion.animation(.smooth), value: total)

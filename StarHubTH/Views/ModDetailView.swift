@@ -929,7 +929,7 @@ struct ModDetailView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
                             Text(record.version)
-                                .font(.system(size: AppDesign.Font.scaled(12), weight: .medium, design: .monospaced))
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
                             // Current version, for context.
                             if record.version == mod.version {
                                 Text(localization.L(L10n.Mods.errorHistoryCurrent))

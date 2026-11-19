@@ -123,14 +123,14 @@ struct ModUpdateDeltaSection: View {
     private func pairRow(_ pair: RenamePair, safe: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: safe ? "circle.fill" : "circle")
-                .font(.system(size: AppDesign.Font.scaled(6)))
+                .font(.system(size: 6))
                 .foregroundColor(safe ? .green : .secondary)
             Text(pair.oldKey)
                 .font(AppDesign.Font.footnote.monospaced())
                 .lineLimit(1)
                 .truncationMode(.middle)
             Image(systemName: "arrow.right")
-                .font(.system(size: AppDesign.Font.scaled(8)))
+                .font(.system(size: 8))
                 .foregroundColor(.secondary)
             Text(pair.newKey)
                 .font(AppDesign.Font.footnote.monospaced())

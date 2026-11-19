@@ -6,13 +6,12 @@ struct SettingsLinkButton: View {
     let section: SettingsSection
     let title: String
     let navigation: NavigationStore
-    /// Avant de partir : une feuille se ferme (l'éditeur de traduction).
-    var onOpen: () -> Void = {}
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Button(title) {
-            onOpen()
             navigation.openSettings(section)
+            openSettings()
         }
             .buttonStyle(.bordered).focusRing(cornerRadius: 5)
             .controlSize(.small)

@@ -1596,8 +1596,6 @@
 "settings_keep_nexus_archives_hint" = "Après une installation réussie, garder le fichier servi par Nexus pour réinstaller le mod sans le retélécharger — hors ligne, et dans cette version exacte. Les archives se voient et se suppriment dans Entretien. Rien n'est gardé rétroactivement : seules les installations faites après l'activation le seront.";
 "settings_restore_mod_data" = "Remettre les données des mods après une mise à jour";
 "settings_restore_mod_data_hint" = "\"Après une mise à jour, les fichiers que l'auteur n'a jamais livrés — ceux que le mod écrit en jouant (un ‹partie›_SaveData.save et ses semblables) et ceux que vous avez ajoutés — sont remis dans le mod mis à jour. Désactivé : ils restent dans la sauvegarde d'installation, listés dans le bilan, récupérables depuis Entretien. Vos retouches et vos traductions sont toujours gardées.\"";
-"settings_language_english" = "Anglais";
-"settings_language_french" = "Français";
 "settings_launch_options" = "Options de lancement";
 "settings_localai_advice_installed" = "%1$@ est déjà installé et convient aux %2$lld Go de ce Mac.";
 "settings_localai_advice_pull" = "%1$lld Go de mémoire ici — %2$@ conviendra (%3$@ Go à télécharger). Lancez ceci dans le Terminal :";
@@ -1641,9 +1639,7 @@
 "settings_saves_folder" = "Dossier des parties";
 "settings_settings" = "Réglages";
 "settings_show_dev_logs" = "Afficher les journaux développeur";
-"settings_theme_dark" = "Sombre";
-"settings_theme_light" = "Clair";
-"settings_theme_system" = "Système";
+"settings_support" = "Aide et retours";
 "settings_vanilla_game" = "Jeu vanilla";
 "sidebar_disk_free" = "%@ libres";
 "sidebar_mods_weight" = "Mods : %@";
@@ -1922,12 +1918,6 @@
 "shortcuts_hide" = "Masquer StarHubFR";
 "shortcuts_minimize" = "Réduire la fenêtre";
 "shortcuts_quit" = "Quitter StarHubFR";
-"settings_display" = "Affichage";
-"settings_text_size" = "Taille du texte";
-"settings_text_size_normal" = "Normale";
-"settings_text_size_large" = "Grande";
-"settings_text_size_extra_large" = "Très grande";
-"settings_footer_display" = "S'applique à tous les textes de l'app.";
 "perf_us_measure_applied" = "UltraSmooth : l'étalement du changement d'heure et des lieux hors écran est coupé le temps de la mesure. Les réglages d'origine reviennent à la sortie du jeu.";
 "perf_us_measure_refused_experimental" = "UltraSmooth n'a pas été réglé pour la mesure : ses options expérimentales sont actives et rallumeraient l'étalement au chargement. La sonde attribuera mal une partie des coûts.";
 "perf_us_measure_refused_schema" = "UltraSmooth n'a pas été réglé pour la mesure : sa config date d'avant la version 2.8, et il rallumerait l'étalement au premier chargement. Lancez une fois le jeu avec UltraSmooth à jour, puis mesurez.";
@@ -2795,7 +2785,6 @@
 "profile_preview_menu_entry" = "Aperçu…";
 "profile_preview_column_help" = "Voir ce que l'activation de ce profil ferait, sans rien activer";
 "translation_assist_open_settings" = "Ouvrir les réglages de traduction";
-"translation_assist_save_first" = "Enregistrez ou annulez d'abord la modification : ouvrir les Réglages ferme l'éditeur.";
 "recovery_open_from_detail" = "Voir dans Fichiers récupérables";
 "recovery_filtered_on" = "Fichiers du dossier « %@ » seulement";
 "recovery_show_all" = "Tout afficher";

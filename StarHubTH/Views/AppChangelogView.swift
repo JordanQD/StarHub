@@ -4,15 +4,18 @@ import SwiftUI
 /// `CHANGELOG.md` embarqué, une carte par version, un groupe Keep a Changelog
 /// par pastille colorée (audit UX 2026-10-02).
 struct AppChangelogView: View {
-    var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    @Environment(\.dismiss) private var dismiss
     @State private var releases: [ChangelogExcerpt.Release] = []
     @State private var failure: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PageHeader(icon: "doc.text.fill", title: localization.L(L10n.Main.appChangelog),
-                       subtitle: String(format: localization.L(L10n.Main.changelogInstalled), appVersion))
+                       subtitle: String(format: localization.L(L10n.Main.changelogInstalled), appVersion)) {
+                Button(localization.L(L10n.Main.close)) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
                 .padding(.horizontal, AppDesign.Spacing.xl)
                 .padding(.vertical, AppDesign.Spacing.md)
             Divider()
@@ -24,11 +27,10 @@ struct AppChangelogView: View {
                     ForEach(releases, id: \.version) { ChangelogReleaseCard(release: $0, localization: localization) }
                 }
                 .padding(AppDesign.Spacing.xl)
-                .frame(maxWidth: 760, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: 600, height: 480)
         .background(AppDesign.Color.windowBg)
         .onAppear { loadChangelog() }
     }

@@ -92,7 +92,7 @@ struct SmapiHealthCard: View {
             HStack(alignment: .center, spacing: AppDesignCore.Spacing.md) {
                 Image(systemName: isHealthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .foregroundColor(accent)
-                    .font(.system(size: AppDesign.Font.scaled(22)))
+                    .font(.system(size: 22))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isHealthy ? localization.L(L10n.Logs.healthHealthy) : localization.L(L10n.Logs.healthTitle))
@@ -185,7 +185,7 @@ struct SmapiHealthCard: View {
             Text(localization.L(L10n.Logs.healthStale))
                 .font(AppDesign.Font.iconXS(.medium))
             if let age = SmapiLogSource(logDate: vm.smapiLogDate, isStale: true,
-                                        locale: Locale(identifier: localization.currentLanguage))?.staleAge {
+                                        locale: Locale.autoupdatingCurrent)?.staleAge {
                 Text(age).font(AppDesign.Font.iconXS)
             }
         }

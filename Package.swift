@@ -144,7 +144,6 @@ let package = Package(
                 "Models/KeybindFamilyFile.swift",
                 "Models/ModGroupPages.swift",
                 "Models/KeyboardShortcutCatalog.swift",
-                "Models/TextScale.swift",
                 "Models/CompatibilityResolution.swift",
                 "Models/ModDetailCache.swift",
                 "Models/ModDetailState.swift",
@@ -928,11 +927,6 @@ let package = Package(
             name: "CompatibilityResolutionTests",
             dependencies: ["StarHubTHCore"],
             path: "Tests/CompatibilityResolutionTests"
-        ),
-        .testTarget(
-            name: "TextScaleTests",
-            dependencies: ["StarHubTHCore"],
-            path: "Tests/TextScaleTests"
         ),
         .testTarget(
             name: "KeyboardShortcutCatalogTests",

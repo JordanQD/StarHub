@@ -372,7 +372,7 @@ struct TranslationSection: View {
     private var declareSheet: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
             Text(localization.L(L10n.Mods.translationDeclareTitle))
-                .font(.system(size: AppDesign.Font.scaled(15), weight: .bold))
+                .font(.system(size: 15, weight: .bold))
             Text(localization.L(L10n.Mods.translationDeclareExplainer))
                 .font(AppDesign.Font.footnote)
                 .foregroundColor(.secondary)

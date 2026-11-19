@@ -1,7 +1,7 @@
 import Testing
 @testable import StarHubTHCore
 
-struct AlertStoreTests {
+@MainActor struct AlertStoreTests {
     @Test func showSetsMessageAndPresents() {
         let store = AlertStore()
         store.show("Erreur de lecture")

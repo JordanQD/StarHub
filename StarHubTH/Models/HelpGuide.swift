@@ -52,7 +52,7 @@ public struct HelpSection: Identifiable, Equatable, Sendable {
     }
 }
 
-/// `GUIDE.md` / `GUIDE_EN.md` → sections. Pur et tolérant : un fichier mal
+/// Guide Markdown → sections. Pur et tolérant : un fichier mal
 /// formé rend moins de structure, jamais une erreur ni une section perdue.
 public enum HelpGuide {
     public static func parse(_ markdown: String) -> [HelpSection] {
@@ -243,7 +243,7 @@ enum HelpTopic {
                         diagnosticsSegment: DiagnosticsSegment,
                         alertsSegment: AlertsSegment) -> String {
         switch destination {
-        case .home, .settings, .appChangelog: return "first-launch"
+        case .home: return "first-launch"
         case .mods, .discover: return "install"
         case .updates: return "updates"
         case .frenchTranslations: return "translate"

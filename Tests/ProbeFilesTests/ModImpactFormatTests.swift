@@ -3,21 +3,23 @@ import Testing
 @testable import StarHubTHCore
 
 struct ModImpactFormatTests {
-    /// Virgule en français, point ailleurs (revue : virgule même en anglais).
-    @Test func decimalSeparatorFollowsTheLanguage() {
-        #expect(ModImpactFormat.number(1.25, digits: 2, language: "fr") == "1,25")
-        #expect(ModImpactFormat.number(1.25, digits: 2, language: "en") == "1.25")
-        #expect(ModImpactFormat.percent(0.123, language: "fr") == "12,3 %")
-        #expect(ModImpactFormat.percent(0.0004, language: "en") == "0.04 %")
+    private let french = Locale(identifier: "fr_FR")
+    private let english = Locale(identifier: "en_US")
+
+    @Test func numbersAndPercentagesFollowRegionalFormats() {
+        #expect(ModImpactFormat.number(1.25, digits: 2, locale: french) == "1,25")
+        #expect(ModImpactFormat.number(1.25, digits: 2, locale: english) == "1.25")
+        #expect(ModImpactFormat.percent(0.123, locale: french) == "12,3\u{00A0}%")
+        #expect(ModImpactFormat.percent(0.0004, locale: english) == "0.04%")
     }
 
     /// Sous la seconde, des millisecondes : « −0,0 s » pour 40 ms disait zéro.
     @Test func shortDurationsStayReadable() {
-        #expect(ModImpactFormat.duration(40, language: "fr") == "40 ms")
-        #expect(ModImpactFormat.duration(999, language: "en") == "999 ms")
-        #expect(ModImpactFormat.duration(2_450, language: "fr") == "2,5 s")
-        #expect(ModImpactFormat.duration(12_400, language: "en") == "12 s")
-        #expect(ModImpactFormat.duration(110_000, language: "fr") == "1 min 50 s")
+        #expect(ModImpactFormat.duration(40, locale: french) == "40 ms")
+        #expect(ModImpactFormat.duration(999, locale: english) == "999 ms")
+        #expect(ModImpactFormat.duration(2_450, locale: french) == "2,5 s")
+        #expect(ModImpactFormat.duration(12_400, locale: english) == "12 s")
+        #expect(ModImpactFormat.duration(110_000, locale: french) == "1 min 50 s")
     }
 
     /// Un écart qui s'arrondit à 0 n'est ni un gain ni une perte.

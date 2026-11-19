@@ -10,10 +10,7 @@ import Foundation
 public enum UDKey {
     /// Folder path of the user's Stardew Valley install.
     public static let gameDir = "gameDir"
-    /// Active UI language code (`"en"` / `"fr"`). Le thaï a été retiré des
-    /// langues d'interface ; le hub de traduction, lui, traite toujours les
-    /// mods thaï — ce sont deux notions distinctes (voir `docs/DOMAINE.md`).
-    public static let currentLanguage = "currentLanguage"
+    public static let settingsGroup = "settingsGroup"
     /// When `true`, toggling a mod on/off also toggles its SMAPI dependencies
     /// (and optionally its content-pack children) in the same operation.
     public static let chainToggleDependencies = "chainToggleDependencies"
@@ -66,11 +63,6 @@ public enum UDKey {
     /// une bascule faite jeu ouvert a sauté la moitié configs. Vide sinon.
     /// Persisté : quitter l'app entre les deux bascules ramènerait le trou.
     public static let profileConfigsDesyncedProfileId = "profileConfigsDesyncedProfileId"
-    /// Clé système `AppleLanguages` (`UserDefaults` d'Apple, pas une clé métier).
-    /// On y écrit la langue UI courante au lancement pour forcer le démarrage
-    /// SwiftUI dans la bonne locale avant la première vue. Centralisée ici pour
-    /// rester en accord avec §4.3 d'AGENTS.md malgré son origine système.
-    public static let appleLanguagesOverride = "AppleLanguages"
     /// JSON-encoded `[String: Date]` of mod folder name → last activation
     /// timestamp on this machine. Drives the `Date activated` sort in
     /// `ModListView`.
@@ -137,7 +129,6 @@ public enum UDKey {
     public static let nexusCustomCategories = "nexusCustomCategories"
     public static let nexusCustomModIds = "nexusCustomModIds"
     public static let nexusStatsRefreshedAt = "nexusStatsRefreshedAt"
-    public static let textScale = "textScale"
     public static let modUpdateSnoozes = "modUpdateSnoozes"
     public static let modVersionAnchors = "modVersionAnchors"
     /// Débit de la dernière grosse archive (`FolderArchiveStore`).

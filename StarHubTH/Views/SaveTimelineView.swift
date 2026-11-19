@@ -317,7 +317,7 @@ struct BackupRow: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: localization.currentLanguage)
+        formatter.locale = Locale.autoupdatingCurrent
         return formatter.string(from: backup.timestamp)
     }
     

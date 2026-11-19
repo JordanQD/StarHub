@@ -7,12 +7,14 @@ struct SettingsSmapiSection: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     @ObservedObject var smapiInstaller: SmapiInstaller
+    let alerts: AlertStore
     @State private var confirmUninstall = false
 
-    init(vm model: StarHubTHViewModel, localization: LocalizationStore) {
+    init(vm model: StarHubTHViewModel, localization: LocalizationStore, alerts: AlertStore) {
         self.viewModel = model
         self.localization = localization
         self.smapiInstaller = model.smapiInstaller
+        self.alerts = alerts
     }
 
     var body: some View {
@@ -39,7 +41,7 @@ struct SettingsSmapiSection: View {
                             .controlSize(.small)
                             .padding(.trailing, 4)
                     } else if viewModel.smapiInstalledVersion == nil {
-                        Button(localization.L(L10n.Home.installSmapi)) { viewModel.installSmapi() }
+                        Button(localization.L(L10n.Home.installSmapi)) { viewModel.installSmapi(alerts: alerts) }
                     } else {
                         Button(localization.L(L10n.Home.uninstall), role: .destructive) { confirmUninstall = true }
                     }
@@ -60,7 +62,7 @@ struct SettingsSmapiSection: View {
             }
         }
         .confirmationDialog(localization.L(L10n.Home.uninstallConfirmTitle), isPresented: $confirmUninstall) {
-            Button(localization.L(L10n.Home.uninstall), role: .destructive) { viewModel.uninstallSmapi() }
+            Button(localization.L(L10n.Home.uninstall), role: .destructive) { viewModel.uninstallSmapi(alerts: alerts) }
         } message: {
             Text(localization.L(L10n.Home.uninstallConfirmMessage))
         }

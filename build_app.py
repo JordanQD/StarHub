@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from collections import Counter
 import json
 import re
 import pathlib
@@ -18,10 +19,29 @@ RESOURCES_DIR = os.path.join(CONTENTS_DIR, "Resources")
 SUPPORTED_LOCALES = {
     "en": "Centralized English Localization Strings",
     "fr": "Centralized French Localization Strings",
+    "zh-Hans": "Simplified Chinese Localization Strings",
 }
 # Self-signed code-signing certificate, created once in Keychain Access
 # (docs/SIGNING.md). Override with STARHUBFR_SIGNING_IDENTITY.
 SIGNING_IDENTITY = os.environ.get("STARHUBFR_SIGNING_IDENTITY", "StarHubFR Signature")
+
+FORMAT_SPECIFIER = re.compile(
+    r"%%|%(?:([1-9]\d*)\$)?([-+#0]*\d*(?:\.\d+)?(?:ll|hh|[lhjztL])?[@diouxXfFeEgGaAcsp])"
+)
+
+
+def format_signature(text: str) -> Counter[tuple[int, str]]:
+    """Compare Foundation format arguments by slot, including escaped percent signs."""
+    arguments: Counter[tuple[int, str]] = Counter()
+    implicit_slot = 0
+    for match in FORMAT_SPECIFIER.finditer(text):
+        position, specifier = match.groups()
+        if specifier is None:
+            arguments[0, "%"] += 1
+        else:
+            implicit_slot += 1
+            arguments[int(position) if position else implicit_slot, specifier] += 1
+    return arguments
 
 
 def signing_identity() -> str | None:
@@ -69,6 +89,17 @@ def generate_localizable_strings() -> None:
                 print(f"[ERROR] {locale}.json is missing keys: {', '.join(missing)}")
             if extra:
                 print(f"[ERROR] {locale}.json has extra keys: {', '.join(extra)}")
+            raise SystemExit(1)
+
+    reference_formats = {key: format_signature(value)
+                         for key, value in locale_data[reference_locale].items()}
+    for locale, values in locale_data.items():
+        if locale == reference_locale:
+            continue
+        mismatched = sorted(key for key, value in values.items()
+                            if format_signature(value) != reference_formats[key])
+        if mismatched:
+            print(f"[ERROR] {locale}.json has incompatible format arguments: {', '.join(mismatched)}")
             raise SystemExit(1)
 
     # Toute constante de `L10n.swift` doit exister dans les assets. La parité
@@ -152,11 +183,8 @@ def check_core_boundary() -> None:
                   "Core est une couche logique : l'UI appartient aux vues.")
         sys.exit(1)
 
-# Aide intégrée (spec 2026-10-15) : les deux guides sont la source de la
-# fenêtre d'aide. Chaque section `## ` porte un marqueur `<!-- help: id -->`
-# juste au-dessus ; les deux langues doivent avoir les mêmes identifiants,
-# dans le même ordre — comme la parité des clés en/fr.
-HELP_GUIDES = ("GUIDE.md", "GUIDE_EN.md")
+# Chaque guide embarqué garde les mêmes identifiants de section, dans le même ordre.
+HELP_GUIDES = {"en": "GUIDE_EN.md", "fr": "GUIDE.md", "zh-Hans": "GUIDE_ZH_HANS.md"}
 HELP_MARKER = re.compile(r"^<!--\s*help:\s*([a-z0-9-]+)\s*-->$")
 
 def help_section_ids(path: str) -> list[str]:
@@ -183,20 +211,29 @@ def help_section_ids(path: str) -> list[str]:
     return ids
 
 def check_help_guides() -> None:
-    for guide in HELP_GUIDES:
+    if HELP_GUIDES.keys() != SUPPORTED_LOCALES.keys():
+        print("[ERROR] Chaque langue de l'interface doit avoir un guide.", file=sys.stderr)
+        sys.exit(1)
+
+    sections_by_language = {}
+    for language, guide in HELP_GUIDES.items():
         if not os.path.exists(guide):
             print(f"[ERROR] {guide} est introuvable : la fenêtre d'aide l'embarque.")
             sys.exit(1)
-    french, english = (help_section_ids(guide) for guide in HELP_GUIDES)
-    for guide, ids in zip(HELP_GUIDES, (french, english)):
+        ids = help_section_ids(guide)
         doubles = sorted({i for i in ids if ids.count(i) > 1})
         if doubles:
             print(f"[ERROR] {guide} : identifiant de section en double : {', '.join(doubles)}.")
             sys.exit(1)
-    if french != english:
-        print("[ERROR] GUIDE.md et GUIDE_EN.md n'ont pas les mêmes sections, "
-              f"dans le même ordre :\n  fr : {french}\n  en : {english}")
-        sys.exit(1)
+        sections_by_language[language] = ids
+
+    reference_ids = sections_by_language["en"]
+    for language, ids in sections_by_language.items():
+        if ids != reference_ids:
+            print(f"[ERROR] {HELP_GUIDES[language]} et {HELP_GUIDES['en']} n'ont pas les mêmes sections, "
+                  f"dans le même ordre :\n  {language} : {ids}\n  en : {reference_ids}")
+            sys.exit(1)
+
 
 def build_swiftc_command(swift_files: list[str], app_executable: str, module_cache_dir: str) -> list[str]:
     """Compilation whole-module — chemin de repli (`--whole-module`) et base de
@@ -481,12 +518,6 @@ def create_app_bundle():
     if os.path.exists(changelog_path):
         shutil.copy2(changelog_path, os.path.join(RESOURCES_DIR, "CHANGELOG.md"))
         print("[INFO] Copied CHANGELOG.md to App Resources")
-    # Aide intégrée : les deux guides, lus par la fenêtre d'aide.
-    help_dir = os.path.join(RESOURCES_DIR, "Help")
-    os.makedirs(help_dir, exist_ok=True)
-    for guide in HELP_GUIDES:
-        shutil.copy2(guide, os.path.join(help_dir, guide))
-    print("[INFO] Copied GUIDE.md and GUIDE_EN.md to App Resources/Help")
     # C4-T11 — les choix d'enum que les DLL C# déclarent par leurs types,
     # figé du parc par tools/gmcm_options.py (voir docs/SOURCES.md).
     gmcm_path = "assets/gmcm-options.json"
@@ -500,13 +531,14 @@ def create_app_bundle():
         shutil.copy2(contexts_path, os.path.join(RESOURCES_DIR, "keybind-contexts.json"))
         print("[INFO] Copied keybind-contexts.json to App Resources")
 
-    for lang in ["en.lproj", "fr.lproj"]:
-        lproj_src = os.path.join("assets", lang)
-        if os.path.exists(lproj_src):
-            lproj_dest = os.path.join(RESOURCES_DIR, lang)
-            os.makedirs(lproj_dest, exist_ok=True)
-            shutil.copy2(os.path.join(lproj_src, "Localizable.strings"), os.path.join(lproj_dest, "Localizable.strings"))
-            print(f"[INFO] Copied {lang} to App Resources")
+    for language in SUPPORTED_LOCALES:
+        folder = f"{language}.lproj"
+        source = os.path.join("assets", folder, "Localizable.strings")
+        destination = os.path.join(RESOURCES_DIR, folder)
+        os.makedirs(destination, exist_ok=True)
+        shutil.copy2(source, destination)
+        shutil.copy2(HELP_GUIDES[language], os.path.join(destination, "Guide.md"))
+        print(f"[INFO] Copied strings and help to {folder}")
     bundle_probe()
 
     # 4. Compile Swift App

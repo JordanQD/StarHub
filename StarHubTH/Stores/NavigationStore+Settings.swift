@@ -4,11 +4,10 @@ import Foundation
 /// n'importe quel écran. Fichier à part : `NavigationStore.swift` est au
 /// plafond de 400 lignes.
 extension NavigationStore {
-    /// La section d'abord, l'onglet ensuite : `SettingsView` la consomme à
-    /// son apparition (`showPendingSection`), patron `pending…Focus`.
+    /// La vue appelante ouvre la fenêtre native. Celle-ci consomme la section
+    /// une fois le bon onglet affiché.
     func openSettings(_ section: SettingsSection) {
         pendingSettingsSection = section
-        requestTab(.settings)
     }
 }
 

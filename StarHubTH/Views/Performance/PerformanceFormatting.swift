@@ -6,10 +6,7 @@ import SwiftUI
 /// 2026-10-03). Les sections gardent leurs mini-wrappers : les appels ne
 /// bougent pas, la logique n'a plus qu'un domicile.
 ///
-/// NB : `number` passe par `.formatted(.number...)`, qui suit la **locale
-/// système** ; `ModImpactFormat.number` (Models), lui, suit la langue de
-/// l'interface. Les deux cohabitent sur le même écran — écart connu, non
-/// modifié ici.
+/// Les nombres suivent les réglages régionaux de macOS.
 enum PerformanceFormatting {
     /// Le nom du manifeste quand le mod est installé, sinon l'identifiant.
     @MainActor static func modName(_ modId: String, viewModel: StarHubTHViewModel) -> String {

@@ -24,7 +24,7 @@ struct ImpactListBadge: View {
         if let top = shown.shares.max(by: { contribution($0) < contribution($1) }) {
             lines.append(String(format: localization.L(L10n.Performance.impactAxisDetail),
                                 ModImpactBadge.axisLabel(top.key, localization: localization),
-                                ModImpactFormat.percent(top.value, language: localization.currentLanguage),
+                                ModImpactFormat.percent(top.value),
                                 shown.sourceCount))
         }
         return lines.joined(separator: "\n")

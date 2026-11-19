@@ -74,7 +74,7 @@ struct FrenchTranslationsWorklist: View {
             if let coverage = item.coverage {
                 // Chasse fixe, comme la pastille de la liste des mods.
                 Text("\(coverage.displayPercent) %")
-                    .font(.system(size: AppDesign.Font.scaled(11), weight: .medium, design: .monospaced))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(AppDesign.Color.accent)
             }
             AdaptiveLabels {

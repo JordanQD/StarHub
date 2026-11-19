@@ -21,7 +21,7 @@ struct ReportConflictSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
             Text(localization.L(L10n.Conflicts.reportButton))
-                .font(.system(size: AppDesign.Font.scaled(15), weight: .bold))
+                .font(.system(size: 15, weight: .bold))
             Picker(localization.L(L10n.Conflicts.pickMod), selection: $target) {
                 Text("").tag(String?.none)
                 ForEach(candidates, id: \.folderName) { candidate in

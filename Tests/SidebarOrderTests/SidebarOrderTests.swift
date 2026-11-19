@@ -4,7 +4,7 @@ import Testing
 @Suite("Ordre de la barre latérale")
 struct SidebarOrderTests {
 
-    /// Les 14 destinations, dans l'ordre de l'écran. Relevé le 2026-09-09 ;
+    /// Les destinations, dans l'ordre de l'écran. Relevé le 2026-09-09 ;
     /// le 2026-09-24 (C5-T1), « Traductions FR » entre en Bibliothèque et le
     /// hub thaï, conditionnel et dernier, sort ; puis (I-T8) les sauvegardes
     /// d'installation et de configuration fusionnent en « Sauvegardes ».
@@ -12,7 +12,7 @@ struct SidebarOrderTests {
     private static let attendu: [SidebarDestination] = [
         .home, .mods, .discover, .updates, .frenchTranslations, .profiles, .saves,
         .systemAlerts, .logs, .quarantine, .backups,
-        .maintenance, .settings, .appChangelog,
+        .maintenance,
     ]
 
     /// Non-régression : sans ce test, un réordonnancement silencieux passerait
@@ -23,7 +23,7 @@ struct SidebarOrderTests {
 
     /// Le compilateur garantit qu'une destination a une page (F7), pas
     /// qu'elle est dans ce tableau : c'est ce test qui le tient.
-    @Test func lesQuatorzeDestinationsSontToutesPresentes() {
+    @Test func toutesLesDestinationsSontPresentes() {
         for d in Self.attendu {
             #expect(SidebarOrder.all.contains { $0.destination == d },
                     "\(d) manque à SidebarOrder.all")
@@ -90,8 +90,6 @@ struct SidebarOrderTests {
         #expect(SidebarOrder.entries(in: .health).map(\.destination)
                 == [.systemAlerts, .logs, .quarantine, .backups, .maintenance])
         #expect(SidebarOrder.entries(in: .app).isEmpty)
-        #expect(SidebarOrder.entries(in: .footer).map(\.destination)
-                == [.settings, .appChangelog])
     }
 
     /// Les clés des destinations d'origine restent celles relevées le

@@ -60,11 +60,9 @@ struct SettingsSectionOrderTests {
         // leur donner un cas ici les ferait rendre deux fois, ou obligerait à
         // éclater cette vue — la refonte de parcours que la spec §9 exclut.
         // Le test ne peut pas nommer un cas absent ; il tient le compte.
-        // 12 avec « Affichage » (I-T4), puis 10 : « Gestion » et
-        // « Sauvegarde » parties sur Entretien et Sauvegardes du jeu
-        // (2026-09-25).
         #expect(SettingsSection.allCases.count == 10)
-        #expect(SettingsSectionOrder.sections(in: .content) == [.nexus, .translationAI, .modBehavior])
+        #expect(SettingsSectionOrder.sections(in: .content) == [.nexus, .modBehavior, .coreExtensions, .translationAI])
+        #expect(SettingsSectionOrder.sections(in: .about) == [.appInfo, .support, .developer])
     }
 
     @Test("l'ordre à l'intérieur d'un groupe est stable d'un appel à l'autre")

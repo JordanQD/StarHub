@@ -22,7 +22,7 @@ struct HealthSuggestionsList: View {
             ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
                 HStack(alignment: .top, spacing: AppDesignCore.Spacing.sm) {
                     Text("\(index + 1).")
-                        .font(.system(size: AppDesign.Font.scaled(11), weight: .semibold, design: .rounded))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundColor(.accentColor)
                         .frame(width: 16, alignment: .trailing)
                     VStack(alignment: .leading, spacing: 2) {

@@ -1,6 +1,6 @@
 # Guide utilisateur — StarHubFR
 
-*[English version](GUIDE_EN.md).*
+[English](GUIDE_EN.md) · [简体中文](GUIDE_ZH_HANS.md)
 
 Comment s'en servir au quotidien, et quoi faire quand quelque chose coince. Pour la liste complète de ce que l'app sait faire, voir le [README](README.md).
 
@@ -28,6 +28,8 @@ Comment s'en servir au quotidien, et quoi faire quand quelque chose coince. Pour
 2. L'app n'est pas notarisée : au premier lancement, macOS peut la bloquer. Ouvrez **Réglages Système › Confidentialité et sécurité**, puis **Ouvrir quand même**. Si macOS refuse encore ou dit l'app « endommagée », glissez `StarHubFR.app` sur la zone **Allow unsigned app to launch** de [Sentinel](https://itsalin.com/appInfo/?id=sentinel) (`brew install --cask alienator88-sentinel`) ; la procédure complète est dans le [README](README.md#lever-la-quarantaine-avec-sentinel). À refaire après chaque nouvelle version.
 3. L'app cherche Stardew Valley. Si elle ne le trouve pas, désignez **l'application du jeu elle-même** ; le dossier `Mods/` est trouvé à partir de là.
 4. Si SMAPI n'est pas installé, l'app propose de l'installer. Sans SMAPI, le jeu ne charge aucun mod.
+
+Pour changer la langue de StarHubFR, ouvrez **Réglages Système › Général › Langue et région › Applications**. Ajoutez StarHubFR, choisissez le français, l’anglais ou le chinois simplifié, puis quittez et rouvrez l’app.
 
 **La clé API Nexus est facultative.** Sans elle, l'app vérifie déjà les mises à jour (par smapi.io) et parcourt Découvrir. Avec elle (**Réglages › Clé API**), elle télécharge et installe depuis Nexus, et vous pouvez approuver un mod d'un clic. La clé reste dans le trousseau macOS.
 

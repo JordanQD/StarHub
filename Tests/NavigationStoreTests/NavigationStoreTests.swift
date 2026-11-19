@@ -65,13 +65,13 @@ import Foundation
         #expect(s.pendingTabRequest == nil)
     }
 
-    /// R7 : « Ouvrir les réglages Nexus » pose la section **et** l'onglet —
-    /// sans la section, les Réglages s'ouvriraient sur leur dernier groupe.
-    @Test func openSettingsPoseSectionEtOnglet() {
+    /// Un lien vers la fenêtre des Réglages ne remplace pas la page en cours.
+    @Test func openSettingsPoseLaSectionSansChangerDePage() {
         let s = NavigationStore()
+        s.requestTab(.discover)
         s.openSettings(.nexus)
         #expect(s.pendingSettingsSection == .nexus)
-        #expect(s.pendingTabRequest == .settings)
+        #expect(s.pendingTabRequest == .discover)
     }
 
     /// N-11 : la note « traduction dans une sauvegarde » de la fiche mène aux

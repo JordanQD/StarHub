@@ -32,7 +32,7 @@ struct MaintenanceStorageCard: View {
                         .font(AppDesign.Font.caption(.semibold))
                         .foregroundStyle(.secondary)
                     Text(SharedFormatters.bytes(report.totalBytes))
-                        .font(.system(size: AppDesign.Font.scaled(28), weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .monospacedDigit()
                 }
             }

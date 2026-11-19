@@ -15,7 +15,7 @@
   <a href="https://github.com/mrbabilo/StarHubFR/releases/latest"><img src="https://img.shields.io/github/v/release/mrbabilo/StarHubFR?label=Version&color=2ea44f" alt="Version"></a>
   <a href="https://www.stardewvalley.net"><img src="https://img.shields.io/badge/Stardew%20Valley-1.6-5BA04E" alt="Stardew Valley 1.6"></a>
   <a href="https://smapi.io"><img src="https://img.shields.io/badge/SMAPI-4.x-6A5ACD" alt="SMAPI 4.x"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Langues-FR%20%7C%20EN-0055A4" alt="Langues FR et EN"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Langues-FR%20%7C%20EN%20%7C%20ZH--Hans-0055A4" alt="Français, anglais et chinois simplifié"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licence-MIT-yellow" alt="MIT License"></a>
   <a href="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml"><img src="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
@@ -28,7 +28,7 @@ Le **[guide utilisateur](GUIDE.md)** accompagne le premier lancement et chaque u
 
 ## Pourquoi StarHubFR
 
-*   🇫🇷 **En français de bout en bout** — interface, erreurs et diagnostics, avec bascule instantanée vers l'anglais.
+*   **Interface et aide en français, en anglais et en chinois simplifié.** Choisissez la langue de StarHubFR dans les réglages de macOS. [简体中文用户指南](GUIDE_ZH_HANS.md).
 *   🩺 **Il explique ce qui ne va pas** — il lit le journal SMAPI à votre place et vous indique clairement quoi faire.
 *   ✍️ **Vous traduisez les mods dans l'app** — un éditeur clé par clé écrit le `fr.json` sans casser les marqueurs du jeu.
 *   🍎 **Vraiment natif** — Swift et SwiftUI, sans couche web, utilisable avec VoiceOver.

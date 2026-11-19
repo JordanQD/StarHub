@@ -205,7 +205,7 @@ struct PerformanceLoadsSection: View {
     /// « 1 min 50 s », « 12 s », « 0,4 s ».
     static func duration(_ ms: Double) -> String {
         let seconds = ms / 1000
-        if seconds < 10 { return String(format: "%.1f s", seconds).replacingOccurrences(of: ".", with: ",") }
+        if seconds < 10 { return ModImpactFormat.number(seconds) + " s" }
         let whole = Int(seconds.rounded())
         return whole < 60 ? "\(whole) s" : "\(whole / 60) min \(String(format: "%02d", whole % 60)) s"
     }

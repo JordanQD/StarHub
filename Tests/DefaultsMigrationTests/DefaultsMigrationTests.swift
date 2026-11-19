@@ -44,12 +44,12 @@ struct DefaultsMigrationTests {
     }
 
     /// La liste des clés possédées est maintenue à la main : un doublon ou une
-    /// clé vide n'y a pas sa place — et `AppleLanguages` non plus, l'app la
-    /// re-dérive de `currentLanguage` après la recopie.
+    /// clé vide n'y a pas sa place. macOS gère les choix de langue.
     @Test func ownedKeysAreClean() {
         #expect(Set(DefaultsMigration.ownedKeys).count == DefaultsMigration.ownedKeys.count)
         #expect(DefaultsMigration.ownedKeys.allSatisfy { !$0.isEmpty })
         #expect(!DefaultsMigration.ownedKeys.contains("AppleLanguages"))
+        #expect(!DefaultsMigration.ownedKeys.contains("currentLanguage"))
     }
 
     // MARK: - La reprise, une fois et une seule (revue F5, constat 1)

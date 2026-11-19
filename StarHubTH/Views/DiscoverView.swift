@@ -9,6 +9,7 @@ import SwiftUI
 struct DiscoverView: View {
     /// ⌘F amène ici (voir `SearchFieldShortcut`).
     @FocusState private var searchFocused: Bool
+    @Environment(\.openSettings) private var openSettings
 
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -261,11 +262,10 @@ struct DiscoverView: View {
         case .failed:
             switch vm.lastDiscoveryError {
             case .noApiKey:
-                // La clé sert déjà aux mises à jour : le chemin, pas seulement
-                // le diagnostic.
                 StateCard(icon: "key", text: localization.L(L10n.Discovery.noKey),
                           actionTitle: localization.L(L10n.Discovery.openSettings)) {
                     vm.navigationStore.openSettings(.nexus)
+                    openSettings()
                 }
             case .rateLimited:
                 StateCard(icon: "hourglass", text: localization.L(L10n.Discovery.rateLimited),
@@ -324,11 +324,10 @@ struct DiscoverView: View {
         default: text = localization.L(L10n.Discovery.error)
         }
         if case .noApiKey = error {
-            // La clé sert déjà aux mises à jour : le chemin, pas seulement le
-            // diagnostic.
             return ErrorBanner(text: text,
                                actionTitle: localization.L(L10n.Discovery.openSettings)) {
                 vm.navigationStore.openSettings(.nexus)
+                openSettings()
             }
         }
         return ErrorBanner(text: text,

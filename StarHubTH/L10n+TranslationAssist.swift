@@ -4,7 +4,6 @@
 extension L10n {
     enum TranslationAssist {
         static let openSettings = "translation_assist_open_settings"
-        static let saveFirst = "translation_assist_save_first"
     }
 }
 

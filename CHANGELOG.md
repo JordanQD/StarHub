@@ -12,6 +12,15 @@ where the exact log format was verified.
 
 ## [Unreleased]
 
+### Added
+
+- **StarHubFR est disponible en chinois simplifié.** Choisissez cette langue dans **Réglages Système › Général › Langue et région › Applications** pour l’interface et le guide intégré.
+
+### Changed
+
+- **Les Réglages s’ouvrent dans leur propre fenêtre.** Accédez-y avec **⌘,** ou depuis le menu StarHubFR. La fenêtre retrouve le dernier onglet consulté. Dans À propos, retrouvez le journal des modifications, les raccourcis clavier et le signalement d’un problème. Les liens vers Nexus ou la traduction assistée laissent la page en cours ouverte. L’application suit l’apparence de macOS et adopte ses styles de texte.
+- **StarHubFR suit le choix de langue de macOS.** Pour choisir une langue uniquement pour StarHubFR, ouvrez **Réglages Système › Général › Langue et région › Applications**. L’interface et l’aide suivent ce choix à la réouverture de l’app. Les dates et les nombres suivent les formats régionaux de macOS.
+
 ## [1.74.1] - 2026-11-12
 
 ### Fixed

@@ -6,6 +6,7 @@ import SwiftUI
 struct AppExtensionsSettingsSection: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    @Environment(\.openWindow) private var openWindow
     @State private var probeFailure: String?
 
     var body: some View {
@@ -70,7 +71,8 @@ struct AppExtensionsSettingsSection: View {
                 // Un composant de pack (SVE) se résout aussi (H-T6c).
                 if let folder = presence.folderName {
                     Button(localization.L(L10n.Mods.openDetails)) {
-                        viewModel.navigationStore.openModDetail(folderName: folder, door: .extensionSettings)
+                        viewModel.navigationStore.openReportDetail(for: folder, door: .extensionSettings)
+                        openWindow(id: AppWindowID.main)
                     }
                 }
                 action(ext, presence: presence)

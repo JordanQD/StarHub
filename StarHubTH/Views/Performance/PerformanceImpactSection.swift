@@ -12,7 +12,6 @@ struct PerformanceImpactSection: View {
     var focus: String?
 
     private var store: ModImpactStore { viewModel.modImpactStore }
-    private var language: String { localization.currentLanguage }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
@@ -110,7 +109,7 @@ struct PerformanceImpactSection: View {
         return VStack(alignment: .leading, spacing: 2) {
             if let probe = store.probeMsPerFrame {
                 Text(String(format: localization.L(L10n.Performance.impactProbeCost),
-                            ModImpactFormat.number(probe, digits: 2, language: language)))
+                            ModImpactFormat.number(probe, digits: 2)))
             }
             if store.lastSave == nil { Text(localization.L(L10n.Performance.impactSaveMissing)) }
         }

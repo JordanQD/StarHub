@@ -38,7 +38,7 @@ struct AllClearGlyph: View {
                 .fill(AppDesign.Color.success.opacity(AppDesign.Opacity.light))
                 .frame(width: 96, height: 96)
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: AppDesign.Font.scaled(44)))
+                .font(.system(size: 44))
                 .foregroundStyle(AppDesign.Color.success.gradient)
         }
         .scaleEffect(shown ? 1 : 0.85)

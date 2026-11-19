@@ -12,13 +12,15 @@ struct HelpGuideContentTests {
         HelpGuide.parse(try String(contentsOf: root.appendingPathComponent(name), encoding: .utf8))
     }
 
-    @Test func lesDeuxGuidesOntLesDouzeSectionsDansLOrdre() throws {
-        #expect(try Self.guide("GUIDE.md").map(\.id) == HelpTopic.sectionIDs)
-        #expect(try Self.guide("GUIDE_EN.md").map(\.id) == HelpTopic.sectionIDs)
+    private static let filenames = ["GUIDE.md", "GUIDE_EN.md", "GUIDE_ZH_HANS.md"]
+
+    @Test(arguments: filenames)
+    func chaqueGuideALesDouzeSectionsDansLOrdre(_ name: String) throws {
+        #expect(try Self.guide(name).map(\.id) == HelpTopic.sectionIDs)
     }
 
     @Test func chaqueSectionALeTexte() throws {
-        for name in ["GUIDE.md", "GUIDE_EN.md"] {
+        for name in Self.filenames {
             for section in try Self.guide(name) {
                 #expect(!section.blocks.isEmpty, "\(name) : \(section.id) est vide")
             }
@@ -26,7 +28,7 @@ struct HelpGuideContentTests {
     }
 
     @Test func lesLiensInternesDesGuidesMenentQuelquePart() throws {
-        for name in ["GUIDE.md", "GUIDE_EN.md"] {
+        for name in Self.filenames {
             let sections = try Self.guide(name)
             var checked = 0
             for section in sections {
@@ -71,8 +73,6 @@ struct HelpGuideContentTests {
     @Test func chaquePageMeneALaSectionDeLaSpec() {
         let table: [(SidebarDestination, DiagnosticsSegment, AlertsSegment, String)] = [
             (.home, .health, .alerts, "first-launch"),
-            (.settings, .health, .alerts, "first-launch"),
-            (.appChangelog, .health, .alerts, "first-launch"),
             (.mods, .health, .alerts, "install"),
             (.discover, .health, .alerts, "install"),
             (.updates, .health, .alerts, "updates"),

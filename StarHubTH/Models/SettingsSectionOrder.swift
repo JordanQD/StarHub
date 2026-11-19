@@ -8,20 +8,19 @@ import Foundation
 /// de leur place ailleurs que dans l'ordre d'un `VStack`.
 public enum SettingsSection: String, CaseIterable, Sendable {
     // Le jeu et son lancement.
-    case gameFolder, smapi, launch, coreExtensions
+    case gameFolder, smapi, launch
     // D'où vient le contenu, et comment il est traité.
     //
     // `translationAI` est la section « Traduction assistée » entière : le
     // glossaire et le secours en ligne vivent **dedans** (`LocalAISettingsSection`),
     // pas à côté. Les hisser au premier niveau serait éclater une vue — la
     // refonte de parcours que la spec §9 exclut.
-    case nexus, translationAI, modBehavior
+    case nexus, translationAI, modBehavior, coreExtensions
     // Le dépannage. « Gestion » et « Sauvegarde » (actions ponctuelles, pas
     // des réglages) sont parties sur Entretien et Sauvegardes du jeu le
     // 2026-09-25 ; le groupe « Données & stockage » avec elles.
     case developer
-    // L'app elle-même : son affichage (taille du texte, I-T4), puis ses infos.
-    case display, appInfo
+    case appInfo, support
 }
 
 /// Le groupe sous lequel une section se lit. La spec de refonte demande des
@@ -33,16 +32,12 @@ public enum SettingsGroup: String, CaseIterable, Sendable {
 
 public enum SettingsSectionOrder {
 
-    /// L'ordre de lecture des groupes, du plus souvent touché au moins souvent.
-    public static let groups: [SettingsGroup] = [.game, .content, .about]
+    public static let groups = SettingsGroup.allCases
 
     /// Les sections d'un groupe, dans leur ordre de lecture.
     ///
     /// Le groupe `game` suit **l'ordre des gestes**, pas l'alphabet : on
-    /// choisit un dossier de jeu, puis on installe SMAPI dedans, puis on lance,
-    /// et les extensions cœur viennent une fois que tout tourne. Quelqu'un qui
-    /// découvre l'écran le lit dans cet ordre-là. Les tests tiennent cette
-    /// contrainte explicitement.
+    /// choisit un dossier de jeu, puis on installe SMAPI, puis on lance.
     /// Le groupe — donc l'onglet — où vit une section : ce qu'un lien vers
     /// une section (Découvrir → clé API Nexus) doit ouvrir avant de défiler.
     public static func group(of section: SettingsSection) -> SettingsGroup {
@@ -51,9 +46,9 @@ public enum SettingsSectionOrder {
 
     public static func sections(in group: SettingsGroup) -> [SettingsSection] {
         switch group {
-        case .game:    return [.gameFolder, .smapi, .launch, .coreExtensions]
-        case .content: return [.nexus, .translationAI, .modBehavior]
-        case .about:   return [.display, .developer, .appInfo]
+        case .game:    return [.gameFolder, .smapi, .launch]
+        case .content: return [.nexus, .modBehavior, .coreExtensions, .translationAI]
+        case .about:   return [.appInfo, .support, .developer]
         }
     }
 }

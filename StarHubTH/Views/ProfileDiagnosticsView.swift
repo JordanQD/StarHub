@@ -262,7 +262,7 @@ struct ProfileDiagnosticsView: View {
             // Le pourcentage à chasse fixe, comme la pastille de la liste des
             // mods : deux rangées voisines ne doivent pas décaler leur nombre.
             Text("\(mod.displayPercent) %")
-                .font(.system(size: AppDesign.Font.scaled(11), weight: .medium, design: .monospaced))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(mod.translated == 0 ? .secondary : AppDesign.Color.accent)
 
             Button(localization.L(L10n.Profiles.translationOpen)) {

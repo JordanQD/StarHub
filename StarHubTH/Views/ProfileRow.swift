@@ -125,7 +125,7 @@ struct ProfileRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .font(.system(size: AppDesign.Font.scaled(15)))
+                    .font(.system(size: 15))
                     .foregroundColor(.secondary)
             }
             .menuStyle(.borderlessButton).focusRing(cornerRadius: 4)

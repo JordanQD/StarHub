@@ -3,7 +3,7 @@ import SwiftUI
 // Pieds de la barre latérale, sortis de `SidebarComponents` (plafond de
 // taille, audit UX 2026-10-16, I-T26).
 
-/// Le téléchargement Nexus en cours, en pied de barre latérale (B2-T1).
+/// Le téléchargement Nexus en cours, au-dessus des groupes de navigation.
 ///
 /// Ce qu'il remplace : un `ProgressView()` indéterminé sur une seule ligne de
 /// la page des mises à jour. Un mod de 500 Mo se téléchargeait donc en
@@ -14,11 +14,7 @@ import SwiftUI
 /// **Sans taille annoncée, il ne ment pas.** Le CDN de Nexus n'annonce pas
 /// toujours `Content-Length` : la barre disparaît alors, et il ne reste que le
 /// volume reçu et le débit. Une barre figée à 0 % ferait croire à un blocage.
-/// Volet de téléchargement Nexus, en bas de la barre latérale : une fenêtre
-/// temporaire qui ne vit que le temps d'un téléchargement (`isDownloadingFromNexus`).
-/// Le contenu — mod visé, annulation, progression, débit — reste identique ;
-/// seul l'habillage en fait un volet flottant plutôt qu'une ligne du pied.
-struct NexusDownloadFooter: View {
+struct NexusDownloadStatus: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
 
@@ -31,8 +27,7 @@ struct NexusDownloadFooter: View {
                        value: vm.isDownloadingFromNexus)
     }
 
-    /// Volet posé seulement pendant un téléchargement : glisse depuis le bord
-    /// bas de la colonne, repart en sens inverse à la complétion.
+    /// Volet affiché seulement pendant un téléchargement.
     @ViewBuilder private var panel: some View {
         if vm.isDownloadingFromNexus {
             VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
@@ -77,9 +72,8 @@ struct NexusDownloadFooter: View {
             .shadow(color: .black.opacity(0.12),
                     radius: AppDesign.Shadow.badge.radius,
                     y: AppDesign.Shadow.badge.y)
-            // Fenêtre temporaire : entrée et sortie glissées, pas une ligne
-            // de plus dans le pied.
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .padding(.bottom, AppDesign.Spacing.sm)
+            .transition(.opacity)
             .accessibilityElement(children: .combine)
         }
     }
@@ -223,8 +217,7 @@ struct ModsWeightFooter: View {
     /// La part active posée sur toute la largeur, qui porte la part en pause.
     ///
     /// `GeometryReader` sous une hauteur **explicite** : laissé libre dans la
-    /// pile de la barre latérale, il réclamerait toute la hauteur restante et
-    /// pousserait les boutons de thème et de langue hors de l'écran.
+    /// pile de la barre latérale, il réclamerait toute la hauteur restante.
     private func weightBar(_ sizes: ModsFolderSizes) -> some View {
         let active = Double(sizes.totalBytes - sizes.pausedBytes) / Double(sizes.totalBytes)
         return GeometryReader { geo in

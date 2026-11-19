@@ -120,7 +120,7 @@ struct DiagnosticsView: View {
             ?? localization.L(L10n.Logs.headerNoSmapi)
         // Même date que la ligne de source des Alertes (R2), dans la langue de l'app.
         guard let source = SmapiLogSource(logDate: viewModel.smapiLogDate, isStale: false,
-                                          locale: Locale(identifier: localization.currentLanguage)) else {
+                                          locale: Locale.autoupdatingCurrent) else {
             return "\(smapi) · \(localization.L(L10n.Logs.headerNoLog))"
         }
         return "\(smapi) · " + String(format: localization.L(L10n.Logs.headerLogDate), source.date)

@@ -87,7 +87,6 @@ struct ModImpactSection: View {
     let mod: ModItem
 
     private var store: ModImpactStore { viewModel.modImpactStore }
-    private var language: String { localization.currentLanguage }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
@@ -168,7 +167,7 @@ struct ModImpactSection: View {
     private func textures(_ stats: ModImpactVersionStats) -> some View {
         if let mb = stats.textureMB {
             Text(String(format: localization.L(L10n.PerformanceTextures.detail),
-                        ModImpactFormat.number(mb, language: language), stats.textureSources))
+                        ModImpactFormat.number(mb), stats.textureSources))
                 .font(AppDesign.Font.body).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -187,7 +186,7 @@ struct ModImpactSection: View {
         }
         let n = axis == .launch ? stats.launchSources : axis == .save ? stats.saveSources : stats.inGameSources
         return String(format: localization.L(L10n.Performance.impactAxisDetail), axisLabel(axis),
-                      ModImpactFormat.percent(share, language: language), n)
+                      ModImpactFormat.percent(share), n)
     }
 
     /// « partielle » : un axe manque à ce mod alors qu'un autre mod l'a.
@@ -199,19 +198,19 @@ struct ModImpactSection: View {
     private func gainText(_ s: ModImpactVersionStats) -> String? {
         var parts: [String] = []
         if let frame = s.msPerFrame {
-            let ms = ModImpactFormat.number(frame, digits: 2, language: language)
+            let ms = ModImpactFormat.number(frame, digits: 2)
             parts.append(s.frameWorkShare.map {
-                String(format: localization.L(L10n.Performance.impactGainFrame), ms, ModImpactFormat.percent($0, language: language))
+                String(format: localization.L(L10n.Performance.impactGainFrame), ms, ModImpactFormat.percent($0))
             } ?? String(format: localization.L(L10n.Performance.impactGainFrameOnly), ms))
         }
         if let ms = s.launchMs {
-            parts.append(String(format: localization.L(L10n.Performance.impactGainLaunch), ModImpactFormat.duration(ms, language: language)))
+            parts.append(String(format: localization.L(L10n.Performance.impactGainLaunch), ModImpactFormat.duration(ms)))
         }
         if let ms = s.saveMs {
-            parts.append(String(format: localization.L(L10n.Performance.impactGainSave), ModImpactFormat.duration(ms, language: language)))
+            parts.append(String(format: localization.L(L10n.Performance.impactGainSave), ModImpactFormat.duration(ms)))
         }
         if let mb = s.allocMBPerMinute {
-            parts.append(String(format: localization.L(L10n.Performance.impactGainAlloc), ModImpactFormat.number(mb, language: language)))
+            parts.append(String(format: localization.L(L10n.Performance.impactGainAlloc), ModImpactFormat.number(mb)))
         }
         return parts.isEmpty ? nil : String(format: localization.L(L10n.Performance.impactGain), parts.joined(separator: " · "))
     }

@@ -32,7 +32,6 @@ struct HelpWindow: View {
         .searchable(text: $query, placement: .toolbar, prompt: localization.L(L10n.Help.searchPrompt))
         .frame(minWidth: 640, minHeight: 480)
         .onAppear { load(); consumeRequest() }
-        .onChange(of: localization.currentLanguage) { _, _ in load() }
         .onChange(of: query) { _, _ in refilter() }
         .onChange(of: navigation.pendingHelpSection) { _, _ in consumeRequest() }
     }
@@ -61,8 +60,6 @@ struct HelpWindow: View {
                     .frame(maxWidth: 760, alignment: .leading)
                     .frame(maxWidth: .infinity)
                 }
-                // Changement de langue : la vue est reconstruite, donc de retour en haut.
-                .id(localization.currentLanguage)
                 .onAppear { scroll(proxy) }
                 .onChange(of: target) { _, _ in scroll(proxy) }
             }
@@ -108,8 +105,7 @@ struct HelpWindow: View {
     }
 
     private func load() {
-        let name = localization.currentLanguage == "fr" ? "GUIDE" : "GUIDE_EN"
-        guard let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: "Help") else {
+        guard let url = localization.guideURL else {
             sections = []
             missing = true
             refilter()
@@ -126,8 +122,12 @@ struct HelpWindow: View {
     }
 
     private static func onlineGuide(_ language: String) -> URL? {
-        URL(string: "https://github.com/mrbabilo/StarHubFR/blob/main/"
-                    + (language == "fr" ? "GUIDE.md" : "GUIDE_EN.md"))
+        let filename = switch language {
+        case "fr": "GUIDE.md"
+        case "zh-Hans": "GUIDE_ZH_HANS.md"
+        default: "GUIDE_EN.md"
+        }
+        return URL(string: "https://github.com/mrbabilo/StarHubFR/blob/main/" + filename)
     }
 
     /// Markdown en ligne (gras, `code`, liens). Sans `try?` : le cliquet le

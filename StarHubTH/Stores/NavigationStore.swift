@@ -368,12 +368,7 @@ final class NavigationStore {
     /// la fenêtre principale peut être fermée.
     var pendingHelpSection: String?
 
-    /// L'onglet des Réglages (un par groupe). Ici et non en `@State` de la
-    /// page : il survit à un aller-retour vers un autre écran.
-    var settingsGroup: SettingsGroup = .game
-    /// Une section à montrer à l'arrivée sur les Réglages (lien « ajouter une
-    /// clé API » de Découvrir) : la page ouvre son onglet, y défile, puis
-    /// remet ceci à `nil` — patron `pending…Focus`.
+    /// Une section à montrer dans la fenêtre des Réglages, puis à effacer.
     var pendingSettingsSection: SettingsSection?
 
     func setEditingSave(_ save: SaveGameInfo?) {

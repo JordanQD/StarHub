@@ -25,8 +25,10 @@ Trois conséquences structurantes :
   d'abstraction par jeu, pas de système de greffons. Une demande du genre
   « généraliser à d'autres jeux » est une sortie de périmètre, à signaler plutôt
   qu'à construire.
-- **UI bilingue en/fr seulement.** `assets/en.json` et `assets/fr.json` sont la
-  source de vérité, à parité de clés obligatoire (le build échoue sinon).
+- **Interface en français, en anglais et en chinois simplifié.** Les trois
+  fichiers JSON d’interface dans `assets/` doivent avoir les mêmes clés.
+  macOS sélectionne la langue de l’interface et du guide à partir des dossiers
+  `.lproj` de l’app. Le français sert de repli.
   *Le thaï comme langue d'interface a été retiré*, et le « catalogue de
   traductions thaï » de l'amont aussi (C5-T1, 2026-09-24, `4e45b6c2`) : sa
   place dans la barre latérale revient à la page « Traductions FR »
