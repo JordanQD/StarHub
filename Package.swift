@@ -65,6 +65,7 @@ let package = Package(
                 "Models/InstalledTranslationStore.swift",
                 "Models/TranslationLinkConfirmation.swift",
                 "Models/TranslationDuplicateGuard.swift",
+                "Models/TranslationDuplicatePrompt.swift",
                 "Models/TranslationLinkManifest.swift",
                 "Models/TranslationLinkProposal.swift",
                 "Models/ManifestlessArchive.swift",

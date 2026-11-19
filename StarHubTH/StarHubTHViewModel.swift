@@ -4383,19 +4383,26 @@ final class StarHubTHViewModel {
     /// réinstallé redevient proposable, le refus d'hier ne se généralise pas
     /// aux voisins.
     func dismissTranslationLink(_ proposal: TranslationLinkProposal) {
+        rememberDismissedProposal(packFolderName: proposal.packFolderName)
+        var remaining = translationHub.proposedLinks
+        remaining[proposal.packFolderName] = nil
+        translationHub.setProposedLinks(remaining)
+    }
+
+    /// La ligne de refus d'un pack, partagée par l'écart manuel (C7-T1) et
+    /// le Remplacer du volet b (C7-T2 — le pack fraîchement pausé ne doit
+    /// pas se re-proposer vers l'hôte qu'il vient de perdre).
+    func rememberDismissedProposal(packFolderName: String) {
         let fingerprint = Self.linkFingerprint(
-            packFolderName: proposal.packFolderName,
+            packFolderName: packFolderName,
             gameDir: gameDir, packs: mods.flattenedMods)
         var dismissed = Set(UserDefaults.standard.string(
             forKey: UDKey.dismissedTranslationLinkProposals)?
             .split(separator: "\n").map(String.init) ?? [])
-        dismissed.insert("\(proposal.packFolderName)|\(fingerprint)")
+        dismissed.insert("\(packFolderName)|\(fingerprint)")
         UserDefaults.standard.set(
             dismissed.sorted().joined(separator: "\n"),
             forKey: UDKey.dismissedTranslationLinkProposals)
-        var remaining = translationHub.proposedLinks
-        remaining[proposal.packFolderName] = nil
-        translationHub.setProposedLinks(remaining)
     }
 
     /// Le fingerprint de référence d'un pack : mtime de son
@@ -4752,9 +4759,14 @@ final class StarHubTHViewModel {
 
     private func depositTranslation(archive: URL, hit: NexusModSearch.Hit, into mod: ModItem) {
         defer { translationHub.setBusy(false, for: mod.folderName) }
-        // `discardDownloaded` emporte le dossier `StarHubFR-download-*` entier
-        // (X104 : un dossier vide restait par traduction).
-        defer { NexusFileDownload.discardDownloaded(at: archive) }
+        // C7-T2 — la purge devient conditionnelle : une demande différée au
+        // dialogue Remplacer/Garder doit garder l'archive pour « Remplacer ».
+        var discardOnExit = true
+        defer { if discardOnExit { NexusFileDownload.discardDownloaded(at: archive) } }
+        if isPendingTranslationPrompt {
+            showModal(message: localization.L(L10n.Mods.translationReplaceBusy))
+            return
+        }
         let installer = ModZipInstaller()
         do {
             let extracted = try installer.extractToTemp(zipUrl: archive)
@@ -4773,6 +4785,15 @@ final class StarHubTHViewModel {
             }
             let plan = ManifestlessArchive.Plan(hostFolderName: mod.folderName,
                                                 kind: .translation, entries: entries)
+            // C7-T2 — la garde avant l'écriture : conflit = demande différée.
+            if let conflict = translationConflict(for: mod, incomingSourceName: hit.name,
+                                                  nexus: hit, downloadedModId: nil) {
+                discardOnExit = false
+                storePendingTranslation(.nexus(archive: archive, hit: hit, host: mod),
+                                        conflict: conflict)
+                log("Traduction déjà en place : confirmation demandée", level: .info)
+                return
+            }
             let result = depositIntoMod(plan: plan, extractedRoot: extracted, host: mod,
                                         sourceName: hit.name, nexus: hit)
             if let message = result.message { showModal(message: message) }
@@ -4783,6 +4804,25 @@ final class StarHubTHViewModel {
             showModal(message: localization.L(L10n.Mods.translationInstallFailed))
             log("Dépôt de traduction : \(error)", level: .error)
         }
+    }
+
+    // MARK: - C7-T2 — la confirmation Remplacer/Garder
+
+    /// Une installation différée au dialogue — `nil` : rien en attente.
+    /// Une seule à la fois : les déclencheurs sont gardés pendant le
+    /// dialogue (et le VM refuse en plus, au cas où). Mutée seulement par
+    /// `TranslationDuplicateActions` (extension, fichier dédié — F1-T2).
+    private(set) var pendingTranslationInstall: PendingTranslationInstall?
+    /// Le conflit descriptif du pending — le dialogue l'affiche.
+    private(set) var lastTranslationConflict: TranslationDuplicateConflict?
+    var isPendingTranslationPrompt: Bool { pendingTranslationInstall != nil }
+
+    /// Le mutateur interne de l'état du dialogue (l'extension du même
+    /// module ne peut pas toucher un `private(set)` d'un autre fichier).
+    func storePendingTranslation(_ pending: PendingTranslationInstall?,
+                                 conflict: TranslationDuplicateConflict?) {
+        pendingTranslationInstall = pending
+        if let conflict { lastTranslationConflict = conflict }
     }
 
     /// Dépose un plan dans un mod et inscrit au registre ce qui devra se

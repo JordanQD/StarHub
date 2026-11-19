@@ -473,6 +473,17 @@ enum L10n {
         static let translationLinkCounter     = "mods_translation_link_counter"
         static let translationLinkCoverage    = "mods_translation_link_coverage"
 
+        // MARK: C7-T2 — garde anti-doublon de traduction
+        static let translationReplaceTitle       = "mods_translation_replace_title"
+        static let translationReplaceAppManaged  = "mods_translation_replace_app_managed"
+        static let translationReplaceDeclared    = "mods_translation_replace_declared"
+        static let translationReplacePackPause   = "mods_translation_replace_pack_pause"
+        static let translationReplaceAdvisory    = "mods_translation_replace_advisory"
+        static let translationReplaceConfirm     = "mods_translation_replace_confirm"
+        static let translationReplaceKeep        = "mods_translation_replace_keep"
+        static let translationReplacePackGone    = "mods_translation_replace_pack_gone"
+        static let translationReplaceBusy        = "mods_translation_replace_busy"
+
         // MARK: Compatibilité smapi.io (A2-T2)
         static let compatStatusBroken       = "mods_compat_status_broken"
         static let compatStatusAbandoned    = "mods_compat_status_abandoned"
