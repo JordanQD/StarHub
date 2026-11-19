@@ -1,91 +1,88 @@
 import SwiftUI
 
-// MARK: - Sidebar Nav Groups
+// MARK: - Barre latérale (List native)
 
-/// Les trois groupes d'entrées de la barre latérale — Bibliothèque, Parties,
-/// Santé & secours. Extrait du corps de `MainView` (densité) et
-/// posé dans le `ScrollView` de la colonne : en fenêtre basse, ce sont ces
-/// lignes qui défilent.
+/// La colonne de navigation — une `List` en style `.sidebar`, rien de dessiné
+/// à la main.
+///
+/// Ce que la version précédente peignait elle-même et qui appartient
+/// désormais au système : le fond de sélection, la teinte de l'icône et du
+/// libellé sur la ligne choisie, l'effet de survol, la bague de focus, la
+/// navigation ↑↓ et le type-select, le fond translucide de la colonne, le
+/// défilement sous la barre de titre, les badges et leur place au bord fuyant.
+/// Survivre ici serait les défaire — ce fichier ne garde que la **donnée** :
+/// quelles pages, sous quel intitulé, avec quel compte.
+///
+/// Modèle : la barre de la référence visuelle de l'auteur (2026-11-19) —
+/// intitulés de groupe en gris, lignes d'une seule ligne, identité du compte
+/// au pied de la colonne plutôt qu'en tête.
 struct SidebarNavGroups: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     @Binding var currentTab: SidebarDestination
 
-    /// Le badge d'une destination — donnée **vivante** du ViewModel, pas de
-    /// `SidebarOrder` : il change à chaque scan. `nil` quand l'entrée ne
-    /// compte rien.
-    private func badge(_ d: SidebarDestination) -> (count: Int, color: Color)? {
-        let model = vm
-        switch d {
+    /// `List` ne rend la sélection que sous forme optionnelle, alors qu'une
+    /// page est toujours ouverte ici. Un clic dans le vide (désélection) ne
+    /// doit pas vider le détail : il ne fait rien.
+    private var selection: Binding<SidebarDestination?> {
+        Binding(get: { currentTab },
+                set: { page in if let page { currentTab = page } })
+    }
+
+    /// Ce qu'une destination compte. `0` — et non `nil` — pour celles qui ne
+    /// comptent rien : `.badge(0)` n'affiche aucune pastille, la ligne reste
+    /// atteignable quand tout va bien.
+    private func badgeCount(_ destination: SidebarDestination) -> Int {
+        switch destination {
         case .updates:
             // P5-6b : les mods actifs seulement (décision de l'auteur).
-            return (model.pendingUpdateCounts.active, AppDesign.Color.info)
+            return vm.pendingUpdateCounts.active
         case .systemAlerts:
-            let color = model.healthIssues.contains { $0.severity == .critical }
-                ? AppDesign.Color.error
-                : AppDesign.Color.warning
-            return (model.systemAlertCount, color)
+            return vm.systemAlertCount
         case .quarantine:
-            return (model.maintenanceStore.quarantineItemCount, AppDesign.Color.quarantine)
+            return vm.maintenanceStore.quarantineItemCount
         case .frenchTranslations:
             // P5-10 : mods actifs, mises à jour et traductions confirmées.
-            return (model.frenchTranslationBadgeCount, AppDesign.Color.accent)
+            return vm.frenchTranslationBadgeCount
         case .home, .mods, .discover, .profiles, .saves,
              .backups, .maintenance, .logs:
-            return nil
+            return 0
         }
     }
-
-    private func group(_ g: SidebarGroup, header: String,
-                       icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            SidebarSectionHeader(title: header, icon: icon)
-            ForEach(SidebarOrder.entries(in: g)) { e in
-                // `badge: Int?` est déjà optionnel côté SidebarItem — `nil`
-                // veut dire « cet item ne compte rien », `0` « il compte, et
-                // il n'y a rien ». Pas de branche à écrire.
-                let b = badge(e.destination)
-                SidebarItem(icon: e.icon, label: localization.L(e.sidebarLabelKey),
-                            tab: e.destination, badge: b?.count,
-                            badgeColor: b?.color ?? AppDesign.Color.info,
-                            currentTab: $currentTab)
-            }
-        }
-    }
-
-    /// Le groupe `.top` (l'Accueil) n'est **pas** rendu ici : il vit dans
-    /// `AccountHeaderCard`, en tête de colonne. Il est dans `SidebarOrder`
-    /// parce que le menu « Aller » et la palette en ont besoin, pas la barre.
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
-            group(.library, header: localization.L(L10n.Main.groupLibrary),
-                  icon: "square.grid.2x2")
-            group(.saves, header: localization.L(L10n.Main.groupSaves),
-                  icon: "gamecontroller")
-            group(.health, header: localization.L(L10n.Main.groupHealth),
-                  icon: "cross.case")
-        }
-    }
-}
-
-struct SidebarSectionHeader: View {
-    let title: String
-    var icon: String = ""   // optionnel, vide par défaut (pas de breaking change)
 
     var body: some View {
-        HStack(spacing: AppDesign.Spacing.xs + 2) {
-            if !icon.isEmpty {
-                Image(systemName: icon)
-                    .font(AppDesign.Font.iconXS.weight(.semibold))
-                    .foregroundColor(.secondary)
+        List(selection: selection) {
+            // Le groupe `.top` (l'Accueil) se lit au-dessus du premier
+            // intitulé, sans le sien — comme la première ligne de la
+            // référence.
+            Section {
+                ForEach(SidebarOrder.entries(in: .top)) { row($0) }
             }
-            Text(title)
-                .font(AppDesign.Font.caption(.semibold))
-                .foregroundColor(.secondary)
+            section(.library, headerKey: L10n.Main.groupLibrary)
+            section(.saves, headerKey: L10n.Main.groupSaves)
+            section(.health, headerKey: L10n.Main.groupHealth)
         }
-        .padding(.leading, AppDesign.Spacing.sm)
-        .padding(.top, AppDesign.Spacing.sm)
-        .padding(.bottom, 0)
-        .accessibilityAddTraits(.isHeader)
+        // Seul réglage de style : il donne la sélection, le fond translucide
+        // et l'espacement de la barre latérale macOS. Tout le reste suit.
+        .listStyle(.sidebar)
+    }
+
+    /// Un intitulé de groupe et ses lignes. `Section` dessine l'intitulé
+    /// (petite capitale grise) et le fait coller en haut du défilement.
+    private func section(_ group: SidebarGroup, headerKey: String) -> some View {
+        Section {
+            ForEach(SidebarOrder.entries(in: group)) { row($0) }
+        } header: {
+            Text(localization.L(headerKey))
+        }
+    }
+
+    /// Une ligne : l'icône et le libellé par la `Label` du système, le
+    /// compte par `.badge`. Aucun style par état — c'est `List` qui sait si
+    /// la ligne est choisie, survolée ou focalisée.
+    private func row(_ entry: SidebarEntry) -> some View {
+        Label(localization.L(entry.sidebarLabelKey), systemImage: entry.icon)
+            .tag(entry.destination)
+            .badge(badgeCount(entry.destination))
     }
 }

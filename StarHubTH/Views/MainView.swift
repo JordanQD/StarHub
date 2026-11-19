@@ -24,7 +24,6 @@ struct MainView: View {
     /// `OnboardingPresentation` — ici, seul l'état de présentation.
     @State private var showOnboarding = false
     
-    @State private var isProfileHovered = false
     @State private var showDownloadedInstall = false
     /// La feuille d'installation rouverte sur l'archive suivante d'un dépôt
     /// multiple — le canal `vm.pendingDropPresentation` est posé par le
@@ -215,40 +214,27 @@ struct MainView: View {
 
     /// La colonne latérale. Extraite du `body` le 2026-09-10, dans la
     /// même série que `destinationView` : saturation du type-checker.
+    ///
+    /// Trois zones, et rien de plus : le téléchargement en cours en tête (il
+    /// n'appartient à aucune page), la `List` native au milieu, le pied
+    /// d'identité en bas. Largeur, fond translucide, sélection et survol ne
+    /// sont plus écrits ici — ils appartiennent au `NavigationSplitView` et à
+    /// `List(.sidebar)` (refonte native du 2026-11-19).
     private var sidebarColumn: some View {
                 VStack(spacing: 0) {
-    
-                    // Account Header Card — compact identity + active profile +
-                    // key metadata (mods active/total, SMAPI status). Replaces the
-                    // old bulky 48px avatar and the floating status footer:
-                    // everything the user needs at-a-glance is now in one card.
-                    AccountHeaderCard(
-                        vm: vm,
-                        localization: localization,
-                        isActive: currentTab == .home,
-                        isHovered: isProfileHovered,
-                        onTap: { currentTab = .home }
-                    )
-                    .onHover { isProfileHovered = $0 }
-                    .padding(.horizontal, 10)
-                    .padding(.top, 14)
-                    .padding(.bottom, 16)
-    
                     NexusDownloadStatus(vm: vm, localization: localization)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, AppDesign.Spacing.sm)
 
-                    ScrollView(.vertical) {
-                        SidebarNavGroups(vm: vm, localization: localization, currentTab: $currentTab)
-                            .padding(.horizontal, 10)
-                    }
-    
+                    SidebarNavGroups(vm: vm, localization: localization, currentTab: $currentTab)
+
                     ModsWeightFooter(vm: vm, localization: localization)
-                        .padding(.horizontal, 10)
-                        .padding(.top, AppDesign.Spacing.sm)
-                        .padding(.bottom, 10)
+                        .padding(.horizontal, AppDesign.Spacing.sm)
+
+                    Divider()
+
+                    SidebarAccountBar(vm: vm, localization: localization,
+                                      onTap: { currentTab = .home })
                 }
-                .frame(minWidth: 240, idealWidth: 240, maxWidth: 240, maxHeight: .infinity, alignment: .top).focusSection() // Tab : sortir de la barre (I-T6)
-                .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
     }
 
     /// La visibilité des colonnes du `NavigationSplitView` : le mode focus
@@ -259,9 +245,13 @@ struct MainView: View {
     var body: some View {
         ZStack {
             NavigationSplitView(columnVisibility: $columnVisibility) {
-                // Largeur figée : repliable, jamais redimensionnée au séparateur.
+                // Largeur de la barre latérale : un intervalle, pas une
+                // constante. Le séparateur redevient saisissable et la largeur
+                // choisie survit à la session — c'est la règle de la colonne
+                // latérale macOS depuis toujours, et une valeur figée à 240 la
+                // démentait.
                 sidebarColumn
-                    .navigationSplitViewColumnWidth(240)
+                    .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
 
         } detail: {
             // ── CONTENT AREA ─────────────────────────────────────────

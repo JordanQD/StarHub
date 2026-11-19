@@ -20,6 +20,7 @@ where the exact log format was verified.
 
 - **Les Réglages s’ouvrent dans leur propre fenêtre.** Accédez-y avec **⌘,** ou depuis le menu StarHubFR. La fenêtre retrouve le dernier onglet consulté. Dans À propos, retrouvez le journal des modifications, les raccourcis clavier et le signalement d’un problème. Les liens vers Nexus ou la traduction assistée laissent la page en cours ouverte. L’application suit l’apparence de macOS et adopte ses styles de texte.
 - **StarHubFR suit le choix de langue de macOS.** Pour choisir une langue uniquement pour StarHubFR, ouvrez **Réglages Système › Général › Langue et région › Applications**. L’interface et l’aide suivent ce choix à la réouverture de l’app. Les dates et les nombres suivent les formats régionaux de macOS.
+- **La barre latérale devient celle de macOS.** Son fond translucide, la ligne choisie, le survol, la navigation aux flèches et le défilement sous la barre de titre viennent désormais du système au lieu d’être dessinés par l’app : elle se comporte comme celle des autres apps, et sa largeur se règle au séparateur. Le compte prend place en pied de colonne, l’Accueil redevient une page de la liste, et les compteurs prennent la pastille standard.
 
 ## [1.74.1] - 2026-11-12
 

@@ -83,3 +83,8 @@ StardewValley.Icon.*
 
 # Cache de décompilation de tools/keybind_contexts.py (DLL en C#, mégaoctets)
 .keybind-decompile-cache/
+
+# État local de SwiftPM (configuration Xcode, caches de résolution) — propre à
+# la machine, recréé à la première construction. Les manifests versionnés sont
+# Package.swift et Package.resolved.
+.swiftpm/

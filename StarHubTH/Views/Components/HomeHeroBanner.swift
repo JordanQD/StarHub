@@ -4,9 +4,10 @@ import SwiftUI
 /// posé à cheval sur son bord bas (disque plein, pastille feuille), puis le
 /// nom du joueur et la version de l'app.
 ///
-/// Celui de la v1.6.0, retiré par H-T3 (l'identité avait migré vers
-/// `AccountHeaderCard`) et remis à la demande de l'auteur le 2026-09-24 :
-/// l'accueil garde sous lui la bande d'attention et la carte de lancement.
+/// Celui de la v1.6.0, retiré par H-T3 (l'identité avait migré vers la carte de
+/// compte, aujourd'hui `SidebarAccountBar`) et remis à la demande de l'auteur
+/// le 2026-09-24 : l'accueil garde sous lui la bande d'attention et la carte de
+/// lancement.
 struct HomeHeroBanner: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore

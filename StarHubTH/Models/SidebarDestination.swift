@@ -15,7 +15,9 @@ import Foundation
 ///
 /// La `rawValue` reprend à l'identique les chaînes d'avant la migration :
 /// elle sert au journal et au diagnostic, jamais à choisir une page.
-public enum SidebarDestination: String, Equatable, Sendable {
+/// `Hashable` n'est pas décoratif : c'est l'exigence de `List(selection:)`,
+/// qui identifie une ligne par sa valeur. Un `String` brut la donne pour rien.
+public enum SidebarDestination: String, Hashable, Sendable {
     /// Hors groupe : la carte de compte, en tête de la barre latérale.
     case home = "Home"
 
