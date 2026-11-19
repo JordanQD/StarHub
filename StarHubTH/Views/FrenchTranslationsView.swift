@@ -30,8 +30,6 @@ struct FrenchTranslationsView: View {
     /// R3 — fixé une fois à l'apparition (« À finir », sauf liste vide et
     /// mesure finie) : la page ne bascule pas sous les yeux.
     @State private var segment: Segment?
-    /// C7-T1 — la revue des propositions de lien, ouverte depuis le compteur.
-    @State private var showLinkProposals = false
 
     private enum Segment: Hashable { case worklist, nexus }
 
@@ -56,10 +54,11 @@ struct FrenchTranslationsView: View {
         VStack(alignment: .leading, spacing: 0) {
             header(all, shown: shown, workCount: work.count)
                 .padding(AppDesign.Spacing.lg)
-            // C7-T1 — compteur discret : masqué si zéro, la liste s'ouvre en
-            // feuille et se vide sous les yeux (confirmation et écart).
+            // C7-T1 — les propositions de lien, en section directe de la
+            // page : visibles sans clic, et la section disparaît quand la
+            // dernière est traitée (rattachée ou ignorée).
             if !linkProposals.isEmpty {
-                linkCounter
+                linkProposalsSection
                     .padding(.horizontal, AppDesign.Spacing.lg)
                     .padding(.bottom, AppDesign.Spacing.sm)
             }
@@ -97,12 +96,6 @@ struct FrenchTranslationsView: View {
             }
         }
         .onAppear { if segment == nil { segment = shown } }
-        .sheet(isPresented: $showLinkProposals) {
-            TranslationLinkProposalsView(viewModel: viewModel,
-                                         localization: localization,
-                                         proposals: linkProposals,
-                                         onClose: { showLinkProposals = false })
-        }
         .sheet(isPresented: $showArbitration) {
             TranslationArbitrationSheet(store: mergeStore, viewModel: viewModel,
                                         localization: localization,
@@ -117,7 +110,7 @@ struct FrenchTranslationsView: View {
         }
     }
 
-    // MARK: - C7-T1 — le compteur des propositions de lien
+    // MARK: - C7-T1 — la section des propositions de lien
 
     /// Le relevé courant, trié par nom de pack — le store est le vivant :
     /// confirmations et écarts réduisent la liste sous les yeux.
@@ -127,18 +120,18 @@ struct FrenchTranslationsView: View {
     }
 
     @ViewBuilder
-    private var linkCounter: some View {
-        Button {
-            showLinkProposals = true
-        } label: {
+    private var linkProposalsSection: some View {
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
             Label(String(format: localization.L(L10n.Mods.translationLinkCounter),
                          linkProposals.count),
                   systemImage: "link")
+                .font(AppDesign.Font.caption(.medium))
+            ForEach(linkProposals, id: \.packFolderName) { proposal in
+                TranslationLinkProposalCard(vm: viewModel,
+                                            localization: localization,
+                                            proposal: proposal)
+            }
         }
-        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-        .controlSize(.small)
-        .pointingHandCursor()
-        .help(localization.L(L10n.Mods.translationLinkCardTitle))
     }
 
     // MARK: - En-tête
