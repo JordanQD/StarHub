@@ -4270,20 +4270,20 @@ final class StarHubTHViewModel {
                 .appendingPathComponent(mod.physicalFolderName)
             let i18nDir = (root as NSString).appendingPathComponent("i18n")
             let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
-            let frPath = (i18nDir as NSString).appendingPathComponent("fr.json")
-            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: frPath)
+            let frenchPath = (i18nDir as NSString).appendingPathComponent("fr.json")
+            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: frenchPath)
             else { continue }
             keySets[mod.folderName] = keySet
             let reference = FileManager.default.fileExists(atPath: defaultPath)
                 ? defaultPath
-                : (FileManager.default.fileExists(atPath: frPath) ? frPath : nil)
+                : (FileManager.default.fileExists(atPath: frenchPath) ? frenchPath : nil)
             if let reference,
                let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
                let modified = attributes[.modificationDate] as? Date {
                 fingerprints[mod.folderName] = String(Int(modified.timeIntervalSince1970))
             }
-            if let frValues = linkValues(at: frPath) {
-                frenchValues[mod.folderName] = frValues
+            if let frenchFileValues = linkValues(at: frenchPath) {
+                frenchValues[mod.folderName] = frenchFileValues
             }
         }
         let built = packs.compactMap { mod -> TranslationLinkPack? in

@@ -234,8 +234,9 @@ des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas liv
 > l'interne SMAPI. Rien d'engagé — la phase 2 reste refermée ; ces items ne
 > s'ouvrent que si l'axe C rouvre.
 
-- [ ] **C7-T1 — Preuve du lien hors Nexus par empreinte de clés** *(idée à
-      peser — **mesurée le 2026-11-18, verdict favorable**)*. Leur chaîne
+- [x] **C7-T1 — Preuve du lien hors Nexus par empreinte de clés** *(idée à
+      peser — **mesurée le 2026-11-18, verdict favorable, livrée le
+      2026-11-19** ; validation écran à faire)*. Leur chaîne
       d'évidence à cinq niveaux (manifeste, confirmation, identifiant exact,
       nom + clés, **empreinte des clés**) rattache une traduction à son mod
       hôte même sans page Nexus : comparer l'ensemble des clés d'un
@@ -252,9 +253,15 @@ des manifestes). Une pastille qui ne s'allumerait jamais : **C6-T1 n'est pas liv
       les rejetterait pareil) et un pack de buissons dont les clés sont
       identiques à celles de ses voisins Cornucopia (l'ex-æquo se tranche par
       le nom de dossier — leur niveau « nom + clés »). L'empreinte seule
-      suffit dans ~95 cas sur 100, le nom du dossier tranche le reste ;
-      reste à décider l'engagement (où vit le matching dans
-      `TranslationHubStore` : repli hors Nexus de la recherche d'identité).
+      suffit dans ~95 cas sur 100, le nom du dossier tranche le reste.
+      **Livrée** : `Models/TranslationLinkProposal.swift` (trois signaux :
+      marqueur de nom, langue des valeurs, recouvrement non-self ≥ 0,70 ;
+      jumeaux d'`uniqueId` exclus ; paires réciproquement marquées
+      silencieuses), `DeclaredTranslation` option B (id et dossier de pack
+      optionnels — rétrocompatible), carte sur la fiche du pack + compteur
+      discret au panorama, refus mémorisés par `folderName|mtime`.
+      Spec et plan : `docs/superpowers/{specs,plans}/…-translation-link-
+      proposals*` (gitignorés). C7-T2/C7-T3 restent à peser.
 - [ ] **C7-T2 — Détection de doublon avant écrasement** *(idée à peser)*.
       Deux traductions actives d'un même mod + locale = **les deux suspendues**
       chez eux ; chez nous, une seconde traduction FR posée remplace la

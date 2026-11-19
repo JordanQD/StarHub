@@ -12,6 +12,19 @@ where the exact log format was verified.
 
 ## [Unreleased]
 
+### Added
+
+- **Link proposals for translations installed as mods (C7-T1)**: when a pack
+  that looks like a French translation (name marker, French values, strong
+  key-set overlap with another installed mod) arrives or sits on the parc
+  without a declared link, the app proposes the host — from the pack's
+  detail page and through a discreet counter in FR Translations. Confirming
+  creates the registry declaration; **nothing is written to the mods**, and
+  dismissals are remembered per pack (a modified or reinstalled pack becomes
+  proposable again). Packs without a Nexus identity link **without version
+  tracking** (the registry accepts an id-less declaration carrying the pack
+  folder), and the card says so before the click.
+
 ## [1.74.1] - 2026-11-12
 
 ### Fixed
