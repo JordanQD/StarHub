@@ -1753,8 +1753,13 @@ final class StarHubTHViewModel {
             self.scanMods(gameDir: resolvedGameDir)  // also kicks off parseSMAPILog internally
             self.reloadSaves()
             self.environment.fetchSteamUser(fallbackFarmerName: farmerFallback)
-            guard let onScanned else { return }
-            DispatchQueue.main.async { MainActor.assumeIsolated { onScanned() } }
+            // C7-T1 — les propositions de lien se recalculent après chaque
+            // scan (et donc au lancement : toute passe passe par ici).
+            DispatchQueue.main.async { MainActor.assumeIsolated {
+                self.refreshTranslationLinkProposals()
+                guard let onScanned else { return }
+                onScanned()
+            } }
         }
         // Synchronous: install marker or first 256 bytes of the log, no process
         // (`SmapiVersionEvidence.installedVersion`).
@@ -4220,6 +4225,197 @@ final class StarHubTHViewModel {
         } else {
             log("Retrait de la déclaration non enregistré", level: .warning)
         }
+    }
+
+    // MARK: - C7-T1 — les propositions de lien « pack-traduction → hôte »
+
+    /// Recompute des propositions, après **chaque scan** (et donc au
+    /// lancement : toute passe passe par `onScanned`). Le snapshot
+    /// `mods`/`gameDir` se prend **sur main** — les lire depuis la file de
+    /// fond était une course déjà payée (seed utilisateur, 2026-09-25) —
+    /// puis les i18n se lisent sur fil de fond en lecture lenient (JSONC,
+    /// UTF-16 : 313 traductions du parc en sont) et la publication revient
+    /// sur main. Les liens déjà posés (`isLinkDeclared`) et les refus
+    /// mémorisés sont filtrés, sur l'état figé au snapshot.
+    func refreshTranslationLinkProposals() {
+        let packs = mods.flattenedMods
+        let resolvedGameDir = gameDir
+        let registry = installedTranslations   // struct : copie figée sur main
+        let dismissed = Set(UserDefaults.standard.string(
+            forKey: UDKey.dismissedTranslationLinkProposals)?
+            .split(separator: "\n").map(String.init) ?? [])
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let byPack = Self.computeLinkProposals(
+                packs: packs, gameDir: resolvedGameDir,
+                registry: registry, dismissed: dismissed)
+            DispatchQueue.main.async { MainActor.assumeIsolated {
+                self.translationHub.setProposedLinks(byPack)
+            } }
+        }
+    }
+
+    /// Le calcul complet d'un relevé de propositions : lectures i18n lenient
+    /// (l'appelant a figé l'état), matching pur, filtres registre + refus.
+    /// Statique et sans `self` : appelable depuis la file de fond, testable
+    /// sans ViewModel.
+    static func computeLinkProposals(packs: [ModItem], gameDir: String,
+                                     registry: InstalledTranslationRegistry,
+                                     dismissed: Set<String>) -> [String: TranslationLinkProposal] {
+        var keySets: [String: Set<String>] = [:]
+        var fingerprints: [String: String] = [:]
+        var frenchValues: [String: [String]] = [:]
+        for mod in packs {
+            let root = (gameDir as NSString)
+                .appendingPathComponent(mod.physicalFolderName)
+            let i18nDir = (root as NSString).appendingPathComponent("i18n")
+            let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
+            let frPath = (i18nDir as NSString).appendingPathComponent("fr.json")
+            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: frPath)
+            else { continue }
+            keySets[mod.folderName] = keySet
+            let reference = FileManager.default.fileExists(atPath: defaultPath)
+                ? defaultPath
+                : (FileManager.default.fileExists(atPath: frPath) ? frPath : nil)
+            if let reference,
+               let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
+               let modified = attributes[.modificationDate] as? Date {
+                fingerprints[mod.folderName] = String(Int(modified.timeIntervalSince1970))
+            }
+            if let frValues = linkValues(at: frPath) {
+                frenchValues[mod.folderName] = frValues
+            }
+        }
+        let built = packs.compactMap { mod -> TranslationLinkPack? in
+            guard let keySet = keySets[mod.folderName] else { return nil }
+            return TranslationLinkPack(
+                folderName: mod.folderName,
+                physicalFolderName: mod.physicalFolderName,
+                name: mod.name,
+                uniqueId: mod.uniqueId,
+                isMarked: TranslationLinkMatcher.isMarked(
+                    name: mod.name + " " + mod.folderName),
+                isFrench: TranslationLinkMatcher.isFrench(
+                    values: frenchValues[mod.folderName] ?? []),
+                keySet: keySet,
+                nexusId: TranslationLinkMatcher.nexusId(fromUpdateKeys: mod.updateKeys))
+        }
+        var byPack: [String: TranslationLinkProposal] = [:]
+        for proposal in TranslationLinkMatcher.propose(packs: built) {
+            let line = "\(proposal.packFolderName)|\(fingerprints[proposal.packFolderName] ?? "")"
+            if registry.isLinkDeclared(
+                packFolderName: proposal.packFolderName, nexusId: proposal.nexusId) {
+                continue
+            }
+            if dismissed.contains(line) { continue }
+            byPack[proposal.packFolderName] = proposal
+        }
+        return byPack
+    }
+
+    /// Les clés d'un fichier i18n installé, en lecture lenient — `nil` si le
+    /// fichier manque, est illisible ou porte des valeurs imbriquées.
+    private static func linkKeySet(at path: String) -> Set<String>? {
+        guard let data = FileManager.default.contents(atPath: path),
+              let entries = try? I18nLenientParser.parse(data) else { return nil }
+        return Set(entries.keys)
+    }
+
+    /// Les **valeurs** d'un fichier i18n — pour juger la langue du texte,
+    /// pas le nom du fichier (leçon Transtar).
+    private static func linkValues(at path: String) -> [String]? {
+        guard let data = FileManager.default.contents(atPath: path),
+              let entries = try? I18nLenientParser.parse(data) else { return nil }
+        return Array(entries.values)
+    }
+
+    /// Confirme une proposition : déclaration pour l'hôte, portant le
+    /// dossier du pack. **Disque intact** — le manifeste du pack est relu
+    /// (tolérant JSONC), c'est lui qui nomme la déclaration ; un pack sans
+    /// `UpdateKeys` Nexus crée un lien **sans suivi de version** (option B),
+    /// ce que la carte dit avant le clic.
+    func confirmTranslationLink(_ proposal: TranslationLinkProposal) {
+        guard let pack = mods.flattenedMods.first(where: {
+            $0.folderName == proposal.packFolderName })
+        else {
+            log("Proposition de lien sans pack au parc : \(proposal.packFolderName)",
+                level: .warning)
+            return
+        }
+        let manifestPath = ((gameDir as NSString)
+            .appendingPathComponent(pack.physicalFolderName) as NSString)
+            .appendingPathComponent("manifest.json")
+        var name = pack.name
+        var version: String? = pack.version
+        var nexusId: Int?
+        if let data = FileManager.default.contents(atPath: manifestPath),
+           let decoded = I18nFileDecoder.decode(data),
+           let object = I18nLenientParser.lenientObject(decoded.text) {
+            if let declared = object["Name"] as? String, !declared.isEmpty {
+                name = declared
+            }
+            if let read = object["Version"] as? String { version = read }
+            if let keys = object["UpdateKeys"] as? [String] {
+                nexusId = TranslationLinkMatcher.nexusId(fromUpdateKeys: keys)
+            }
+        }
+        translationHub.mutateInstalled { registry in
+            _ = TranslationLinkConfirmation.apply(
+                proposal: proposal, name: name, version: version,
+                nexusId: nexusId, to: &registry, declaredAt: Date())
+        }
+        if InstalledTranslationStore.save(installedTranslations) {
+            log("Lien de traduction créé : \(proposal.packFolderName) → "
+                + "\(proposal.hostFolderName)", level: .info)
+        } else {
+            log("Lien non enregistré : la proposition reviendra au prochain scan",
+                level: .warning)
+        }
+        var remaining = translationHub.proposedLinks
+        remaining[proposal.packFolderName] = nil
+        translationHub.setProposedLinks(remaining)
+    }
+
+    /// Écarte une proposition : mémorisée par
+    /// `folderName|<mtime du fichier de référence>` — le pack modifié ou
+    /// réinstallé redevient proposable, le refus d'hier ne se généralise pas
+    /// aux voisins.
+    func dismissTranslationLink(_ proposal: TranslationLinkProposal) {
+        let fingerprint = Self.linkFingerprint(
+            packFolderName: proposal.packFolderName,
+            gameDir: gameDir, packs: mods.flattenedMods)
+        var dismissed = Set(UserDefaults.standard.string(
+            forKey: UDKey.dismissedTranslationLinkProposals)?
+            .split(separator: "\n").map(String.init) ?? [])
+        dismissed.insert("\(proposal.packFolderName)|\(fingerprint)")
+        UserDefaults.standard.set(
+            dismissed.sorted().joined(separator: "\n"),
+            forKey: UDKey.dismissedTranslationLinkProposals)
+        var remaining = translationHub.proposedLinks
+        remaining[proposal.packFolderName] = nil
+        translationHub.setProposedLinks(remaining)
+    }
+
+    /// Le fingerprint de référence d'un pack : mtime de son
+    /// `i18n/default.json`, à défaut `fr.json`, à défaut rien (la ligne de
+    /// refus ne porte que le nom — et elle ré-arme le pack à chaque scan,
+    /// comportement voulu : un pack sans i18n lisible est un cas non
+    /// stabilisé).
+    static func linkFingerprint(packFolderName: String,
+                                gameDir: String, packs: [ModItem]) -> String {
+        guard let pack = packs.first(where: { $0.folderName == packFolderName })
+        else { return "" }
+        let i18nDir = ((gameDir as NSString)
+            .appendingPathComponent(pack.physicalFolderName) as NSString)
+            .appendingPathComponent("i18n")
+        let reference = ["default.json", "fr.json"]
+            .map { (i18nDir as NSString).appendingPathComponent($0) }
+            .first { FileManager.default.fileExists(atPath: $0) }
+        guard let reference,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
+              let modified = attributes[.modificationDate] as? Date
+        else { return "" }
+        return String(Int(modified.timeIntervalSince1970))
     }
 
     /// Version plus récente trouvée ? Sur les **dates Nexus**, jamais les

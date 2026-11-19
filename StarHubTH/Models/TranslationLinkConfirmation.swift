@@ -49,3 +49,32 @@ extension InstalledTranslationRegistry {
         Set(declaredTranslations.keys)
     }
 }
+
+// MARK: - La confirmation
+
+public enum TranslationLinkConfirmation {
+    /// Crée la déclaration que la confirmation de la carte propose, pour
+    /// l'hôte de la proposition, en portant le dossier du pack.
+    ///
+    /// Le `name`, la `version` et le `nexusId` viennent du **manifeste du
+    /// candidat relu au moment de la confirmation** (paramètres, pas champs
+    /// de la proposition) : le manifeste peut avoir changé depuis le
+    /// recompute, et c'est la réalité du disque qui doit gagner. `nexusId`
+    /// `nil` = pack sans page (option B) : le lien existe, **sans suivi de
+    /// version** — l'UI le dit avant le clic.
+    ///
+    /// Zéro accès disque ici : la mutation du registre est pure, la
+    /// persistance reste à l'appelant (contrat du store).
+    @discardableResult
+    public static func apply(proposal: TranslationLinkProposal,
+                             name: String, version: String?, nexusId: Int?,
+                             to registry: inout InstalledTranslationRegistry,
+                             declaredAt: Date) -> DeclaredTranslation {
+        let declaration = DeclaredTranslation(
+            nexusModId: nexusId, nexusName: name, version: version,
+            updatedAt: nil, declaredAt: declaredAt,
+            packFolderName: proposal.packFolderName)
+        registry.declare(declaration, forHost: proposal.hostFolderName)
+        return declaration
+    }
+}

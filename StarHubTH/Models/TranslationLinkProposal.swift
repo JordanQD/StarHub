@@ -111,6 +111,17 @@ public enum TranslationLinkMatcher {
         return Double(hits.count) / Double(long.count) >= 0.20
     }
 
+    /// L'identifiant Nexus porté par des `UpdateKeys` (« Nexus:55410 », la
+    /// variante `Nexus:55410@Main` tolérée) — le premier qui parse ; `nil`
+    /// si aucun ne parse (pack sans page : lien sans suivi de version).
+    public static func nexusId(fromUpdateKeys keys: [String]) -> Int? {
+        for key in keys where key.lowercased().hasPrefix("nexus:") {
+            let digits = key.dropFirst("nexus:".count).prefix(while: { $0.isNumber })
+            if let id = Int(digits) { return id }
+        }
+        return nil
+    }
+
     /// Une proposition au plus par candidat — le meilleur hôte non-self au
     /// dessus du seuil, l'ex-æquo tranché par le nom ou porté en
     /// `alternates`. Les packs non marqués ne sont jamais candidats ; les

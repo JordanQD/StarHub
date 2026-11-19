@@ -89,4 +89,38 @@ import Foundation
         #expect(registry.declaredTranslations["Hôte"]?.packFolderName == "PackFR2")
         #expect(registry.declaredLinkHosts().count == 1)
     }
+
+    // MARK: - C7-T1 — la confirmation d'une proposition
+
+    @Test func applyCreatesTheDeclarationWithIdentity() throws {
+        var registry = InstalledTranslationRegistry()
+        let proposal = TranslationLinkProposal(
+            packFolderName: "EasyAccessButtonsFR", packName: "Easy Access Buttons FR",
+            packVersion: "1.0.5", nexusId: nil,
+            hostFolderName: "Easy Access Buttons", coverage: 1.0,
+            evidence: .keys, alternates: [])
+        let date = Date(timeIntervalSince1970: 100)
+        let decl = TranslationLinkConfirmation.apply(
+            proposal: proposal, name: "Easy Access Buttons FR", version: "1.0.5",
+            nexusId: nil, to: &registry, declaredAt: date)
+        #expect(decl.nexusModId == nil)                 // option B : id-less accepté
+        #expect(decl.packFolderName == "EasyAccessButtonsFR")
+        #expect(decl.declaredAt == date)
+        #expect(registry.isLinkDeclared(packFolderName: "EasyAccessButtonsFR", nexusId: nil))
+        #expect(registry.declaredLinkHosts() == ["Easy Access Buttons"])
+    }
+
+    @Test func applyKeepsAnIdentityWhenThePackHasOne() {
+        var registry = InstalledTranslationRegistry()
+        let proposal = TranslationLinkProposal(
+            packFolderName: ".TranslationHubFR", packName: "Translation Hub FR",
+            packVersion: "0.6.1", nexusId: 60100,
+            hostFolderName: ".TranslationHub", coverage: 0.95,
+            evidence: .nameAndKeys, alternates: [])
+        let decl = TranslationLinkConfirmation.apply(
+            proposal: proposal, name: "Translation Hub FR", version: "0.6.1",
+            nexusId: 60100, to: &registry, declaredAt: Date())
+        #expect(decl.nexusModId == 60100)
+        #expect(registry.isLinkDeclared(packFolderName: ".TranslationHubFR", nexusId: 60100))
+    }
 }
