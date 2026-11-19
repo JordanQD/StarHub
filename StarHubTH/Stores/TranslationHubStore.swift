@@ -44,6 +44,13 @@ final class TranslationHubStore {
     /// Les mods dont une recherche d'identité tourne.
     private(set) var identitySearching: Set<String> = []
 
+    /// C7-T1 — les propositions de lien « pack-traduction → hôte » par
+    /// `folderName` du pack. Relevé **complet** après chaque calcul : un
+    /// setter fusionnerait un pack sorti du parc ou rétracté. Les refus ne
+    /// passent pas ici — ils vivent dans la clé
+    /// `UDKey.dismissedTranslationLinkProposals`, persistés par l'appelant.
+    private(set) var proposedLinks: [String: TranslationLinkProposal] = [:]
+
     /// Les suppléments trouvés pour un mod, par mod hôte.
     private(set) var supplementSearches: [String: SupplementSearch] = [:]
     /// Les mods dont une recherche de suppléments tourne.
@@ -95,6 +102,14 @@ final class TranslationHubStore {
     }
 
     func isBusy(_ folder: String) -> Bool { busy.contains(folder) }
+
+    // MARK: - C7-T1 — les propositions de lien
+
+    /// Publie le relevé **complet** des propositions de lien : le recompute
+    /// d'après scan ne fusionne pas avec le relevé précédent.
+    func setProposedLinks(_ newLinks: [String: TranslationLinkProposal]) {
+        proposedLinks = newLinks
+    }
 
     // MARK: - L'identité d'un mod sans fiche
 

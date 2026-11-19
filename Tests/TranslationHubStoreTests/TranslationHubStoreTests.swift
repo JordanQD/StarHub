@@ -19,6 +19,13 @@ import Foundation
               tags: [], endorsements: nil, summary: nil)
     }
 
+    private func makeProposal(pack: String, host: String) -> TranslationLinkProposal {
+        TranslationLinkProposal(packFolderName: pack, packName: pack,
+                                packVersion: "1.0", nexusId: nil,
+                                hostFolderName: host, coverage: 1.0,
+                                evidence: .keys, alternates: [])
+    }
+
     // MARK: - Le registre
 
     @Test func theRegistryStartsEmptyAndSurvivesMutation() {
@@ -150,5 +157,27 @@ import Foundation
         s.setBusy(false, for: "A")
         #expect(s.isBusy("A") == false)
         #expect(s.isBusy("B"))               // l'autre opération continue
+    }
+
+    // MARK: - C7-T1 — les propositions de lien
+
+    /// Un remplacement complet : le recompute d'après scan ne **fusionne**
+    /// pas avec le relevé précédent — un pack qui n'est plus candidat doit
+    /// disparaître, pas rester sur écran.
+    @Test func proposedLinksAreReplacedNotMerged() {
+        let s = TranslationHubStore()
+        s.setProposedLinks(["Pack1": makeProposal(pack: "Pack1", host: "Hôte1")])
+        #expect(s.proposedLinks["Pack1"] != nil)
+        s.setProposedLinks(["Pack2": makeProposal(pack: "Pack2", host: "Hôte2")])
+        #expect(s.proposedLinks["Pack1"] == nil)   // l'ancien relevé est parti
+        #expect(s.proposedLinks["Pack2"] != nil)
+        s.setProposedLinks([:])
+        #expect(s.proposedLinks.isEmpty)
+    }
+
+    /// La clé des refus, à préfixe maison comme sa sœur des recouvrements.
+    @Test func dismissedKeyUsesTheHousePrefix() {
+        #expect(UDKey.dismissedTranslationLinkProposals
+                == "starhubFR.dismissedTranslationLinkProposals")
     }
 }
