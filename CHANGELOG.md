@@ -22,8 +22,6 @@ where the exact log format was verified.
   Same-identity installs (updates) stay silent, as do ghosts whose files a
   mod update already wiped. Keep writes nothing.
 
-### Added
-
 - **Link proposals for translations installed as mods (C7-T1)**: when a pack
   that looks like a French translation (name marker, French values, strong
   key-set overlap with another installed mod) arrives or sits on the parc

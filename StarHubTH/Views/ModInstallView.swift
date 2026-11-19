@@ -53,6 +53,10 @@ struct ModInstallView: View {
     /// Archive sans manifeste situable, ou dont l'hôte est à désigner (un
     /// dossier entier, contre un fichier nu pour `droppedProposal`).
     @State private var manifestlessPlan: ManifestlessArchive.Plan?
+    /// C7-T2 — le dépôt a été différé au dialogue Remplacer/Garder : à la
+    /// remise à `nil` du pending, la feuille se ferme (l'extrait est
+    /// nettoyé par le `onDisappear` habituel).
+    @State private var deferredDeposit = false
     @State private var manifestlessCandidates: [String] = []
     @State private var manifestlessEntries: [ManifestlessArchive.Entry] = []
     /// Traduction : au registre, retirable ; greffe : non (le message le dit).
@@ -176,6 +180,12 @@ struct ModInstallView: View {
         // C7-T2 — même pending que le dialogue racine : présenté ici car la
         // feuille couvre MainView, et le chemin déposé vit dedans.
         .modifier(TranslationReplaceDialog(vm: vm, localization: localization))
+        .onChange(of: vm.isPendingTranslationPrompt) { _, pendingNow in
+            if deferredDeposit, !pendingNow {
+                deferredDeposit = false
+                isPresented = false   // dépôt exécuté ou abandonné : la feuille a fini
+            }
+        }
         .alert(localization.L(L10n.Mods.compatInstallTitle),
                isPresented: Binding(get: { pendingBrokenInstall != nil },
                                     set: { if !$0 { pendingBrokenInstall = nil } })) {
@@ -212,6 +222,7 @@ struct ModInstallView: View {
                 Button(String(format: localization.L(L10n.ModInstall.depositConfirm), plan.hostFolderName)) {
                     deposit(plan)
                 }
+                .disabled(vm.isPendingTranslationPrompt)
                 Button(localization.L(L10n.ModInstall.cancel), role: .cancel) {
                     manifestlessPlan = nil
                     // Dépôt annulé : le reste du dépôt multiple continue.
@@ -628,7 +639,10 @@ struct ModInstallView: View {
         guard let result = vm.requestTranslationDeposit(plan: plan, extractedRoot: tempDir,
                                                         sourceName: analyzedArchiveName,
                                                         downloadedModId: downloadedModId,
-                                                        host: host) else { return }
+                                                        host: host) else {
+            deferredDeposit = true
+            return
+        }
         guard let outcome = result.outcome else {
             showFailure(result.message ?? localization.L(L10n.ModInstall.depositFailed))
             showError = true

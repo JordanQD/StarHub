@@ -4819,6 +4819,9 @@ final class StarHubTHViewModel {
 
     /// Le mutateur interne de l'état du dialogue (l'extension du même
     /// module ne peut pas toucher un `private(set)` d'un autre fichier).
+    /// Un conflit `nil` **laisse** le conflit en place — voulu : la remise
+    /// à `nil` du pending au début de « Remplacer » doit conserver le
+    /// conflit capturé, que les effets du volet b relisent ensuite.
     func storePendingTranslation(_ pending: PendingTranslationInstall?,
                                  conflict: TranslationDuplicateConflict?) {
         pendingTranslationInstall = pending

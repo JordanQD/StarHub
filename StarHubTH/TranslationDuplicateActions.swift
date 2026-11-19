@@ -59,16 +59,22 @@ extension StarHubTHViewModel {
     /// « Remplacer » : le consentement est donné — **court-circuit de la
     /// garde**, sinon le conflit se re-déclencherait avant que
     /// `depositIntoMod` n'ait désinstallé l'incumbent (boucle de dialogue).
-    /// Ordre imposé : dépôt d'abord ; oubli de déclaration, pause du pack et
-    /// refus C7-T1 **sur succès seulement** — un dépôt qui échoue ne doit
-    /// rien dégrader autour de lui.
+    /// Ordre imposé : dépôt d'abord ; pause du pack et refus C7-T1 **sur
+    /// succès seulement** — un dépôt qui échoue ne doit rien dégrader autour
+    /// de lui. L'archive Nexus est purgée à **toutes** les sorties du
+    /// Remplacer (succès, archive méconnaissance, échec d'extraction).
     func confirmPendingTranslationReplace() {
         guard let pending = pendingTranslationInstall else { return }
         storePendingTranslation(nil, conflict: nil)
+        var archiveToPurge: URL?
+        defer {
+            if let archiveToPurge { NexusFileDownload.discardDownloaded(at: archiveToPurge) }
+        }
         let host = pending.host
         let result: (outcome: ManifestlessInstaller.Outcome?, message: String?)
         switch pending {
         case .nexus(let archive, let hit, let hostMod):
+            archiveToPurge = archive
             do {
                 let extracted = try ModZipInstaller().extractToTemp(zipUrl: archive)
                 defer { try? FileManager.default.removeItem(at: extracted) }
@@ -91,7 +97,6 @@ extension StarHubTHViewModel {
                 log("Dépôt de traduction : \(error)", level: .error)
                 return
             }
-            NexusFileDownload.discardDownloaded(at: archive) // consommée ou abandonnée
         case .dropped(let plan, let extractedRoot, let sourceName,
                       let downloadedModId, let hostMod):
             result = depositIntoMod(plan: plan, extractedRoot: extractedRoot, host: hostMod,
@@ -117,18 +122,24 @@ extension StarHubTHViewModel {
         }
     }
 
-    /// Le volet b, après un dépôt réussi : oublier la déclaration C7-T1,
-    /// mettre le pack en pause (réversible, jamais une suppression — et pas
-    /// de re-bascule s'il est déjà en pause), et mémoriser le refus C7-T1
-    /// du pack — sinon le recompute re-proposerait aussitôt le pack fraîchement
-    /// pausé vers cet hôte.
+    /// Le volet b, après un dépôt réussi : mettre le pack en pause
+    /// (réversible, jamais une suppression — et pas de re-bascule s'il est
+    /// déjà en pause), et mémoriser le refus C7-T1 du pack — sinon le
+    /// recompute re-proposerait aussitôt le pack fraîchement pausé vers cet
+    /// hôte. Le volet vient du **conflit capturé à la demande**
+    /// (`lastTranslationConflict`) : `depositIntoMod` a déjà retiré la
+    /// déclaration (tout plan `.translation` passe par son `undeclare`) —
+    /// relire le registre ici ne verrait jamais rien (relecture critique
+    /// 2026-11-19, constat 1). L'oubli lui-même est déjà fait et enregistré
+    /// par le dépôt.
     private func applyDeclaredSideEffects(forHost hostFolderName: String) {
-        guard let declared = translationHub.installed.declaredTranslation(forHost: hostFolderName),
-              let folder = declared.packFolderName, !folder.isEmpty else { return }
-        translationHub.mutateInstalled { _ = $0.undeclare(forHost: hostFolderName) }
-        if InstalledTranslationStore.save(installedTranslations) {
-            log("Déclaration de traduction retirée pour \(hostFolderName)", level: .info)
-        }
+        guard let conflict = lastTranslationConflict,
+              case .declaredPack(let folder, _, _) =
+                  conflict.existing.first(where: {
+                      if case .declaredPack = $0 { return true }
+                      return false
+                  })
+        else { return }
         if let pack = mods.flattenedMods.first(where: { $0.folderName == folder }) {
             if pack.isEnabled { toggleMod(pack) }
         } else {
