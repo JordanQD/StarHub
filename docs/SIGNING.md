@@ -1,4 +1,4 @@
-# Signature de StarHubFR
+# Signature de StarHub
 
 Décision du 2026-10-15 : **pas de notarisation** (pas d'abonnement Apple
 Developer). Gatekeeper avertit donc toujours au premier lancement d'une app
@@ -24,8 +24,7 @@ ce qui ne suffit pas au Trousseau (voir la limite plus bas).
    `"StarHubFR Signature"`.
 
 Sans l'étape 3, `codesign` refuse le certificat (« no identity found », vérifié
-le 2026-10-15) et `build_app.py` retombe sur la signature ad hoc en le disant.
-Un autre nom : variable `STARHUBFR_SIGNING_IDENTITY`.
+le 2026-10-15). Le projet Xcode utilise la signature ad hoc par défaut. Pour signer une archive avec ce certificat, lancez `STARHUB_SIGNING_IDENTITY="StarHubFR Signature" ./scripts/release.sh`.
 
 **Limite : le Trousseau redemande l'accès après chaque compilation**, une fois
 par clé (Nexus, DeepL), même si l'on a répondu « Toujours autoriser ». Mesuré le
@@ -42,7 +41,7 @@ perdre change l'identité, avec les mêmes redemandes qu'en ad hoc.
 
 ## 2. Empreinte des releases — `SHA256SUMS`
 
-`release.py` écrit `bundles/SHA256SUMS` à côté du zip ; il se publie avec lui.
+`scripts/release.sh` écrit `bundles/SHA256SUMS` à côté du zip ; il se publie avec lui.
 Pour vérifier un téléchargement, dans son dossier :
 
 ```bash
@@ -61,8 +60,7 @@ gh auth refresh -h github.com -s admin:ssh_signing_key
 gh ssh-key add ~/.ssh/starhubfr_signing.pub --type signing --title "StarHubFR tags"
 ```
 
-Ensuite, après le commit d'`Info.plist`, `release.py` a affiché les commandes à
-lancer : le tag signé (`git tag -s`), son envoi, puis la release sur ce tag
+Ensuite, après le commit d'`Info.plist`, créez le tag signé (`git tag -s`), son envoi, puis la release sur ce tag
 (`gh release create --verify-tag`). Sans clé, il prévient et GitHub crée un tag
 non signé.
 

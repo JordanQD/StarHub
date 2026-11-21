@@ -221,7 +221,7 @@ struct LaunchSplashView: View {
                 // Version beside the wordmark, baseline-aligned: a third line
                 // would push the bar down for a detail that belongs to the title.
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text("StarHubFR")
+                    Text("StarHub")
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Text("v\(Self.appVersion)")

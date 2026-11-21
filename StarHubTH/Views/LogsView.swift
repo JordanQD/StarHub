@@ -147,7 +147,7 @@ struct LogsView: View {
             // ── Source + Level filter : une rangée, repliée si trop étroite ──
             WrapHStack(spacing: 10, lineSpacing: AppDesign.Spacing.sm) {
                 sourceTab(nil,    label: localization.L(L10n.Logs.filterAll), icon: "list.bullet")
-                sourceTab(.app,   label: "StarHubFR",               icon: "app.badge")
+                sourceTab(.app,   label: "StarHub",               icon: "app.badge")
                 sourceTab(.smapi, label: "SMAPI",                    icon: "terminal")
 
                 Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1, height: 16)

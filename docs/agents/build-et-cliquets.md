@@ -2,12 +2,12 @@
 
 Déplacé d'`AGENTS.md` §2 le 2026-11-14 (allègement) : le pourquoi et les détails des commandes. Les commandes et règles restent dans `AGENTS.md` §2. Lire quand un build ou un test échoue de façon inattendue, ou avant de toucher un cliquet.
 
-## Build de l'app (`python3 build_app.py`, le vrai gate)
+## Build de l’application
 
-- `swiftc` brut sur **tous** `.swift` sous `StarHubTH/` (un module), **mode Swift 6** (`-swift-version 6`). Incrémental ; `--whole-module` = ancien chemin.
-- Si `xcode-select -p` pointe sur Command Line Tools : échec `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found` — pas erreur de code. Préfixer `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
-- Valide la **parité des clés** d’interface entre les langues (build en erreur sinon).
-- Génère `assets/*.lproj/Localizable.strings` + `compile_commands.json` (racine, gitignoré : alimente SourceKit-LSP sur *tous* fichiers ; seul : `python3 build_app.py --gen-compile-commands`).
+- Ouvrir le schéma partagé StarHub dans Xcode, ou lancer `xcodebuild -project StarHub.xcodeproj -scheme StarHub build`.
+- Le projet compile les sources de `StarHubTH/` et copie les ressources dans le produit. Le schéma conserve le mode Swift 5 du précédent build incrémental.
+- `swift scripts/check-localizations.swift` vérifie les trois tables `Localizable.strings`. Les tests du guide vérifient les sections et leurs liens.
+- Pour la distribution, `./scripts/release.sh` requiert .NET et les DLL du jeu, compile la sonde et archive l’application. Pour une installation du jeu personnalisée, définissez `GamePath` sur le dossier `Contents/MacOS` du jeu.
 
 ## Tests SPM
 
@@ -19,15 +19,15 @@ Déplacé d'`AGENTS.md` §2 le 2026-11-14 (allègement) : le pourquoi et les dé
 ## `swift build` (Core seulement)
 
 - Compile seulement sous-ensemble `Package.swift` (`ModItem`, managers backup, `SaveManager`, `L10n`, etc.) — **pas** UI ni ViewModel complet.
-- Check rapide logique Core ; ne remplace pas `build_app.py`.
+- Check rapide logique Core ; ne remplace pas `xcodebuild`.
 
 ## Les deux cliquets
 
 - **`check_standards.py`** / `.standards-baseline.json` — cliquet conventions
-  Swift, lancé par `build_app.py` après compilation réussie. Échoue seulement
+  Swift, lancé par la CI. Échoue seulement
   si compteur **augmente** (code viole massivement ces règles aujourd'hui).
   Baisser puis `--update` pour resserrer ; ajout délibéré = `--update`
-  explicite, visible au diff. `--skip-standards` débloque build ponctuel.
+  explicite, visible au diff.
   **Taille** verrouillée **par fichier** (clés `file:<chemin>`, une par
   fichier > 400 lignes) : les deux sommes se compensaient entre fichiers,
   ~16 000 lignes de marge muette au ViewModel (mesuré 2026-09-11 —

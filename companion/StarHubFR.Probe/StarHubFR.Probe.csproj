@@ -3,8 +3,8 @@
   <!--
     Essai A5-T7 / D1 (2026-09-26) : un mod d'observation que StarHubFR lit.
     Construit sur la machine qui a le jeu (ModBuildConfig lit ses DLL) ;
-    la CI ne le construit pas. D4-T3 (2026-10-03) : build_app.py le
-    recompile en Release si une source a bougé et l'embarque dans l'app ;
+    la CI ne le construit pas. D4-T3 (2026-10-03) : scripts/release.sh le
+    compile en Release et l'embarque dans l'app ;
     l'onglet Performances propose de l'installer, jamais sans confirmation.
   -->
   <PropertyGroup>
@@ -14,7 +14,6 @@
     <Nullable>enable</Nullable>
     <EnableModDeploy>false</EnableModDeploy>
     <EnableModZip>false</EnableModZip>
-    <GamePath Condition="'$(GamePath)' == ''">/Volumes/BABILOGAMES/JEUX EN COURS/Stardew Valley.app/Contents/MacOS</GamePath>
   </PropertyGroup>
 
   <ItemGroup>

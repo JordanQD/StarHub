@@ -12,7 +12,7 @@ struct HelpGuideContentTests {
         HelpGuide.parse(try String(contentsOf: root.appendingPathComponent(name), encoding: .utf8))
     }
 
-    private static let filenames = ["GUIDE.md", "GUIDE_EN.md", "GUIDE_ZH_HANS.md"]
+    private static let filenames = ["assets/fr.lproj/Guide.md", "assets/en.lproj/Guide.md", "assets/zh-Hans.lproj/Guide.md"]
 
     @Test(arguments: filenames)
     func chaqueGuideALesDouzeSectionsDansLOrdre(_ name: String) throws {
@@ -55,18 +55,18 @@ struct HelpGuideContentTests {
     }
 
     @Test func laRechercheIgnoreAccentsEtCasse() throws {
-        let sections = try Self.guide("GUIDE.md")
+        let sections = try Self.guide("assets/fr.lproj/Guide.md")
         let found = HelpSearch.filter(sections, query: "MISES A JOUR")
         #expect(found.contains { $0.id == "updates" })
     }
 
     @Test func uneRechercheVideRendTout() throws {
-        let sections = try Self.guide("GUIDE.md")
+        let sections = try Self.guide("assets/fr.lproj/Guide.md")
         #expect(HelpSearch.filter(sections, query: "  ") == sections)
     }
 
     @Test func uneRechercheSansResultatRendRien() throws {
-        #expect(HelpSearch.filter(try Self.guide("GUIDE.md"), query: "zzzintrouvable").isEmpty)
+        #expect(HelpSearch.filter(try Self.guide("assets/fr.lproj/Guide.md"), query: "zzzintrouvable").isEmpty)
     }
 
     /// Le tableau de la spec §3, exact : (page, segment diagnostics, segment alertes) → section.
@@ -97,7 +97,7 @@ struct HelpGuideContentTests {
 
     @Test func uneRechercheTrouveUnMotDuCorpsSeulement() throws {
         // « colorfulvolume » : dans le corps de « pause », dans aucun titre.
-        let sections = try Self.guide("GUIDE.md")
+        let sections = try Self.guide("assets/fr.lproj/Guide.md")
         let word = "colorfulvolume"
         #expect(!sections.contains { CommandPaletteSearch.fold($0.title).contains(word) })
         let found = HelpSearch.filter(sections, query: word)
@@ -107,7 +107,7 @@ struct HelpGuideContentTests {
 
     @Test func laCibleDUnLienNeSuffitPasALaRecherche() throws {
         // L'ancre `#10-retrouver-…` ne doit plus faire remonter la section qui la cite.
-        let found = HelpSearch.filter(try Self.guide("GUIDE.md"), query: "retrouver")
+        let found = HelpSearch.filter(try Self.guide("assets/fr.lproj/Guide.md"), query: "retrouver")
         #expect(!found.contains { $0.id == "install" })
     }
 

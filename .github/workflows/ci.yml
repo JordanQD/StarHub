@@ -23,6 +23,12 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
+      - name: Check localizations
+        run: swift scripts/check-localizations.swift
+
+      - name: Build macOS app
+        run: xcodebuild -project StarHub.xcodeproj -scheme StarHub -destination 'platform=macOS' build
+
       - name: Build tests
         run: |
           export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -53,16 +59,17 @@ jobs:
               sed -n '/^Call graph:/,/^Total number in stack/p' sample-$tp.txt || true
             done
             echo "=== Tests démarrés sans fin ==="
-            python3 - <<'PY'
-          import re
-          st, dn = [], set()
-          for l in open('test.log', errors='replace'):
-              m = re.search(r'Test (.+?) started\.', l)
-              if m: st.append(m.group(1))
-              m = re.search(r'Test (.+?) (passed|failed|skipped|recorded)', l)
-              if m: dn.add(m.group(1))
-          print(len(st), 'démarrés,', len(dn), 'finis')
-          PY
+            awk '
+              /Test .* started\./ {
+                name = $0; sub(/^.*Test /, "", name); sub(/ started\..*$/, "", name)
+                started[name] = 1
+              }
+              /Test .* (passed|failed|skipped|recorded)\./ {
+                name = $0; sub(/^.*Test /, "", name); sub(/ (passed|failed|skipped|recorded)\..*$/, "", name)
+                finished[name] = 1
+              }
+              END { for (name in started) if (!(name in finished)) print name }
+            ' test.log
             pkill -f 'xctest|swiftpm-testing-helper' || true
             kill $pid || true
             exit 1

@@ -4,13 +4,12 @@
 > Original project: [StarHubTH](https://github.com/AppleBoiy/StarHubTH) by **AppleBoiy** — which offers a **Thai** version.
 
 <p align="center">
-  <img src="assets/nexus_banner_final.png" alt="StarHubFR Banner">
+  <img src="assets/nexus_banner_final.png" alt="StarHub Banner">
 </p>
 
 <p align="center">
   <a href="https://swift.org"><img src="https://img.shields.io/badge/Swift-F05138?logo=swift&logoColor=white" alt="Swift"></a>
   <a href="https://developer.apple.com/xcode/swiftui/"><img src="https://img.shields.io/badge/SwiftUI-0288D1?logo=swift&logoColor=white" alt="SwiftUI"></a>
-  <a href="https://www.python.org"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
   <a href="#"><img src="https://img.shields.io/badge/Platform-macOS%2014%2B-000000?logo=apple&logoColor=white" alt="macOS"></a>
   <a href="https://github.com/mrbabilo/StarHubFR/releases/latest"><img src="https://img.shields.io/github/v/release/mrbabilo/StarHubFR?label=Version&color=2ea44f" alt="Version"></a>
   <a href="https://www.stardewvalley.net"><img src="https://img.shields.io/badge/Stardew%20Valley-1.6-5BA04E" alt="Stardew Valley 1.6"></a>
@@ -20,14 +19,14 @@
   <a href="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml"><img src="https://github.com/mrbabilo/StarHubFR/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
-**StarHubFR is a native macOS mod manager for Stardew Valley, in French, English, and Simplified Chinese.**
+**StarHub is a native macOS mod manager for Stardew Valley, in French, English, and Simplified Chinese.**
 Install, organise and troubleshoot your mods without opening Finder or a terminal, even with several hundred mods.
 
-The **[user guide](GUIDE_EN.md)** walks through first launch and everyday use: installing, pausing, profiles, updates, troubleshooting, shortcuts, performance, translation, recovering replaced files and uninstalling cleanly.
+The **[user guide](assets/en.lproj/Guide.md)** walks through first launch and everyday use: installing, pausing, profiles, updates, troubleshooting, shortcuts, performance, translation, recovering replaced files and uninstalling cleanly.
 
-## Why StarHubFR
+## Why StarHub
 
-*   **Interface and help in French, English, and Simplified Chinese.** Choose StarHubFR’s language in macOS System Settings. [简体中文用户指南](GUIDE_ZH_HANS.md).
+*   **Interface and help in French, English, and Simplified Chinese.** Choose StarHub’s language in macOS System Settings. [简体中文用户指南](assets/zh-Hans.lproj/Guide.md).
 *   🩺 **It tells you what's wrong** — it reads the SMAPI log for you and says what to do, in plain words.
 *   ✍️ **Translate mods inside the app** — a key-by-key editor writes the `fr.json` without breaking the game's markers.
 *   🍎 **Truly native** — Swift and SwiftUI, no web layer, usable with VoiceOver.
@@ -40,7 +39,7 @@ The **[user guide](GUIDE_EN.md)** walks through first launch and everyday use: i
 
 ### 🩺 SMAPI diagnostics
 
-When the game crashes or a mod refuses to load, StarHubFR turns the SMAPI log into a readable diagnosis.
+When the game crashes or a mod refuses to load, StarHub turns the SMAPI log into a readable diagnosis.
 
 *   **Advice, not jargon** — "install this dependency", "this mod is installed twice", "this mod doesn't support your game version". Each tip carries its button: install the dependency, open the mod's page, go to the culprit search.
 *   **Health at a glance** — SMAPI and game versions, mods loaded, skipped or failed with their reason, missing dependencies.
@@ -56,7 +55,7 @@ When the game crashes or a mod refuses to load, StarHubFR turns the SMAPI log in
 
 ### ⏱️ Performance
 
-The StarHubFR probe, a small SMAPI mod installed at your request, measures the game while you play. The *Performance* tab compares two moments and tells you what changed.
+The StarHub probe, a small SMAPI mod installed at your request, measures the game while you play. The *Performance* tab compares two moments and tells you what changed.
 
 *   **Load times** — game launch and save loading, compared with the previous state of your collection, with the heaviest mods.
 *   **Automatic benchmark** — the app runs several launches on its own, alternating both states, then puts your collection back as it was.
@@ -123,14 +122,14 @@ Each mod page has a **Translation** tab that shows the real state of its French 
 
 *   **Config editor** — a searchable tree of typed settings, or raw JSON validated live; dropdowns show the mod's own labels, translated. When a mod describes itself to the in-game menu (GMCM or Modern Config Menu), the editor follows that menu: same names, same sections, same order, the help under each setting, and it remembers them while the mod is paused. API keys and passwords stay masked.
 *   **Mod backups** — before every overwrite, plus your `config.json` and `fr.json`, and the files an update took away. Configs are grouped by mod and compared before restoring; deleting one moves it to the Mac Trash.
-*   **Maintenance** — what StarHubFR takes up on disk, and "Free up space" in one step (keep 1, 3 or 5 backups per mod).
+*   **Maintenance** — what StarHub takes up on disk, and "Free up space" in one step (keep 1, 3 or 5 backups per mod).
 *   **Saves** — details, copy, deletion, and editing money or character stats; with PureBinarySave, your edit is the one the game loads.
 *   **What your mods leave in your saves** — counted before pausing a mod; "Enable these mods" brings back the ones a save uses, and "Clean up…" removes data from mods that are gone, after a backup.
 
 ### 🎮 Everyday use
 
 *   **A home page that gets to the point** — the counters that matter and **Launch Game** (⌘R), vanilla or through SMAPI; an operation left halfway shows up there with "Put everything back"; it also offers the probe update when the app ships a newer one.
-*   **Live logs** — SMAPI and StarHubFR output, filterable by source and level.
+*   **Live logs** — SMAPI and StarHub output, filterable by source and level.
 *   **The mods the app relies on** — listed in Settings, with their role, state and install link.
 *   **Accessible and readable** — VoiceOver names every button, everything is reachable by keyboard, and the mod list tightens when the window is narrow.
 
@@ -170,7 +169,7 @@ Each mod page has a **Translation** tab that shows the real state of its French 
 ### Install
 
 1. Download the latest version from the [Releases](../../releases) page.
-2. Unzip it and drag `StarHubFR.app` into Applications.
+2. Unzip it and drag `StarHub.app` into Applications.
 3. On first launch macOS may block the app, which isn't notarised: open **System Settings › Privacy & Security**, then **Open Anyway**. If macOS still refuses, or says the app is "damaged", remove the quarantine with Sentinel (below).
 4. The app looks for the game; if it isn't found, point to the game application itself (`Stardew Valley.app`): the `Mods/` folder is found from there.
 
@@ -182,20 +181,20 @@ The app is signed with a certificate of its own ("StarHubFR Signature"). It does
 
 #### Removing the quarantine with Sentinel
 
-macOS puts every downloaded app in "quarantine" and refuses to open the ones Apple hasn't notarised, which is the case for StarHubFR. [**Sentinel**](https://itsalin.com/appInfo/?id=sentinel) ([GitHub](https://github.com/alienator88/Sentinel)), by Alin Lupascu, removes that flag in one gesture.
+macOS puts every downloaded app in "quarantine" and refuses to open the ones Apple hasn't notarised, which is the case for StarHub. [**Sentinel**](https://itsalin.com/appInfo/?id=sentinel) ([GitHub](https://github.com/alienator88/Sentinel)), by Alin Lupascu, removes that flag in one gesture.
 
 1. Install Sentinel (macOS 13 or later):
    - with [Homebrew](https://brew.sh): `brew install --cask alienator88-sentinel`;
    - or from the [Sentinel Releases](https://github.com/alienator88/Sentinel/releases) page, then drag `Sentinel.app` into **Applications** and run it from there.
-2. Drag `StarHubFR.app` (already in **Applications**) onto the left zone, **Allow unsigned app to launch**. With Sentinel's Finder extension, right-clicking the app does the same. Leave the right zone (*Sign app with*) and the Gatekeeper switch as they are.
-3. Open StarHubFR as usual.
+2. Drag `StarHub.app` (already in **Applications**) onto the left zone, **Allow unsigned app to launch**. With Sentinel's Finder extension, right-clicking the app does the same. Leave the right zone (*Sign app with*) and the Gatekeeper switch as they are.
+3. Open StarHub as usual.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/3cc90bd1-7d9d-43ed-8a0f-7105d72d5eab" alt="Sentinel window: on the left, the “Allow unsigned app to launch” zone where StarHubFR.app is dropped" width="420">
+  <img src="https://github.com/user-attachments/assets/3cc90bd1-7d9d-43ed-8a0f-7105d72d5eab" alt="Sentinel window: on the left, the “Allow unsigned app to launch” zone where StarHub.app is dropped" width="420">
   <br><sub>Screenshot: <a href="https://github.com/alienator88/Sentinel">Sentinel repository</a>, Alin Lupascu.</sub>
 </p>
 
-Repeat after every new StarHubFR version: the quarantine comes back with each download. Only unquarantine an app that came from this repository's [Releases](../../releases) page. Sentinel can also turn Gatekeeper off for the whole Mac: that is **not** needed here, unquarantining this one app is enough.
+Repeat after every new StarHub version: the quarantine comes back with each download. Only unquarantine an app that came from this repository's [Releases](../../releases) page. Sentinel can also turn Gatekeeper off for the whole Mac: that is **not** needed here, unquarantining this one app is enough.
 
 <p align="center">
   <img src="assets/banners/developers_banner.png" alt="For Developers" width="300">
@@ -204,13 +203,13 @@ Repeat after every new StarHubFR version: the quarantine comes back with each do
 The app is written in **Swift** and **SwiftUI**. You need macOS 14 and Xcode 16 (the version the CI uses).
 
 ```bash
-python3 build_app.py   # compiles, checks conventions and produces StarHubFR.app
-open StarHubFR.app
+xcodebuild -project StarHub.xcodeproj -scheme StarHub build
+# Open StarHub.xcodeproj in Xcode and run the StarHub scheme (⌘R).
 ./run_tests.sh         # core tests (Swift Testing)
-python3 release.py     # release archive in bundles/
+./scripts/release.sh     # release archive in bundles/
 ```
 
-There is no Xcode project: `build_app.py` compiles every source, and `Package.swift` only describes the tested core.
+The Xcode project builds the app. `Package.swift` defines the core library and its tests.
 
 The code map is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (French). Report a bug from the app: **Help › Report a Bug on GitHub**, or the ladybug at the bottom of the sidebar; the form opens with the versions already filled in. To suggest an idea or open a pull request: [CONTRIBUTING.md](CONTRIBUTING.md#contributing-to-starhubfr). Security flaws are reported privately: [SECURITY.md](SECURITY.md#security-policy).
 
@@ -218,11 +217,11 @@ The code map is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (French). Report
   <img src="assets/banners/credits_banner.png" alt="Credits & License" width="300">
 </p>
 
-StarHubFR is released under the [MIT License](LICENSE): fork it, change it, improve it. It derives from [StarHubTH](https://github.com/AppleBoiy/StarHubTH) by **AppleBoiy**, who offers a **Thai** version.
+StarHub is released under the [MIT License](LICENSE): fork it, change it, improve it. It derives from [StarHubTH](https://github.com/AppleBoiy/StarHubTH) by **AppleBoiy**, who offers a **Thai** version.
 
 ### Acknowledgements
 
-StarHubFR builds on the work of many projects. The full list — APIs queried, files read, code reused, and the state of each — is kept up to date in [`docs/SOURCES.md`](docs/SOURCES.md).
+StarHub builds on the work of many projects. The full list — APIs queried, files read, code reused, and the state of each — is kept up to date in [`docs/SOURCES.md`](docs/SOURCES.md).
 
 **The game**
 

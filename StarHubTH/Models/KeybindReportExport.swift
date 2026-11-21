@@ -25,7 +25,7 @@ public enum KeybindReportExport {
         var out: [String] = []
         out.append("# Rapport des raccourcis")
         out.append("")
-        out.append("_\(report.scannedMods) mods scannés · \(report.keybindCount) raccourcis liés · généré le \(formatter.string(from: generatedAt)) par StarHubFR._")
+        out.append("_\(report.scannedMods) mods scannés · \(report.keybindCount) raccourcis liés · généré le \(formatter.string(from: generatedAt)) par StarHub._")
         out.append("")
 
         section("Collisions clavier", into: &out) {

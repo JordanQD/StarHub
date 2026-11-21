@@ -106,9 +106,9 @@ import Testing
             .deletingLastPathComponent()   // Tests/SmapiInstallerInvocationTests
             .deletingLastPathComponent()   // Tests
             .deletingLastPathComponent()   // racine du dépôt
-            .appendingPathComponent("assets/fr.json")
+            .appendingPathComponent("assets/fr.lproj/Localizable.strings")
         guard let data = try? Data(contentsOf: url),
-              let map = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+              let map = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: String],
               let value = map[key]
         else { return "" }
         return value
@@ -118,7 +118,7 @@ import Testing
         for key in [SmapiInstallerAction.uninstall.downloadingMessageKey,
                     SmapiInstallerAction.uninstall.extractingMessageKey] {
             let text = french(key).lowercased()
-            #expect(!text.isEmpty, "clé absente de assets/fr.json : \(key)")
+            #expect(!text.isEmpty, "clé absente de assets/fr.lproj/Localizable.strings : \(key)")
             #expect(!text.contains("téléchargement"), "« \(text) » parle encore de téléchargement")
         }
     }

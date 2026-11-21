@@ -139,7 +139,7 @@ struct StarHubTHApp: App {
         // A single `Window` (not `WindowGroup`): macOS never spawns a second
         // window for it, so an nxm:// activation just brings this one forward
         // instead of stacking duplicates.
-        Window("StarHubFR", id: AppWindowID.main) {
+        Window("StarHub", id: AppWindowID.main) {
             MainView(vm: vm, localization: localization)
                 .onAppear {
                     // Route nxm:// links (buffered at cold launch) into the
@@ -247,7 +247,7 @@ struct StarHubTHApp: App {
                 Button(localization.L(L10n.Palette.open)) { vm.requestPalette() }
                     .keyboardShortcut("k", modifiers: .command)
             }
-            // Le menu Aide propose « Aide StarHubFR » (⌘?, le guide intégré),
+            // Le menu Aide propose « Aide StarHub » (⌘?, le guide intégré),
             // puis l'écran des raccourcis clavier (⌘/).
             // N-07 : les gestes de la séance sans passer par l'Accueil ni une page.
             CommandGroup(after: .newItem) {

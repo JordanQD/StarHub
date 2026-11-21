@@ -7,7 +7,7 @@
 
 ## 1. Identité du projet
 
-- **StarHubFR** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHubFR.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en`, `fr` et `zh-Hans`. Détail : `docs/agents/README.md`.
+- **StarHub** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHub.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en`, `fr` et `zh-Hans`. Détail : `docs/agents/README.md`.
 
 **Avant toucher mods, SMAPI, Nexus, profils, sauvegardes ou fichiers traduction : lire `docs/DOMAINE.md`.**
 
@@ -25,7 +25,8 @@
 ## 2. Build & test — COMMANDES EXACTES
 
 ```bash
-python3 build_app.py                     # vrai gate : swiftc mode Swift 6 + parité des langues
+xcodebuild -project StarHub.xcodeproj -scheme StarHub build
+swift scripts/check-localizations.swift
 ./run_tests.sh                           # = DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 python3 check_standards.py --report      # cliquet conventions Swift
 python3 check_sources.py --offline       # cliquet sources externes (agent : --offline)
@@ -33,8 +34,7 @@ python3 check_sources.py --offline       # cliquet sources externes (agent : --o
 
 - **Toujours `python3`**, jamais `python` (absent du PATH).
 - **`DEVELOPER_DIR` obligatoire** pour tests ; `no such module 'Testing'` ou `StateMacro could not be found` = Command Line Tools, pas régression.
-- Code de sortie : `python3 build_app.py | tail` rend celui de `tail`.
-- `swift build` = Core seulement, ne remplace pas `build_app.py`. Sans `swift test` → skill `build-app`. CI GitHub (Swift 6.0) = juge.
+- `swift build` = Core seulement, ne remplace pas `xcodebuild`. Sans `swift test` → skill `build-app`. CI GitHub (Swift 6.0) = juge.
 - Cliquets : échec seulement si compteur **augmente** ; `--update` explicite, visible au diff, **jamais pour faire taire** ; écart de `check_sources.py` ≠ échec : l'expliquer (skill `check-sources`).
 - Détail : `docs/agents/build-et-cliquets.md` (échec inattendu, avant toucher un cliquet).
 
@@ -45,7 +45,7 @@ python3 check_sources.py --offline       # cliquet sources externes (agent : --o
 
 ## 3. Localisation — RÈGLES STRICTES
 
-- **Source de vérité** : `assets/{en,fr,zh-Hans}.json` ; `assets/*.lproj/Localizable.strings` générés par `build_app.py` (relancer après édition JSON), **jamais édités**.
+- **Source de vérité** : les trois fichiers `assets/*.lproj/Localizable.strings`, compilés par Xcode.
 - **Parité obligatoire** : les trois catalogues ont **exactement les mêmes clés** (build valide). Clés via `L10n.swift` (`static let`) ; clé absente → clé brute, pas crash.
 - **Français naturel, pas calqué sur anglais** (libellés, aide, README, CHANGELOG, notes) ; vocabulaire déjà affiché gardé sauf demande ; relire avant release → `docs/agents/redaction-git-release.md`, skill `localization`.
 
@@ -137,7 +137,7 @@ Détail : `docs/agents/architecture.md` (avant toucher VM, scan, registre, cache
 
 ## 8. Résumé — checklist avant de valider un changement
 
-1. [ ] `python3 build_app.py` passe (compile + parité L10n).
+1. [ ] Le schéma Xcode StarHub compile et `swift scripts/check-localizations.swift` passe.
 2. [ ] `./run_tests.sh` passe.
 3. [ ] Touché un catalogue de l’interface : parité + messages cohérents.
 4. [ ] Chemin disque de mod : `physicalFolderName`.

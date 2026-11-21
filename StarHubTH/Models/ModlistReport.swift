@@ -220,7 +220,7 @@ public enum ModlistReport {
         <html lang="fr">
         <head>
         <meta charset="utf-8">
-        <title>Liste de mods — StarHubFR</title>
+        <title>Liste de mods — StarHub</title>
         <style>
         body { font-family: -apple-system, sans-serif; margin: 2rem; color: #1d1d1f; }
         h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2rem; }
@@ -267,7 +267,7 @@ public enum ModlistReport {
             + "\(plural(paused, "en pause", "en pause")) · "
             + "\(plural(french, "en français", "en français")) · "
             + "généré le \(KeybindReportExport.dateFormatter.string(from: generatedAt)) "
-            + "par StarHubFR."
+            + "par StarHub."
     }
 
     /// « actif », « en pause », « pack · 3 », « pack en pause · 3 ».

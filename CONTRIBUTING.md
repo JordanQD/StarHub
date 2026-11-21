@@ -29,31 +29,31 @@ Deux choses distinctes portent ce nom :
 
 - macOS 14 ou ultérieur.
 - **Xcode 16.4** complet, la version de la CI. Les seuls Command Line Tools ne suffisent pas.
-- Python 3, appelé `python3`.
+- Python 3 pour les outils de maintenance, notamment le contrôle de conventions exécuté en CI.
 
 Si `xcode-select -p` pointe sur `/Library/Developer/CommandLineTools`, la compilation échoue sur `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found`, répété sur chaque `@State`. Ce n'est pas une erreur de code. Préfixez la commande :
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 build_app.py
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project StarHub.xcodeproj -scheme StarHub build
 ```
 
 ## Compiler et tester
 
 ```bash
-python3 build_app.py; echo "exit=$?"   # compile toute l'app, vérifie les conventions, produit StarHubFR.app
+xcodebuild -project StarHub.xcodeproj -scheme StarHub build
+swift scripts/check-localizations.swift
 ./run_tests.sh                         # tests du cœur (Swift Testing)
 ./run_tests.sh --filter Keybind        # une seule famille de tests
 ```
 
-- Il n'y a pas de projet Xcode. `build_app.py` compile toutes les sources de `StarHubTH/` ; c'est le vrai contrôle d'un changement.
+- Ouvrez `StarHub.xcodeproj` et choisissez le schéma StarHub pour compiler puis lancer l’application.
 - `Package.swift` ne décrit que le **cœur** testable (modèles, magasins, analyseurs). Les vues et le ViewModel ne s'y compilent pas, donc ne se testent pas.
-- Lisez le code de sortie de `build_app.py` directement : `python3 build_app.py | tail` rend celui de `tail`, vert même en cas d'échec.
 
 ## Règles du code
 
 - **Une logique pure va dans le cœur** (`StarHubTH/Models/`, déclarée dans `Package.swift`), avec ses tests. Un état partagé va dans son propre magasin (`StarHubTH/Stores/`). Rien de neuf n'entre dans `StarHubTHViewModel`.
-- **Cliquet des conventions** : `check_standards.py`, lancé par `build_app.py`, échoue si un compteur augmente — fichier de plus de 400 lignes (taille verrouillée fichier par fichier), abréviation `vm`, nouveau `DispatchQueue`, nouveau singleton `.shared`. `python3 check_standards.py --report` donne l'état.
-- **Localisation** : chaque libellé passe par `L10n.swift` et existe sous la même clé dans les trois catalogues. Le build vérifie les clés et les arguments de format.
+- **Cliquet des conventions** : `check_standards.py`, lancé en CI, échoue si un compteur augmente — fichier de plus de 400 lignes (taille verrouillée fichier par fichier), abréviation `vm`, nouveau `DispatchQueue`, nouveau singleton `.shared`. `python3 check_standards.py --report` donne l'état.
+- **Localisation** : chaque libellé passe par `L10n.swift` et existe sous la même clé dans les trois catalogues. La CI vérifie les clés et les arguments de format.
 - **Vocabulaire métier** : lisez [`docs/DOMAINE.md`](docs/DOMAINE.md) avant de toucher aux mods, profils, sauvegardes ou traductions. Un mod en pause est un dossier préfixé d'un point (`Mods/.X`), jamais un dossier déplacé.
 - **Les tests n'écrivent jamais dans le vrai dossier de l'app** (`~/Library/Application Support/StarHubFR/`) : un magasin testé reçoit un dossier temporaire.
 - Pas de nouvelle dépendance externe sans en discuter d'abord dans une issue.
@@ -68,7 +68,7 @@ La carte du code — couches, flux, données sur disque, outillage — est dans 
 3. Un commit par changement logique, au format `type(portée): description` — par exemple `fix(raccourcis): …`, `feat(performances): …`, `docs(readme): …`. Français ou anglais.
 4. Ajoutez une ligne au `CHANGELOG.md`, sous `## [Unreleased]`, en français : ce qui change pour l'utilisateur, en moins de 300 caractères.
 5. Joignez une capture d'écran si l'interface change, en français et à la largeur minimale de la fenêtre si possible.
-6. La CI (Xcode 16.4) doit être verte. Elle compile le cœur, lance les tests et vérifie les conventions, mais ne compile pas l'app entière : `python3 build_app.py` en local reste indispensable.
+6. La CI (Xcode 16.4) doit être verte. Elle compile l’application et le cœur, lance les tests et vérifie les conventions.
 
 Si un assistant IA a écrit un commit, terminez son message par un trailer `Co-Authored-By:` qui nomme le modèle réellement utilisé.
 
@@ -93,20 +93,21 @@ Open an [issue](../../issues/new/choose) and pick a template: **App bug**, **SMA
 
 ## Set up, build, test
 
-You need macOS 14+, full **Xcode 16.4** (the CI version; Command Line Tools alone are not enough) and `python3`.
+You need macOS 14+, full **Xcode 16.4** (the CI version; Command Line Tools alone are not enough) for builds and tests. The maintenance tools use Python 3.
 
 ```bash
-python3 build_app.py; echo "exit=$?"   # builds the whole app, checks conventions
+xcodebuild -project StarHub.xcodeproj -scheme StarHub build
+swift scripts/check-localizations.swift
 ./run_tests.sh                         # core tests (Swift Testing)
 ```
 
-If the build fails on `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found`, the active toolchain is the Command Line Tools: prefix the command with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. There is no Xcode project; `Package.swift` only covers the testable core.
+If the build fails on `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found`, the active toolchain is the Command Line Tools: prefix the command with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Open `StarHub.xcodeproj` to run the app. `Package.swift` covers the testable core.
 
 ## Code rules
 
 - Pure logic goes into the core (`StarHubTH/Models/`, listed in `Package.swift`) with tests; shared state gets its own store (`StarHubTH/Stores/`). Nothing new goes into `StarHubTHViewModel`.
 - `check_standards.py` fails when a counter grows: files over 400 lines (locked per file), the `vm` abbreviation, new `DispatchQueue`, new `.shared` singletons.
-- Every UI string uses the same key and format arguments in all three catalogs. The build checks both.
+- Every UI string uses the same key and format arguments in all three catalogs. CI checks both.
 - Read [`docs/DOMAINE.md`](docs/DOMAINE.md) before touching mods, profiles, saves or translations. A paused mod is a dot-prefixed folder (`Mods/.X`).
 - Tests never write to the real `~/Library/Application Support/StarHubFR/`.
 - The code map (layers, flows, on-disk data, tooling) is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), in French; known pitfalls are in [`AGENTS.md`](AGENTS.md), section 4.
@@ -114,4 +115,4 @@ If the build fails on `external macro implementation type 'SwiftUIMacros.StateMa
 
 ## Pull requests
 
-Discuss large changes in an issue first. Branch from `main`, one commit per logical change (`type(scope): description`), add a line under `## [Unreleased]` in `CHANGELOG.md` (in French, user-facing), attach a screenshot for UI changes, and make sure CI is green. CI builds the core, runs the tests and checks conventions, but does not build the whole app: run `python3 build_app.py` locally. If an AI assistant wrote a commit, end it with a `Co-Authored-By:` trailer naming the model actually used.
+Discuss large changes in an issue first. Branch from `main`, one commit per logical change (`type(scope): description`), add a line under `## [Unreleased]` in `CHANGELOG.md` (in French, user-facing), attach a screenshot for UI changes, and make sure CI is green. CI builds the app and the core, runs the tests, and checks conventions. If an AI assistant wrote a commit, end it with a `Co-Authored-By:` trailer naming the model actually used.

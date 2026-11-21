@@ -57,6 +57,7 @@ glm.sh
 # Build Outputs / Release Zips
 .build/
 bundles/
+StarHub.app/
 StarHubFR.app/
 StarHubTH.app/
 mods/*/README.md
@@ -75,7 +76,7 @@ design/starhubfr-design-system.html
 
 # Icônes Windows du jeu (StardewValley.Icon.bmp/.ico), déposées à la racine par
 # un outil tiers — apparues le 2026-09-09. Ce ne sont pas nos assets : le bundle
-# utilise AppIcon.icns, et rien dans le code ni dans build_app.py ne les lit.
+# utilise AppIcon.icns.
 StardewValley.Icon.*
 
 # Artefacts du MCP Playwright (snapshots, journaux de console) — jamais versionnés

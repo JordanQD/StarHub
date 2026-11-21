@@ -123,11 +123,12 @@ Les tests ne touchent jamais ces emplacements réels : chaque magasin ou manager
 
 | Script | Rôle |
 |---|---|
-| `build_app.py` | compile toutes les sources avec `swiftc` (incrémental), vérifie la parité `en`/`fr`, génère les `.lproj`, contrôle la frontière du cœur, lance `check_standards.py`, embarque la sonde et le CHANGELOG, signe ad hoc. `--whole-module` recompile tout ; `--gen-compile-commands` régénère seulement `compile_commands.json` pour SourceKit-LSP |
+| `StarHub.xcodeproj` | construit et signe l’application macOS. Le schéma partagé StarHub gère aussi l’archive. |
+| `scripts/check-localizations.swift` | vérifie les clés et les arguments de format des trois tables de traduction. |
 | `run_tests.sh` | `swift test` avec Xcode ; accepte les options de `swift test` (`--filter`) |
 | `check_standards.py` | cliquet : échoue si un compteur dépasse `.standards-baseline.json` ; `--report` montre l'état |
 | `check_sources.py` | compare l'état des sources externes à `.sources-baseline.json` ; un écart est une chose à regarder, pas une faute |
-| `release.py` | incrémente le numéro de build, construit, archive dans `bundles/` |
+| `scripts/release.sh` | construit la sonde, incrémente le numéro de build, archive avec Xcode et produit le ZIP et sa somme SHA-256. |
 | `tools/*.py` | relevés hors app (options GMCM des DLL, contextes d'écoute des touches) qui servent d'oracles aux lecteurs Swift |
 
-La CI (`.github/workflows/ci.yml`, macOS 15, Xcode 16.4) compile le cœur, lance les tests et le cliquet. Elle ne compile pas l'app entière : `build_app.py` en local reste le contrôle d'un changement d'UI.
+La CI compile l’app avec Xcode et le cœur avec SwiftPM, lance les tests et vérifie les conventions.

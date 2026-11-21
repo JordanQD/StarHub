@@ -65,7 +65,7 @@ Sur hit, sortie = forme compacte ; `caveman mem recover <handle>` rend original 
 
 ## 8. Résumé — checklist avant de valider un changement
 
-1. [ ] `python3 build_app.py` passe (compile + parité L10n).
+1. [ ] Le schéma Xcode StarHub compile et `swift scripts/check-localizations.swift` passe.
 2. [ ] `./run_tests.sh` passe (~4 900 tests).
 3. [ ] Touché un catalogue de l’interface : mêmes clés et arguments de format dans les trois langues.
 4. [ ] Touché chemin disque de mod : `physicalFolderName`, pas `folderName`.

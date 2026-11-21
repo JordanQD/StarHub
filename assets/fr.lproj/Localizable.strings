@@ -224,7 +224,7 @@
 "health_distribution_label" = "Répartition des alertes par gravité";
 "home_app_info" = "Infos sur l'appli";
 "home_core_extensions" = "Extensions principales";
-"ext_group_required" = "Requis par StarHubFR";
+"ext_group_required" = "Requis par StarHub";
 "ext_group_common" = "Extensions courantes";
 "ext_recommended" = "Recommandé";
 "ext_status_enabled" = "Installé et actif";
@@ -236,7 +236,7 @@
 "ext_reinstall_smapi" = "Réinstaller SMAPI";
 "ext_purpose_save_backup" = "Sauvegarde vos parties à chaque lancement du jeu. Installé par SMAPI.";
 "ext_purpose_console_commands" = "Commandes de console dont certains mods ont besoin. Installé par SMAPI.";
-"ext_purpose_probe" = "Mesures de l'onglet Performances : fluidité, mémoire, coût par mod. Fournie avec StarHubFR.";
+"ext_purpose_probe" = "Mesures de l'onglet Performances : fluidité, mémoire, coût par mod. Fournie avec StarHub.";
 "ext_purpose_slo" = "Carte « Environnement » et diagnostic de chargement de l'onglet Performances.";
 "ext_purpose_stardropium" = "Relevés mémoire de l'onglet Performances.";
 "ext_purpose_gmcm" = "Permet de régler les options de la sonde depuis le jeu.";
@@ -416,8 +416,8 @@
 "logs_alert_logged" = "SMAPI a signalé %lld alerte(s). Consultez la section Alertes système ci-dessus.";
 "logs_auto_scroll_hint" = "Défilement auto vers le bas";
 "logs_back_to_all_logs" = "Revenir à tous les journaux";
-"logs_clear_confirm_message" = "Cela supprime toutes les entrées StarHubFR. Les entrées SMAPI sont conservées.";
-"logs_clear_confirm_title" = "Effacer les logs StarHubFR ?";
+"logs_clear_confirm_message" = "Cela supprime toutes les entrées StarHub. Les entrées SMAPI sont conservées.";
+"logs_clear_confirm_title" = "Effacer les logs StarHub ?";
 "logs_clear_logs" = "Effacer les journaux";
 "logs_clear_search_hint" = "Effacer la recherche";
 "logs_copy_all" = "Copier tous les journaux visibles";
@@ -528,7 +528,7 @@
 "main_launch_step_saves" = "Chargement des parties…";
 "main_launch_step_scan" = "Analyse des mods…";
 "main_launch_step_smapi_log" = "Lecture du journal SMAPI…";
-"main_launching" = "Chargement de StarHubFR…";
+"main_launching" = "Chargement de StarHub…";
 "main_mod_updates" = "Mise à jour des mods";
 "main_mod_updates_short" = "Mises à jour";
 "main_nav_back" = "Retour";
@@ -592,7 +592,7 @@
 "maintenance_purged_log" = "%lld sauvegarde(s) mises à la corbeille (%@)";
 "maintenance_stale_keys" = "Entrées sans mod";
 "maintenance_title" = "Entretien";
-"maintenance_total" = "Occupé par StarHubFR";
+"maintenance_total" = "Occupé par StarHub";
 "maintenance_trash_failed" = "Impossible de mettre %@ à la corbeille : %@";
 "maintenance_trash_hint" = "Mis à la corbeille : l'espace revient quand vous la videz.";
 "mod_config_backups_cancel" = "Annuler";
@@ -1007,14 +1007,14 @@
 "mods_premium_update" = "MàJ Premium";
 "mods_prev_page_hint" = "Page précédente";
 "mods_probe_manual_title" = "Mode d'emploi de la sonde";
-"mods_probe_manual_what" = "Mod d'observation de StarHubFR : il mesure le temps de trame et cartographie les patches Harmony. Il n'optimise rien, ne touche à aucun autre mod et n'accède à aucun réseau.";
+"mods_probe_manual_what" = "Mod d'observation de StarHub : il mesure le temps de trame et cartographie les patches Harmony. Il n'optimise rien, ne touche à aucun autre mod et n'accède à aucun réseau.";
 "mods_probe_manual_how" = "Mesure guidée : préparez-la dans Diagnostic → Performances, lancez le jeu, puis jouez normalement au lieu indiqué. Le bandeau en haut à gauche compte les minutes gardées ; cinq minutes stables ferment la mesure.";
 "mods_probe_manual_after" = "Les mesures closes remplissent les comparaisons « Avant / Après » de l'onglet Performances : une paire enchaînée s'y sélectionne seule.";
 "mods_probe_manual_pause" = "Mettre la sonde en pause arrête toute nouvelle mesure ; les mesures déjà closes restent lisibles.";
 "mods_probe_badge" = "Sonde";
-"mods_probe_badge_help" = "Sonde StarHubFR : elle mesure les performances pour l'onglet Performances. Elle ne se supprime pas — mettez-la en pause pour l'arrêter.";
-"mods_probe_delete_refused" = "La sonde StarHubFR ne se supprime pas : elle mesure ce que lit l'onglet Performances. Mettez-la en pause pour l'arrêter.";
-"mods_smapi_bundled_delete_refused" = "Ce mod est installé par SMAPI lui-même : SaveBackup sauvegarde vos parties, ConsoleCommands fournit les commandes de console. StarHubFR ne le supprime pas ; mettez-le en pause si besoin.";
+"mods_probe_badge_help" = "Sonde StarHub : elle mesure les performances pour l'onglet Performances. Elle ne se supprime pas — mettez-la en pause pour l'arrêter.";
+"mods_probe_delete_refused" = "La sonde StarHub ne se supprime pas : elle mesure ce que lit l'onglet Performances. Mettez-la en pause pour l'arrêter.";
+"mods_smapi_bundled_delete_refused" = "Ce mod est installé par SMAPI lui-même : SaveBackup sauvegarde vos parties, ConsoleCommands fournit les commandes de console. StarHub ne le supprime pas ; mettez-le en pause si besoin.";
 "mods_probe_options_title" = "Options de mesure";
 "mods_probe_options_harmony" = "Mesurer les patches Harmony";
 "mods_probe_options_harmony_help" = "Chronomètre les patches Harmony des autres mods. Coût d'observation : compare deux sessions, avec et sans. Désarmée pour une mesure guidée ou un benchmark.";
@@ -1042,7 +1042,7 @@
 "mods_profile_config_hint" = "Le config.json de ce mod est mémorisé quand vous quittez un profil, et restauré quand vous y revenez.";
 "mods_profile_config_none" = "Aucun profil n'a encore mémorisé les réglages de ce mod. Changez de profil une fois pour les enregistrer.";
 "mods_profile_config_reset" = "Repartir des réglages par défaut";
-"mods_profile_config_reset_hint" = "Supprime config.json. SMAPI le réécrit, avec les valeurs par défaut du mod, au prochain lancement — StarHubFR ne connaît pas ces valeurs.";
+"mods_profile_config_reset_hint" = "Supprime config.json. SMAPI le réécrit, avec les valeurs par défaut du mod, au prochain lancement — StarHub ne connaît pas ces valeurs.";
 "mods_profile_config_same" = "identique au disque";
 "mods_profile_config_title" = "Configuration par profil";
 "mods_rename_confirm" = "Renommer";
@@ -1065,7 +1065,7 @@
 "mods_trash_selection_more_one" = "et 1 autre";
 "mods_trash_selection_dependents" = "Ces mods actifs en dépendent : %@";
 "mods_trash_selection_refused" = "Non supprimés : %@";
-"mods_trash_selection_all_refused" = "La sonde StarHubFR et les mods de SMAPI ne se suppriment pas.";
+"mods_trash_selection_all_refused" = "La sonde StarHub et les mods de SMAPI ne se suppriment pas.";
 "mods_grouping" = "Regrouper par";
 "mods_grouping_none" = "Aucun";
 "mods_grouping_groups" = "Mes groupes";
@@ -1265,7 +1265,7 @@
 "onboarding_settings_card" = "Revoir le guide de premier lancement";
 "onboarding_skip_all" = "Passer le guide";
 "onboarding_skip_step" = "Passer cette étape";
-"onboarding_smapi_body" = "SMAPI est le chargeur de mods — indispensable pour jouer avec. StarHubFR l'installe pour vous.";
+"onboarding_smapi_body" = "SMAPI est le chargeur de mods — indispensable pour jouer avec. StarHub l'installe pour vous.";
 "onboarding_start" = "Commencer";
 "onboarding_step_ai" = "IA locale";
 "onboarding_step_api_key" = "Clé API Nexus";
@@ -1276,7 +1276,7 @@
 "onboarding_step_of" = "Étape %1$d sur %2$d";
 "onboarding_step_smapi" = "SMAPI";
 "onboarding_step_welcome" = "Bienvenue";
-"onboarding_welcome_body" = "StarHubFR gère vos mods Stardew Valley : installation, mises à jour, traduction et lancement. Ce court guide règle l'essentiel — vous pouvez le passer et le retrouver aux Réglages.";
+"onboarding_welcome_body" = "StarHub gère vos mods Stardew Valley : installation, mises à jour, traduction et lancement. Ce court guide règle l'essentiel — vous pouvez le passer et le retrouver aux Réglages.";
 "palette_go_menu" = "Aller";
 "palette_no_results" = "Aucun résultat pour « %@ »";
 "palette_open" = "Palette de commandes…";
@@ -1549,7 +1549,7 @@
 "settings_app_checking" = "Vérification…";
 "settings_app_up_to_date" = "À jour";
 "settings_app_update_available_state" = "Version %@ disponible";
-"settings_app_version" = "StarHubFR v%@";
+"settings_app_version" = "StarHub v%@";
 "settings_backup" = "Sauvegarde";
 "settings_backup_mods" = "Sauvegarder le dossier des mods";
 "settings_chain_toggle" = "Activer ou mettre en pause automatiquement les mods liés";
@@ -1561,7 +1561,7 @@
 "settings_delete_junk_mods" = "Mettre à la corbeille";
 "settings_developer" = "Développeur";
 "settings_fallback_clear" = "Retirer";
-"settings_fallback_desktop_app" = "L'application DeepL est installée sur ce Mac — mais elle n'offre aucun point d'entrée auquel une autre application puisse se brancher. La traduction depuis StarHubFR passe par une clé d'API, gratuite.";
+"settings_fallback_desktop_app" = "L'application DeepL est installée sur ce Mac — mais elle n'offre aucun point d'entrée auquel une autre application puisse se brancher. La traduction depuis StarHub passe par une clé d'API, gratuite.";
 "settings_fallback_enable" = "Utiliser DeepL quand l'IA locale échoue";
 "settings_fallback_enable_no_local" = "Utiliser DeepL (aucune IA locale configurée)";
 "settings_fallback_failed" = "Cette clé est refusée — vérifiez-la sur votre compte DeepL";
@@ -1619,7 +1619,7 @@
 "settings_nexus_api_key_hint" = "Ajoutez votre clé API Nexus Mods pour vérifier les mises à jour des mods et récupérer leurs infos automatiquement. Votre clé est stockée en toute sécurité dans le trousseau (Keychain) de macOS, chiffrée par le système — elle n'est jamais enregistrée en texte brut.";
 "settings_nexus_api_key_placeholder" = "Saisissez votre clé API Nexus";
 "settings_nexus_auto_check" = "Vérifier les mises à jour Nexus au démarrage";
-"settings_nexus_auto_check_hint" = "Si activé et qu'une clé API est enregistrée, StarHubFR vérifie les mises à jour automatiquement après le lancement.";
+"settings_nexus_auto_check_hint" = "Si activé et qu'une clé API est enregistrée, StarHub vérifie les mises à jour automatiquement après le lancement.";
 "settings_nexus_clear_key" = "Supprimer la clé";
 "settings_nexus_get_key" = "Obtenir une clé API";
 "settings_nexus_key_saved" = "Enregistrée !";
@@ -1665,7 +1665,7 @@
 "smapi_release_lookup_failed" = "Impossible de trouver la dernière version de SMAPI : %@";
 "smapi_uninstall_failed" = "Échec de la désinstallation : %@";
 "smapi_uninstall_success" = "SMAPI désinstallé ! Le jeu vanilla a été restauré.";
-"updates_affirmed_explanation" = "Ces mods ne signalent plus de mise à jour : vous avez indiqué avoir déjà la version affichée, et StarHubFR envoie désormais ce numéro à smapi.io au lieu de celui du manifest. Quand les deux diffèrent, ou bien le mod est réellement en avance sur son propre manifest, ou bien le bouton a été cliqué par mégarde — et une vraie mise à jour se tait depuis.";
+"updates_affirmed_explanation" = "Ces mods ne signalent plus de mise à jour : vous avez indiqué avoir déjà la version affichée, et StarHub envoie désormais ce numéro à smapi.io au lieu de celui du manifest. Quand les deux diffèrent, ou bien le mod est réellement en avance sur son propre manifest, ou bien le bouton a été cliqué par mégarde — et une vraie mise à jour se tait depuis.";
 "updates_affirmed_on_disk" = "sur le disque : %@";
 "updates_affirmed_open_mod" = "Voir la fiche";
 "updates_affirmed_open_mod_help" = "Ouvre la fiche de ce mod sur son onglet Santé — version installée, compatibilité et erreurs relevées, de quoi juger avant de retirer l'affirmation.";
@@ -1799,7 +1799,7 @@
 "vm_restore_success" = "Sauvegarde restaurée ! L'état précédent de la partie a été conservé.";
 "vm_save_error" = "Une erreur s'est produite lors de l'enregistrement de la partie";
 "vm_save_success" = "Partie enregistrée et sauvegarde créée avec succès !";
-"vm_started" = "StarHubFR démarré";
+"vm_started" = "StarHub démarré";
 "vm_switch_profile" = "Profil de mods basculé vers : %@";
 "mods_fingerprint_pause_title" = "Empreintes dans les parties";
 "mods_fingerprint_pause_message" = "Mettre en pause n'efface pas ce que %@ a laissé dans vos parties :";
@@ -1915,9 +1915,9 @@
 "shortcuts_palette_go" = "Y aller";
 "shortcuts_confirm" = "Valider l'action principale";
 "shortcuts_cancel" = "Annuler et fermer";
-"shortcuts_hide" = "Masquer StarHubFR";
+"shortcuts_hide" = "Masquer StarHub";
 "shortcuts_minimize" = "Réduire la fenêtre";
-"shortcuts_quit" = "Quitter StarHubFR";
+"shortcuts_quit" = "Quitter StarHub";
 "perf_us_measure_applied" = "UltraSmooth : l'étalement du changement d'heure et des lieux hors écran est coupé le temps de la mesure. Les réglages d'origine reviennent à la sortie du jeu.";
 "perf_us_measure_refused_experimental" = "UltraSmooth n'a pas été réglé pour la mesure : ses options expérimentales sont actives et rallumeraient l'étalement au chargement. La sonde attribuera mal une partie des coûts.";
 "perf_us_measure_refused_schema" = "UltraSmooth n'a pas été réglé pour la mesure : sa config date d'avant la version 2.8, et il rallumerait l'étalement au premier chargement. Lancez une fois le jeu avec UltraSmooth à jour, puis mesurez.";
@@ -1945,12 +1945,12 @@
 "conflicts_known_probe_profiler" = "Les deux chronomètrent les mêmes points de la trame : chacun ajoute son coût à ce que l'autre mesure, et les temps relevés sont gonflés. Mettez Profiler en pause pendant les mesures de la sonde.";
 "conflicts_known_probe_ultrasmooth" = "UltraSmooth fait lui-même le travail du changement d'heure et des lieux hors écran, à son rythme (options EnableTimeChangedPacing et EnableLocationTimeSlicing) : la sonde met alors une partie de ces coûts au compte d'UltraSmooth. Pendant une mesure guidée, pilotée ou une série de benchmark, l'app coupe ces deux options et les rétablit à la sortie du jeu, sauf si les options expérimentales d'UltraSmooth sont actives.";
 "logs_segment_performance" = "Performances";
-"perf_no_probe" = "Aucune donnée de la sonde StarHubFR : installez-la depuis la carte « Sonde » en haut de la page, puis jouez une session.";
+"perf_no_probe" = "Aucune donnée de la sonde StarHub : installez-la depuis la carte « Sonde » en haut de la page, puis jouez une session.";
 "perf_need_two" = "Il faut deux sessions de la sonde pour comparer.";
 "perf_loading" = "Lecture des mesures de la sonde…";
 "home_probe_update_body" = "L'app livre une version de la sonde plus récente que celle de votre dossier Mods. Mettez-la à jour pour profiter de ses corrections ; elle prendra effet au prochain lancement du jeu.";
-"perf_probe_title" = "Sonde StarHubFR";
-"perf_probe_absent" = "La sonde StarHubFR n'est pas installée. C'est elle qui mesure le temps et la mémoire que coûte chaque mod, et la durée des chargements.";
+"perf_probe_title" = "Sonde StarHub";
+"perf_probe_absent" = "La sonde StarHub n'est pas installée. C'est elle qui mesure le temps et la mémoire que coûte chaque mod, et la durée des chargements.";
 "perf_probe_paused" = "La sonde est installée mais en pause (%@) : le jeu ne la charge pas.";
 "perf_probe_enable" = "Activer la sonde";
 "perf_probe_enabled" = "Sonde active — version %@";
@@ -1958,8 +1958,8 @@
 "perf_probe_profiler_installed" = "Profiler est encore installé, en pause (%@) : vous pouvez le supprimer, la sonde le remplace.";
 "perf_probe_install" = "Installer la sonde %@";
 "perf_probe_update" = "Mettre à jour la sonde (%@ → %@)";
-"perf_probe_install_confirm_title" = "Installer la sonde StarHubFR ?";
-"perf_probe_install_confirm" = "StarHubFR copie la sonde livrée avec l'app dans Mods/%@. Elle ne change rien d'autre et n'utilise pas le réseau ; mettez-la en pause ou supprimez-la comme n'importe quel mod. Une mise à jour garde son config.json.";
+"perf_probe_install_confirm_title" = "Installer la sonde StarHub ?";
+"perf_probe_install_confirm" = "StarHub copie la sonde livrée avec l'app dans Mods/%@. Elle ne change rien d'autre et n'utilise pas le réseau ; mettez-la en pause ou supprimez-la comme n'importe quel mod. Une mise à jour garde son config.json.";
 "perf_probe_unavailable" = "Cette version de l'app n'embarque pas la sonde.";
 "perf_probe_install_failed" = "Installation de la sonde impossible : %@";
 "perf_unreadable" = "%lld ligne(s) illisible(s) ignorée(s)";
@@ -2059,8 +2059,8 @@
 "perf_guided_before_done" = "Étape 1 faite : %1$@, %2$lld min, %3$@. Faites votre changement, puis lancez la mesure « après ».";
 "perf_outcome_stable" = "stable";
 "perf_outcome_noisy" = "bruitée";
-"perf_guided_missing" = "La mesure guidée a besoin de la sonde StarHubFR, qui n'est pas installée.";
-"perf_guided_paused" = "La sonde StarHubFR est en pause : réactivez-la pour mesurer.";
+"perf_guided_missing" = "La mesure guidée a besoin de la sonde StarHub, qui n'est pas installée.";
+"perf_guided_paused" = "La sonde StarHub est en pause : réactivez-la pour mesurer.";
 "perf_guided_outdated" = "Votre sonde (%@) ne sait pas guider une mesure : installez la version 0.5.0 ou plus récente.";
 "perf_guided_write_failed" = "Mesure non préparée : %@";
 "perf_guided_profile_apply_failed" = "Profil non appliqué — mesure non lancée.";
@@ -2153,11 +2153,11 @@
 "perf_loads_load_note" = "Chargement des mods : %@ (%d sur %d vus).";
 "perf_loads_probe_not_first" = "La sonde n'est pas chargée en premier : le chargement des mods d'avant elle n'est pas mesuré, et leur démarrage inclut le travail d'autres mods.";
 "perf_loads_probe_first_action" = "Charger la sonde en premier";
-"perf_loads_probe_first_confirm" = "StarHubFR ajoute la sonde à ModsToLoadEarly dans smapi-internal/config.user.json (une copie est gardée) et l'en retire quand la sonde est en pause. Rien d'autre ne change.";
+"perf_loads_probe_first_confirm" = "StarHub ajoute la sonde à ModsToLoadEarly dans smapi-internal/config.user.json (une copie est gardée) et l'en retire quand la sonde est en pause. Rien d'autre ne change.";
 "perf_loads_probe_first_undo" = "Ne plus charger la sonde en premier";
 "perf_loads_probe_first_active" = "Sonde chargée en premier : le chargement et le démarrage de chaque mod sont mesurés.";
 "perf_loads_probe_first_pending" = "Sonde placée en tête : effet au prochain lancement du jeu.";
-"perf_loads_probe_first_failed" = "Sonde pas en tête : StarHubFR n'a pas pu modifier smapi-internal/config.user.json (fichier illisible, liste ModsToLoadEarly inhabituelle ou écriture refusée).";
+"perf_loads_probe_first_failed" = "Sonde pas en tête : StarHub n'a pas pu modifier smapi-internal/config.user.json (fichier illisible, liste ModsToLoadEarly inhabituelle ou écriture refusée).";
 "perf_loads_probe_first_paused" = "Sonde en pause : retirée de ModsToLoadEarly, elle y reviendra à sa réactivation.";
 "perf_loads_probe_first_no_smapi" = "SMAPI introuvable dans le dossier du jeu : la sonde ne peut pas être placée en tête.";
 "perf_loads_probe_first_retry" = "Réessayer";
@@ -2191,7 +2191,7 @@
 "perf_impact_patches" = "Patches Harmony mesurés dans %d sessions sur %d : les mods qui patchent peuvent être minorés.";
 "perf_impact_sources" = "Dernières mesures : en jeu %@ · lancement %@ · partie %@";
 "perf_impact_never" = "jamais";
-"perf_impact_empty_probe" = "Installez la sonde StarHubFR (carte « Sonde » en haut de la page) pour mesurer l'impact de chaque mod.";
+"perf_impact_empty_probe" = "Installez la sonde StarHub (carte « Sonde » en haut de la page) pour mesurer l'impact de chaque mod.";
 "perf_impact_empty_mod" = "Pas encore mesuré : jouez 5 minutes avec la sonde active.";
 "perf_impact_negligible" = "Impact négligeable sur tous les axes mesurés.";
 "perf_impact_paused" = "En pause : ce coût n'est plus payé. Dernières mesures ci-dessous.";
@@ -2220,7 +2220,7 @@
 "perf_loads_update_probe" = "Mettez à jour la sonde (0.6.0 ou plus) pour mesurer les chargements.";
 "perf_loads_empty" = "Lancez le jeu, chargez une partie, puis revenez ici.";
 "bench_panel_open" = "Panneau";
-"perf_loads_needs_probe" = "Les chargements sont mesurés par la sonde StarHubFR : installez-la depuis la carte « Sonde » en haut de la page.";
+"perf_loads_needs_probe" = "Les chargements sont mesurés par la sonde StarHub : installez-la depuis la carte « Sonde » en haut de la page.";
 "main_back_to_top" = "Retour en haut";
 "perf_impact_open_page" = "Voir dans Performances";
 "perf_probe_updated_relaunch" = "Sonde %@ installée. Elle mesurera au prochain lancement du jeu.";
@@ -2305,7 +2305,7 @@
 "bench_fail_stopped" = "arrêt demandé.";
 "bench_save_touched" = "Attention : une partie d'origine a changé pendant le benchmark (%@).";
 "bench_cache_warning" = "%@ garde un cache disque : il serait reconstruit à chaque passage entre A et B, et le verdict en serait faussé.";
-"bench_ref_probe_missing" = "La sonde StarHubFR n'est pas active.";
+"bench_ref_probe_missing" = "La sonde StarHub n'est pas active.";
 "bench_ref_probe_too_old" = "La sonde installée (%@) est trop ancienne : il faut la 0.7.0 ou plus.";
 "bench_ref_probe_in_b" = "Ce changement couperait la sonde : rien ne serait mesuré.";
 "bench_ref_dependents" = "D'autres mods exigent celui-ci : %@.";
@@ -2374,7 +2374,7 @@
 "quarantine_tile_hint" = "Aller à cette section du rapport.";
 "backups_page_subtitle" = "Remettre un mod, une configuration ou un fichier d'avant.";
 "mod_config_backups_header_count" = "%lld sauvegarde(s) de configuration";
-"maintenance_header_total" = "StarHubFR occupe %@ sur ce Mac.";
+"maintenance_header_total" = "StarHub occupe %@ sur ce Mac.";
 "maintenance_free_space_title" = "Libérer de la place";
 "quarantine_subtitle_short" = "Ce que les analyses ont mis à l'écart.";
 "logs_header_no_smapi" = "SMAPI non installé";
@@ -2527,7 +2527,7 @@
 "perf_slo_ready" = "Prêt pour une session de diagnostic";
 "perf_slo_ready_detail" = "Rien ne change avant que vous ayez relu et confirmé la préparation.";
 "perf_slo_incompatible" = "Cette installation de SLO ne peut pas être préparée";
-"perf_slo_probe_required" = "L’outil de mesure StarHubFR doit être installé ou mis à jour";
+"perf_slo_probe_required" = "L’outil de mesure StarHub doit être installé ou mis à jour";
 "perf_slo_blocked" = "Diagnostic indisponible pour le moment";
 "perf_slo_preparing" = "Préparation du diagnostic";
 "perf_slo_waiting" = "Attente du lancement du jeu";
@@ -2549,7 +2549,7 @@
 "perf_slo_restore" = "Restaurer l’état d’origine";
 "perf_slo_open_mods" = "Ouvrir le dossier Mods";
 "perf_slo_confirm_title" = "Préparer une session de diagnostic";
-"perf_slo_confirm_enable" = "Activer temporairement SLO et l’outil de mesure StarHubFR.";
+"perf_slo_confirm_enable" = "Activer temporairement SLO et l’outil de mesure StarHub.";
 "perf_slo_confirm_config" = "Activer temporairement les diagnostics détaillés et la mesure de performances de SLO.";
 "perf_slo_confirm_siblings" = "Ce dossier groupé active aussi : %@";
 "perf_slo_confirm_restore" = "Après la fermeture du jeu, restaurer exactement la config et les états en pause d’origine.";
@@ -2607,7 +2607,7 @@
 "perf_stard_diag_finished" = "Mesure Stardropium terminée";
 "perf_stard_diag_playHint" = "Chargez une partie et jouez jusqu’au début d’une journée, puis quittez normalement pour récupérer les relevés.";
 "perf_stard_diag_blockedDetail" = "Fermez le jeu et terminez les autres opérations de mesure ou de gestion des mods, puis actualisez.";
-"perf_stard_diag_preparationDetail" = "Au lancement, StarHubFR active temporairement Stardropium et son outil de mesure, puis prépare les réglages mémoire.";
+"perf_stard_diag_preparationDetail" = "Au lancement, StarHub active temporairement Stardropium et son outil de mesure, puis prépare les réglages mémoire.";
 "perf_stard_diag_configDetail" = "Activer le traitement mémoire et le nettoyage automatique au début de chaque journée. Les autres réglages sont conservés.";
 "perf_stard_diag_install" = "Installer Stardropium";
 "perf_stard_diag_measure" = "Mesurer avec Stardropium";
@@ -2735,7 +2735,7 @@
 "keybind_plan_failure_restore_failed" = "Restauration impossible — restaurez à la main depuis « Sauvegardes des mods › Configuration » : %@";
 "keybind_plan_none_movable" = "Aucun déplacement possible : voir les réglages non déplaçables ci-dessous.";
 "keybind_plan_remaining" = "Conflits restants après la nouvelle analyse : %lld";
-"help_title" = "Aide StarHubFR";
+"help_title" = "Aide StarHub";
 "help_report_bug" = "Signaler un bug sur GitHub…";
 "help_contents" = "Sommaire";
 "help_search_prompt" = "Chercher dans le guide";

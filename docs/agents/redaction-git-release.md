@@ -21,4 +21,4 @@ Déplacé d'`AGENTS.md` §3 et §7 le 2026-11-14 (allègement) : texte complet, 
 
 ## §7 — Release
 
-Release : version affichée (`CFBundleShortVersionString`) et section du CHANGELOG changées **à la main** ; `python3 release.py` incrémente `CFBundleVersion`, construit et zippe dans `bundles/StarHubFR_v<version>.zip`, sans rien publier ; commit d'`Info.plist`, tag signé, notes écrites à la main puis `gh release create --verify-tag`. → skill `release`.
+Release : version affichée (`CFBundleShortVersionString`) et section du CHANGELOG changées **à la main** ; `./scripts/release.sh` incrémente `CFBundleVersion`, construit et zippe dans `bundles/StarHubFR_v<version>.zip`, sans rien publier ; commit d'`Info.plist`, tag signé, notes écrites à la main puis `gh release create --verify-tag`. → skill `release`.
