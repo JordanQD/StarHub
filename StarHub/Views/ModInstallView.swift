@@ -53,6 +53,7 @@ struct ModInstallView: View {
     /// Archive sans manifeste situable, ou dont l'hôte est à désigner (un
     /// dossier entier, contre un fichier nu pour `droppedProposal`).
     @State private var manifestlessPlan: ManifestlessArchive.Plan?
+    @State private var deferredDeposit = false
     @State private var manifestlessCandidates: [String] = []
     @State private var manifestlessEntries: [ManifestlessArchive.Entry] = []
     /// Traduction : au registre, retirable ; greffe : non (le message le dit).
@@ -173,6 +174,13 @@ struct ModInstallView: View {
                 }
             }
         }
+        .modifier(TranslationReplaceDialog(vm: vm, localization: localization))
+        .onChange(of: vm.isPendingTranslationPrompt) { _, pendingNow in
+            if deferredDeposit, !pendingNow {
+                deferredDeposit = false
+                isPresented = false
+            }
+        }
         .alert(localization.L(L10n.Mods.compatInstallTitle),
                isPresented: Binding(get: { pendingBrokenInstall != nil },
                                     set: { if !$0 { pendingBrokenInstall = nil } })) {
@@ -209,6 +217,7 @@ struct ModInstallView: View {
                 Button(String(format: localization.L(L10n.ModInstall.depositConfirm), plan.hostFolderName)) {
                     deposit(plan)
                 }
+                .disabled(vm.isPendingTranslationPrompt)
                 Button(localization.L(L10n.ModInstall.cancel), role: .cancel) {
                     manifestlessPlan = nil
                     // Dépôt annulé : le reste du dépôt multiple continue.
@@ -619,9 +628,13 @@ struct ModInstallView: View {
         // Id de page retenu pour l'archive téléchargée seulement (sinon un lot
         // `nxm://` entrait sans suivi).
         let downloadedModId = analyzedURL == preloadedZip ? vm.pendingNexusSource?.modId : nil
-        let result = vm.depositIntoMod(plan: plan, extractedRoot: tempDir, host: host,
-                                       sourceName: analyzedArchiveName, nexus: nil,
-                                       downloadedModId: downloadedModId)
+        guard let result = vm.requestTranslationDeposit(plan: plan, extractedRoot: tempDir,
+                                                        sourceName: analyzedArchiveName,
+                                                        downloadedModId: downloadedModId,
+                                                        host: host) else {
+            deferredDeposit = true
+            return
+        }
         guard let outcome = result.outcome else {
             showFailure(result.message ?? localization.L(L10n.ModInstall.depositFailed))
             showError = true
@@ -632,8 +645,8 @@ struct ModInstallView: View {
         installer.cleanupTempDir(at: tempDir)
         self.tempDir = nil
         vm.refresh()
-        // Message éventuel par la modale ; la feuille se ferme.
-        if let message = result.message { vm.showModal(message: message) }
+        // Non-blocking toast on deposit success; sheet closes.
+        if let message = result.message { vm.showToast(message: message) }
         isPresented = false
     }
 

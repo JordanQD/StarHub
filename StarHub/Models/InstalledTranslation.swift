@@ -81,19 +81,22 @@ extension InstalledTranslation {
 }
 
 public struct DeclaredTranslation: Codable, Equatable, Sendable {
-    public let nexusModId: Int
+    public let nexusModId: Int?
     public let nexusName: String
     public let version: String?
     public let updatedAt: Date?
     public let declaredAt: Date
+    public let packFolderName: String?
 
-    public init(nexusModId: Int, nexusName: String, version: String?,
-                updatedAt: Date?, declaredAt: Date) {
+    public init(nexusModId: Int?, nexusName: String, version: String?,
+                updatedAt: Date?, declaredAt: Date,
+                packFolderName: String? = nil) {
         self.nexusModId = nexusModId
         self.nexusName = nexusName
         self.version = version
         self.updatedAt = updatedAt
         self.declaredAt = declaredAt
+        self.packFolderName = packFolderName
     }
 
     /// La déclaration vue comme une traduction suivie : l'identité passe, les
@@ -110,26 +113,21 @@ public struct DeclaredTranslation: Codable, Equatable, Sendable {
     /// la feuille de déclaration ne relève pas la date Nexus, et une base
     /// inconnue ne prétend ni à jour ni en retard.
     public func asTracked(hostFolderName: String) -> InstalledTranslation {
-        InstalledTranslation(hostFolderName: hostFolderName, nexusModId: nexusModId,
+        InstalledTranslation(hostFolderName: hostFolderName, nexusModId: nexusModId ?? 0,
                              nexusName: nexusName, version: version ?? "",
                              updatedAt: updatedAt, installedAt: declaredAt,
                              files: [], replacedFiles: [:])
     }
 
-    /// Adopte la date Nexus d'un résultat **quand il décrit la version
-    /// déclarée** : même fiche, même version.
-    ///
-    /// Sur toute autre combinaison, `nil` : la date d'une version différente
-    /// deviendrait la base de comparaison et ferait taire la mise à jour qui
-    /// les sépare ; une base fausse vaut moins qu'une base absente.
     public func adopting(_ hit: NexusModSearch.Hit) -> DeclaredTranslation? {
-        guard hit.modId == nexusModId,
+        guard let nexusModId, hit.modId == nexusModId,
               let version, version == hit.version,
               let date = hit.updatedAt
         else { return nil }
         return DeclaredTranslation(nexusModId: nexusModId, nexusName: nexusName,
                                    version: version, updatedAt: date,
-                                   declaredAt: declaredAt)
+                                   declaredAt: declaredAt,
+                                   packFolderName: packFolderName)
     }
 }
 

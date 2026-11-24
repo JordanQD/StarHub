@@ -54,6 +54,11 @@ struct FrenchTranslationsView: View {
         VStack(alignment: .leading, spacing: 0) {
             header(all, shown: shown, workCount: work.count)
                 .padding(AppDesign.Spacing.lg)
+            if !linkProposals.isEmpty {
+                linkProposalsSection
+                    .padding(.horizontal, AppDesign.Spacing.lg)
+                    .padding(.bottom, AppDesign.Spacing.sm)
+            }
             Divider()
             if shown == .worklist {
                 BackToTopScrollView(localization) {
@@ -129,6 +134,28 @@ struct FrenchTranslationsView: View {
                                             showArbitration = false
                                             mergeStore.reset()
                                         })
+        }
+    }
+
+    // MARK: - C7-T1 — la section des propositions de lien
+
+    private var linkProposals: [TranslationLinkProposal] {
+        viewModel.translationHub.proposedLinks.values
+            .sorted { $0.packFolderName < $1.packFolderName }
+    }
+
+    @ViewBuilder
+    private var linkProposalsSection: some View {
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+            Label(String(format: localization.L(L10n.Mods.translationLinkCounter),
+                         linkProposals.count),
+                  systemImage: "link")
+                .font(AppDesign.Font.caption(.medium))
+            ForEach(linkProposals, id: \.packFolderName) { proposal in
+                TranslationLinkProposalCard(vm: viewModel,
+                                            localization: localization,
+                                            proposal: proposal)
+            }
         }
     }
 

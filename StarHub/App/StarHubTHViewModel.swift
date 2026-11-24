@@ -1483,6 +1483,7 @@ final class StarHubTHViewModel {
     /// « Vider les journaux » : lignes de StarHubFR seulement.
     func clearAppLog() { logStore.clearApp() }
     let alertStore = AlertStore()
+    let toastStore = ToastStore()
 
     var saveToDuplicate: SaveGameInfo? = nil
     var backupToBranch: SaveBackup? = nil
@@ -1752,8 +1753,11 @@ final class StarHubTHViewModel {
             self.scanMods(gameDir: resolvedGameDir)  // also kicks off parseSMAPILog internally
             self.reloadSaves()
             self.environment.fetchSteamUser(fallbackFarmerName: farmerFallback)
-            guard let onScanned else { return }
-            DispatchQueue.main.async { MainActor.assumeIsolated { onScanned() } }
+            DispatchQueue.main.async { MainActor.assumeIsolated {
+                self.refreshTranslationLinkProposals()
+                guard let onScanned else { return }
+                onScanned()
+            } }
         }
         // Synchronous: install marker or first 256 bytes of the log, no process
         // (`SmapiVersionEvidence.installedVersion`).
@@ -1868,6 +1872,7 @@ final class StarHubTHViewModel {
             DispatchQueue.main.async { [weak self] in
                 self?.launchStep = self?.localization.L(L10n.Main.launchStepDone) ?? ""
                 self?.launchProgress = 1.0
+                self?.refreshTranslationLinkProposals()
             }
             // 0,45 s : laisse voir le remplissage final (~0,25 s) de la barre.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -4218,6 +4223,170 @@ final class StarHubTHViewModel {
             andInstalled: translationInstalledHits[mod.folderName] ?? [])
     }
 
+    // MARK: - C7-T1 — les propositions de lien « pack-traduction → hôte »
+
+    func refreshTranslationLinkProposals() {
+        let packs = mods.flattenedMods
+        let resolvedGameDir = gameDir
+        let registry = installedTranslations
+        let dismissed = Set(UserDefaults.standard.string(
+            forKey: UDKey.dismissedTranslationLinkProposals)?
+            .split(separator: "\n").map(String.init) ?? [])
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let byPack = Self.computeLinkProposals(
+                packs: packs, gameDir: resolvedGameDir,
+                registry: registry, dismissed: dismissed)
+            DispatchQueue.main.async { MainActor.assumeIsolated {
+                self.translationHub.setProposedLinks(byPack)
+            } }
+        }
+    }
+
+    static func computeLinkProposals(packs: [ModItem], gameDir: String,
+                                     registry: InstalledTranslationRegistry,
+                                     dismissed: Set<String>) -> [String: TranslationLinkProposal] {
+        var keySets: [String: Set<String>] = [:]
+        var fingerprints: [String: String] = [:]
+        var frenchValues: [String: [String]] = [:], manifestPaths: [String: String] = [:]
+        for mod in packs {
+            let root = ((gameDir as NSString).appendingPathComponent("Mods") as NSString)
+                .appendingPathComponent(mod.physicalFolderName)
+            manifestPaths[mod.folderName] = (root as NSString).appendingPathComponent("manifest.json")
+            let i18nDir = (root as NSString).appendingPathComponent("i18n")
+            let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
+            let frenchPath = (i18nDir as NSString).appendingPathComponent("fr.json")
+            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: frenchPath)
+            else { continue }
+            keySets[mod.folderName] = keySet
+            let reference = FileManager.default.fileExists(atPath: defaultPath)
+                ? defaultPath
+                : (FileManager.default.fileExists(atPath: frenchPath) ? frenchPath : nil)
+            if let reference,
+               let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
+               let modified = attributes[.modificationDate] as? Date {
+                fingerprints[mod.folderName] = String(Int(modified.timeIntervalSince1970))
+            }
+            if let frenchFileValues = linkValues(at: frenchPath) {
+                frenchValues[mod.folderName] = frenchFileValues
+            }
+        }
+        let built = packs.compactMap { mod -> TranslationLinkPack? in
+            guard let keySet = keySets[mod.folderName] else { return nil }
+            let marked = TranslationLinkMatcher.isMarked(name: mod.name + " " + mod.folderName)
+            return TranslationLinkPack(
+                folderName: mod.folderName, physicalFolderName: mod.physicalFolderName,
+                name: mod.name, uniqueId: mod.uniqueId, isMarked: marked,
+                isFrench: TranslationLinkMatcher.isFrench(
+                    values: frenchValues[mod.folderName] ?? []),
+                keySet: keySet,
+                nexusId: TranslationLinkMatcher.nexusId(fromUpdateKeys: mod.updateKeys),
+                hasCode: marked && TranslationLinkManifest.hasCode(manifestAt: manifestPaths[mod.folderName] ?? ""))
+        }
+        var byPack: [String: TranslationLinkProposal] = [:]
+        for proposal in TranslationLinkMatcher.propose(packs: built) {
+            let line = "\(proposal.packFolderName)|\(fingerprints[proposal.packFolderName] ?? "")"
+            if registry.isLinkDeclared(
+                packFolderName: proposal.packFolderName, nexusId: proposal.nexusId) {
+                continue
+            }
+            if dismissed.contains(line) { continue }
+            byPack[proposal.packFolderName] = proposal
+        }
+        return byPack
+    }
+
+    private static func linkKeySet(at path: String) -> Set<String>? {
+        guard let data = FileManager.default.contents(atPath: path),
+              let entries = try? I18nLenientParser.parse(data) else { return nil }
+        return Set(entries.keys)
+    }
+
+    private static func linkValues(at path: String) -> [String]? {
+        guard let data = FileManager.default.contents(atPath: path),
+              let entries = try? I18nLenientParser.parse(data) else { return nil }
+        return Array(entries.values)
+    }
+
+    func confirmTranslationLink(_ proposal: TranslationLinkProposal) {
+        guard let pack = mods.flattenedMods.first(where: {
+            $0.folderName == proposal.packFolderName })
+        else {
+            log("Proposition de lien sans pack au parc : \(proposal.packFolderName)",
+                level: .warning)
+            return
+        }
+        let manifestPath = (((gameDir as NSString).appendingPathComponent("Mods") as NSString)
+            .appendingPathComponent(pack.physicalFolderName) as NSString)
+            .appendingPathComponent("manifest.json")
+        var name = pack.name
+        var version: String? = pack.version
+        var nexusId: Int?
+        if let data = FileManager.default.contents(atPath: manifestPath),
+           let decoded = I18nFileDecoder.decode(data),
+           let object = I18nLenientParser.lenientObject(decoded.text) {
+            if let declared = object["Name"] as? String, !declared.isEmpty {
+                name = declared
+            }
+            if let read = object["Version"] as? String { version = read }
+            if let keys = object["UpdateKeys"] as? [String] {
+                nexusId = TranslationLinkMatcher.nexusId(fromUpdateKeys: keys)
+            }
+        }
+        translationHub.mutateInstalled { registry in
+            _ = TranslationLinkConfirmation.apply(
+                proposal: proposal, name: name, version: version,
+                nexusId: nexusId, to: &registry, declaredAt: Date())
+        }
+        if InstalledTranslationStore.save(installedTranslations) {
+            log("Lien de traduction créé : \(proposal.packFolderName) → "
+                + "\(proposal.hostFolderName)", level: .info)
+        } else {
+            log("Lien non enregistré : la proposition reviendra au prochain scan",
+                level: .warning)
+        }
+        var remaining = translationHub.proposedLinks
+        remaining[proposal.packFolderName] = nil
+        translationHub.setProposedLinks(remaining)
+    }
+
+    func dismissTranslationLink(_ proposal: TranslationLinkProposal) {
+        rememberDismissedProposal(packFolderName: proposal.packFolderName)
+        var remaining = translationHub.proposedLinks
+        remaining[proposal.packFolderName] = nil
+        translationHub.setProposedLinks(remaining)
+    }
+
+    func rememberDismissedProposal(packFolderName: String) {
+        let fingerprint = Self.linkFingerprint(
+            packFolderName: packFolderName,
+            gameDir: gameDir, packs: mods.flattenedMods)
+        var dismissed = Set(UserDefaults.standard.string(
+            forKey: UDKey.dismissedTranslationLinkProposals)?
+            .split(separator: "\n").map(String.init) ?? [])
+        dismissed.insert("\(packFolderName)|\(fingerprint)")
+        UserDefaults.standard.set(
+            dismissed.sorted().joined(separator: "\n"),
+            forKey: UDKey.dismissedTranslationLinkProposals)
+    }
+
+    static func linkFingerprint(packFolderName: String,
+                                gameDir: String, packs: [ModItem]) -> String {
+        guard let pack = packs.first(where: { $0.folderName == packFolderName })
+        else { return "" }
+        let i18nDir = (((gameDir as NSString).appendingPathComponent("Mods") as NSString)
+            .appendingPathComponent(pack.physicalFolderName) as NSString)
+            .appendingPathComponent("i18n")
+        let reference = ["default.json", "fr.json"]
+            .map { (i18nDir as NSString).appendingPathComponent($0) }
+            .first { FileManager.default.fileExists(atPath: $0) }
+        guard let reference,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
+              let modified = attributes[.modificationDate] as? Date
+        else { return "" }
+        return String(Int(modified.timeIntervalSince1970))
+    }
+
     /// Cherche sur Nexus la fiche d'un mod qui n'en déclare aucune, sans tag.
     /// ⚠️ **Deux fois sur trois, rien** (55/83 introuvables) : la vue doit le
     /// dire.
@@ -4538,9 +4707,12 @@ final class StarHubTHViewModel {
 
     private func depositTranslation(archive: URL, hit: NexusModSearch.Hit, into mod: ModItem) {
         defer { translationHub.setBusy(false, for: mod.folderName) }
-        // `discardDownloaded` emporte le dossier `StarHubFR-download-*` entier
-        // (X104 : un dossier vide restait par traduction).
-        defer { NexusFileDownload.discardDownloaded(at: archive) }
+        var discardOnExit = true
+        defer { if discardOnExit { NexusFileDownload.discardDownloaded(at: archive) } }
+        if isPendingTranslationPrompt {
+            showModal(message: localization.L(L10n.Mods.translationReplaceBusy))
+            return
+        }
         let installer = ModZipInstaller()
         do {
             let extracted = try installer.extractToTemp(zipUrl: archive)
@@ -4559,9 +4731,17 @@ final class StarHubTHViewModel {
             }
             let plan = ManifestlessArchive.Plan(hostFolderName: mod.folderName,
                                                 kind: .translation, entries: entries)
+            if let conflict = translationConflict(for: mod, incomingSourceName: hit.name,
+                                                  nexus: hit, downloadedModId: nil) {
+                discardOnExit = false
+                storePendingTranslation(.nexus(archive: archive, hit: hit, host: mod),
+                                        conflict: conflict)
+                log("Traduction déjà en place : confirmation demandée", level: .info)
+                return
+            }
             let result = depositIntoMod(plan: plan, extractedRoot: extracted, host: mod,
                                         sourceName: hit.name, nexus: hit)
-            if let message = result.message { showModal(message: message) }
+            if let message = result.message { showToast(message: message) }
             guard result.outcome != nil else { return }
             log(String(format: localization.L(L10n.Mods.translationInstalled), hit.name, mod.name))
             refresh()
@@ -4569,6 +4749,18 @@ final class StarHubTHViewModel {
             showModal(message: localization.L(L10n.Mods.translationInstallFailed))
             log("Dépôt de traduction : \(error)", level: .error)
         }
+    }
+
+    // MARK: - C7-T2 — la confirmation Remplacer/Garder
+
+    private(set) var pendingTranslationInstall: PendingTranslationInstall?
+    private(set) var lastTranslationConflict: TranslationDuplicateConflict?
+    var isPendingTranslationPrompt: Bool { pendingTranslationInstall != nil }
+
+    func storePendingTranslation(_ pending: PendingTranslationInstall?,
+                                 conflict: TranslationDuplicateConflict?) {
+        pendingTranslationInstall = pending
+        if let conflict { lastTranslationConflict = conflict }
     }
 
     /// Dépose un plan dans un mod et inscrit au registre ce qui devra se
@@ -5154,6 +5346,12 @@ final class StarHubTHViewModel {
     /// (`analyzeNextQueuedArchive`, `queueNextDropArchive`) ; dépiler ici
     /// sautait une archive en silence.
     func completeInstall(installedNames: [String]) {
+        if lastInstallKeyDeltas.isEmpty && lastInstallPreserved.isEmpty && pendingDropQueue.isEmpty {
+            let names = installedNames.prefix(3).joined(separator: ", ")
+            let suffix = installedNames.count > 3 ? " (+\(installedNames.count - 3))" : ""
+            showToast(message: "\(localization.L(L10n.ModInstall.installSuccess)) — \(names)\(suffix)")
+            return
+        }
         pendingInstallReport = InstallReport(
             installedNames: installedNames,
             deltas: lastInstallKeyDeltas,
@@ -5599,6 +5797,12 @@ final class StarHubTHViewModel {
 
     func showModal(message: String) {
         alertStore.show(message)
+    }
+
+    func showToast(message: String,
+                   symbol: String = "checkmark.circle.fill",
+                   tint: Color = AppDesign.Color.success) {
+        toastStore.show(message, symbol: symbol, tint: tint)
     }
     
     // MARK: - Saves
