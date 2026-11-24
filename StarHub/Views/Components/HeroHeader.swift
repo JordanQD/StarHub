@@ -52,10 +52,13 @@ struct HeroHeader: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: AppDesign.Icon.sm))
                         .foregroundStyle(.white.opacity(AppDesign.Opacity.secondary))
+                        .frame(width: AppDesign.Metrics.compactControlTarget,
+                               height: AppDesign.Metrics.compactControlTarget)
+                        .contentShape(.circle)
                 }
-                .buttonStyle(.plain).focusRing()
+                .buttonStyle(.plain).focusRing(cornerRadius: FocusRing.capsule)
                 .iconHelp(closeHelp)
-                .padding(AppDesign.Spacing.sm)
+                .padding(AppDesign.Spacing.xs)
             }
     }
 

@@ -146,11 +146,11 @@ private struct SaveHeroBand: View {
                     // glyphe secondaire se perdait.
                     .foregroundColor(.white.opacity(0.9))
                     .shadow(color: .black.opacity(0.6), radius: 2)
+                    .frame(width: AppDesign.Metrics.compactControlTarget,
+                           height: AppDesign.Metrics.compactControlTarget)
+                    .contentShape(.circle)
             }
-            .buttonStyle(.plain).focusRing()
-            // Cible 18×18 : le glyphe nu rendrait `.help` muet (a11y §7).
-            .frame(width: 18, height: 18)
-            .contentShape(.rect)
+            .buttonStyle(.plain).focusRing(cornerRadius: FocusRing.capsule)
             .iconHelp(closeHelp)
         }
     }

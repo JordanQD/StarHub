@@ -160,7 +160,8 @@ struct FrenchTranslationRow: View {
                             // Cible portée à 18×18 : sur un glyphe nu, l'infobulle ne
                             // s'affiche jamais.
                             Image(systemName: "hand.thumbsdown")
-                                .frame(width: 18, height: 18).contentShape(.rect)
+                                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
+                                .contentShape(.rect)
                         }
                         .buttonStyle(.borderless).pointingHandCursor().focusRing(cornerRadius: 4)
                         .help(localization.L(L10n.FrTranslations.notThisOne))

@@ -31,7 +31,8 @@ enum AppDesign {
 
     // MARK: - Typography (SwiftUI.Font)
     enum Font {
-        static var iconXXS: SwiftUI.Font { .system(size: 9) }
+        /// Plancher HIG macOS : 10 pt minimum (Accessibility — Vision).
+        static var iconXXS: SwiftUI.Font { .system(size: 10) }
         static var iconXS: SwiftUI.Font { .system(size: 10) }
         static var footnote: SwiftUI.Font { .footnote }
         static var caption: SwiftUI.Font { .callout }
@@ -85,9 +86,16 @@ enum AppDesign {
     enum Color {
         private static func dynamic(_ pair: DynamicRGBColor) -> SwiftUI.Color {
             SwiftUI.Color(nsColor: NSColor(name: nil) { appearance in
-                let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    ? pair.dark
-                    : pair.light
+                let match = appearance.bestMatch(from: [
+                    .accessibilityHighContrastDarkAqua,
+                    .accessibilityHighContrastAqua,
+                    .darkAqua,
+                    .aqua
+                ])
+                let isDark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
+                let isHighContrast = match == .accessibilityHighContrastDarkAqua
+                    || match == .accessibilityHighContrastAqua
+                let rgb = pair.resolved(dark: isDark, highContrast: isHighContrast)
                 return NSColor(
                     srgbRed: CGFloat(rgb.red),
                     green: CGFloat(rgb.green),
@@ -131,14 +139,14 @@ enum AppDesign {
         /// ce token (mesuré), à teinte et saturation égales : deux verts pour
         /// le même état, visibles côte à côte sur la fiche d'un pack, où le
         /// toggle de la barre d'action porte celui-ci.
-        static let installed  = SwiftUI.Color(red: 0.20, green: 0.65, blue: 0.35)
+        static let installed  = dynamic(AppDesignCore.StatusPalette.installed)
 
         /// Le pendant « en pause » de `installed`, pour les pastilles posées
         /// **sur une image**. Opaque, et non `.secondary` : une pastille
         /// translucide se noie dans une vignette claire — c'est déjà la
         /// raison pour laquelle celle de `ModCard` est pleine. Du blanc tient
         /// dessus sur les deux thèmes.
-        static let paused     = SwiftUI.Color(white: 0.38)
+        static let paused     = dynamic(AppDesignCore.StatusPalette.paused)
 
         /// La quarantaine : un sens propre, ni avertissement ni erreur — des
         /// mods écartés par l'app, en attente d'une décision. Portait `.purple`
@@ -212,7 +220,14 @@ enum AppDesign {
 
         private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> SwiftUI.Color {
             SwiftUI.Color(nsColor: NSColor(name: nil) { appearance in
-                let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+                let match = appearance.bestMatch(from: [
+                    .accessibilityHighContrastDarkAqua,
+                    .accessibilityHighContrastAqua,
+                    .darkAqua,
+                    .aqua
+                ])
+                let isDark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
+                let rgb = isDark ? dark : light
                 return NSColor(srgbRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255,
                                blue: CGFloat(rgb.2) / 255, alpha: 1)
             })

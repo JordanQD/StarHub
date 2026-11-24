@@ -82,7 +82,7 @@ struct ActivationHistorySection: View {
             } label: {
                 Image(systemName: snapshot.pinned ? "pin.fill" : "pin")
                     .foregroundStyle(snapshot.pinned ? AppDesign.Color.accent : .secondary)
-                    .frame(width: 18, height: 18)
+                    .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                     .contentShape(.rect)
             }
             .buttonStyle(.plain).focusRing()

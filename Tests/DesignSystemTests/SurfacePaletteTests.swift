@@ -7,13 +7,19 @@ struct SurfacePaletteTests {
     @Test func approvedSurfaceValuesAreExact() {
         #expect(AppDesignCore.SurfacePalette.surface == DynamicRGBColor(
             light: RGBColor(red: 245.0 / 255.0, green: 245.0 / 255.0, blue: 247.0 / 255.0),
-            dark: RGBColor(red: 37.0 / 255.0, green: 37.0 / 255.0, blue: 39.0 / 255.0)))
+            dark: RGBColor(red: 37.0 / 255.0, green: 37.0 / 255.0, blue: 39.0 / 255.0),
+            highContrastLight: RGBColor(red: 250.0 / 255.0, green: 250.0 / 255.0, blue: 252.0 / 255.0),
+            highContrastDark: RGBColor(red: 28.0 / 255.0, green: 28.0 / 255.0, blue: 30.0 / 255.0)))
         #expect(AppDesignCore.SurfacePalette.surfaceRaised == DynamicRGBColor(
             light: RGBColor(red: 1, green: 1, blue: 1),
-            dark: RGBColor(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0)))
+            dark: RGBColor(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0),
+            highContrastLight: RGBColor(red: 1, green: 1, blue: 1),
+            highContrastDark: RGBColor(red: 36.0 / 255.0, green: 36.0 / 255.0, blue: 38.0 / 255.0)))
         #expect(AppDesignCore.SurfacePalette.surfaceBorder == DynamicRGBColor(
             light: RGBColor(red: 217.0 / 255.0, green: 217.0 / 255.0, blue: 222.0 / 255.0),
-            dark: RGBColor(red: 71.0 / 255.0, green: 71.0 / 255.0, blue: 75.0 / 255.0)))
+            dark: RGBColor(red: 71.0 / 255.0, green: 71.0 / 255.0, blue: 75.0 / 255.0),
+            highContrastLight: RGBColor(red: 120.0 / 255.0, green: 120.0 / 255.0, blue: 125.0 / 255.0),
+            highContrastDark: RGBColor(red: 142.0 / 255.0, green: 142.0 / 255.0, blue: 147.0 / 255.0)))
     }
 
     @Test func allSurfaceColorsAreOpaque() {
@@ -64,7 +70,9 @@ struct SurfacePaletteTests {
             AppDesignCore.SurfacePalette.surfaceRaised,
             AppDesignCore.SurfacePalette.surfaceBorder,
         ]
-        return palette.flatMap { [$0.light, $0.dark] }
+        return palette.flatMap {
+            [$0.light, $0.dark, $0.highContrastLight, $0.highContrastDark].compactMap { $0 }
+        }
     }
 
     private func contrastRatio(_ first: RGBColor, _ second: RGBColor) -> Double {

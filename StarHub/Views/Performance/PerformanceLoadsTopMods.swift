@@ -66,18 +66,16 @@ struct PerformanceLoadsTopMods: View {
     @ViewBuilder
     private func action(head: ModItem?, blockers: ProbePerformanceActions.ProbePauseBlockers) -> some View {
         if !blockers.dependents.isEmpty {
-            // Cible 18 × 18 avant `.help` : sur le glyphe nu, l'infobulle ne
-            // s'affiche jamais.
             Image(systemName: "lock")
                 .foregroundColor(.secondary)
-                .frame(width: 18, height: 18)
+                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                 .contentShape(.rect)
                 .help(String(format: localization.L(L10n.Performance.loadsPauseBlocked),
                              blockers.dependents.prefix(3).joined(separator: ", ")))
         } else if let head, head.isEnabled {
             Button { requestPause(head, blockers.siblings) } label: {
                 Image(systemName: "pause.circle")
-                    .frame(width: 18, height: 18)
+                    .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                     .contentShape(.rect)
             }
             .buttonStyle(.borderless).focusRing(cornerRadius: 4)
@@ -85,7 +83,7 @@ struct PerformanceLoadsTopMods: View {
             .help(localization.L(L10n.Performance.actionPause))
             .accessibilityLabel(localization.L(L10n.Performance.actionPause))
         } else {
-            Color.clear.frame(width: 18, height: 18)
+            Color.clear.frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
         }
     }
 
@@ -96,7 +94,7 @@ struct PerformanceLoadsTopMods: View {
         if let head, head.isEnabled, blockers.dependents.isEmpty {
             Button { requestBenchmark(head) } label: {
                 Image(systemName: "speedometer")
-                    .frame(width: 18, height: 18)
+                    .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                     .contentShape(.rect)
             }
             .buttonStyle(.borderless).focusRing(cornerRadius: 4)
@@ -105,7 +103,7 @@ struct PerformanceLoadsTopMods: View {
             .help(localization.L(L10n.Performance.benchmarkThisMod))
             .accessibilityLabel(localization.L(L10n.Performance.benchmarkThisMod))
         } else {
-            Color.clear.frame(width: 18, height: 18)
+            Color.clear.frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
         }
     }
 

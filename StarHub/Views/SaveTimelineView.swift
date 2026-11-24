@@ -265,7 +265,7 @@ struct BackupRow: View {
                         Button(action: { isEditingNote.toggle() }) {
                             Image(systemName: "pencil")
                                 .font(AppDesign.Font.caption)
-                                .frame(width: 18, height: 18)
+                                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                                 .contentShape(.rect)
                         }
                         .buttonStyle(.plain).focusRing()
@@ -293,7 +293,7 @@ struct BackupRow: View {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
                                 .font(AppDesign.Font.caption)
-                                .frame(width: 18, height: 18)
+                                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                                 .contentShape(.rect)
                         }
                         .buttonStyle(.plain).focusRing()

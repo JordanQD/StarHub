@@ -199,7 +199,7 @@ struct LogsView: View {
                         // survol immobile *dans* la zone : sur un glyphe de
                         // ~13 pt, le curseur n'y tient pas et l'aide ne sort
                         // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: 18, height: 18)
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()
@@ -219,7 +219,7 @@ struct LogsView: View {
                         // survol immobile *dans* la zone : sur un glyphe de
                         // ~13 pt, le curseur n'y tient pas et l'aide ne sort
                         // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: 18, height: 18)
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()
@@ -233,7 +233,7 @@ struct LogsView: View {
                         // survol immobile *dans* la zone : sur un glyphe de
                         // ~13 pt, le curseur n'y tient pas et l'aide ne sort
                         // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: 18, height: 18)
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()
@@ -249,7 +249,7 @@ struct LogsView: View {
                         // survol immobile *dans* la zone : sur un glyphe de
                         // ~13 pt, le curseur n'y tient pas et l'aide ne sort
                         // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: 18, height: 18)
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()

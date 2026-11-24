@@ -356,7 +356,7 @@ struct ModDetailView: View {
                     .help(localization.L(L10n.Mods.pagerUnavailable))
             }
         }
-        .frame(width: 18, height: 18)   // cible de survol vivante
+        .frame(width: AppDesign.Metrics.compactControlTarget, height: AppDesign.Metrics.compactControlTarget)
         .contentShape(.rect)
     }
 

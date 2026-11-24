@@ -281,7 +281,7 @@ struct SaveRow: View {
                 Image(systemName: "ellipsis.circle")
                     .foregroundColor(.secondary)
                     .font(AppDesign.Font.rowTitle)
-                    .frame(width: 18, height: 18)
+                    .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                     .contentShape(.rect)
                     .padding(.trailing, 4)
             }

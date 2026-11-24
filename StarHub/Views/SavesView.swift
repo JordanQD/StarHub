@@ -174,10 +174,10 @@ struct SavesView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()
-                .frame(width: 18, height: 18)
-                .contentShape(.rect)
                 .iconHelp(localization.L(L10n.Discovery.clearSearch))
             }
         }

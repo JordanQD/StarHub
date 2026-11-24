@@ -293,7 +293,7 @@ struct KeybindSurfaceButton<Content: View>: View {
                         if conflict { Image(systemName: KeybindConflictStyle.glyph) }
                         Text("\(bindings.count)")
                     }
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(tint)
                     .padding(2)
                 }
