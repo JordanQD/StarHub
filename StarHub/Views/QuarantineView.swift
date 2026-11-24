@@ -2,11 +2,9 @@ import SwiftUI
 
 // MARK: - Quarantine View
 
-/// Shows the last folder-repair report and provides actions to open the
-/// `_Trash_` quarantine folder or empty it to the Mac Trash (with
-/// confirmation). Quarantined items are never deleted directly — "empty"
-/// moves them to the Mac Trash where they can be recovered until the user
-/// empties the Trash themselves.
+/// Displays quarantined items grouped by rule inside Apple's native
+/// `Form().formStyle(.grouped)`, plus toolbar actions to rescan, open the
+/// `_Trash_` folder, or move quarantined items to the Mac Trash.
 struct QuarantineView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -14,58 +12,47 @@ struct QuarantineView: View {
 
     var body: some View {
         let quarantineDir = quarantinePath
+        let report = vm.maintenanceStore.lastRepairReport
+        let onDisk = ModTrash.entries(vm.maintenanceStore.quarantineEntries,
+                                      outsideReportedTrash: report?.trashPath)
+        let hasReportItems = report.map { !$0.quarantined.isEmpty || !$0.duplicates.isEmpty || !$0.reviewItems.isEmpty } ?? false
+        let isEmpty = !hasReportItems && onDisk.isEmpty
 
-        VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                BackToTopScrollView(localization) {
-                    VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
-                        // En entier, jamais tronqué par l'en-tête : c'est la
-                        // promesse que rien n'est supprimé directement.
-                        Label(localization.L(L10n.Quarantine.subtitle), systemImage: "info.circle.fill")
-                            .font(AppDesign.Font.footnote)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let result = vm.maintenanceStore.quarantineMessage {
+        Group {
+            if isEmpty && vm.maintenanceStore.quarantineMessage == nil {
+                ContentUnavailableView {
+                    Label(localization.L(L10n.Quarantine.noQuarantine), systemImage: "tray")
+                } description: {
+                    Text(localization.L(L10n.Quarantine.subtitleShort))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Form {
+                    if let result = vm.maintenanceStore.quarantineMessage {
+                        Section {
                             Label(result.text, systemImage: result.isError ? "xmark.octagon.fill" : "checkmark.circle.fill")
                                 .font(AppDesign.Font.body)
-                                .foregroundColor(result.isError ? AppDesign.Color.error : AppDesign.Color.success)
-                                .padding(AppDesign.Spacing.md)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background((result.isError ? AppDesign.Color.error : AppDesign.Color.success).opacity(0.08),
-                                            in: RoundedRectangle(cornerRadius: AppDesign.Radius.lg, style: .continuous))
-                        }
-                        // Dernier rapport de réparation, ou l'état vide : atteignable
-                        // depuis que l'entrée est permanente (B2-T3) — aucune analyse
-                        // n'a encore tourné (jeu non configuré, rapport jamais produit).
-                        let report = vm.maintenanceStore.lastRepairReport
-                        // Le rapport vit en mémoire (perdu au relancement,
-                        // remis à nil par une réparation à vide) et ne couvre
-                        // que son `_Trash_` ; le badge, lui, compte le disque.
-                        // Sans cette liste, la page restait vide sous un badge à 1.
-                        let onDisk = ModTrash.entries(vm.maintenanceStore.quarantineEntries,
-                                                      outsideReportedTrash: report?.trashPath)
-                        if let report {
-                            RepairReportSummary(report: report, localization: localization) { section in
-                                withMotion(.snappy) { proxy.scrollTo(section, anchor: .top) }
-                            }
-                            RepairReportCard(report: report, localization: localization, gameDir: vm.gameDir)
-                        }
-                        if !onDisk.isEmpty {
-                            QuarantineOnDiskCard(entries: onDisk, localization: localization)
-                        } else if report == nil {
-                            VStack(spacing: AppDesign.Spacing.md) {
-                                IconTile(icon: "tray", tint: AppDesign.Color.quarantine, size: 64)  // C2c : la teinte de la page, pas une réussite
-                                Text(localization.L(L10n.Quarantine.noQuarantine))
-                                    .font(AppDesign.Font.body)
-                                    .foregroundColor(AppDesign.Color.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, AppDesign.Spacing.xl)
+                                .foregroundStyle(result.isError ? AppDesign.Color.error : AppDesign.Color.success)
                         }
                     }
-                    .padding(AppDesign.Spacing.xl)
+
+                    if let report, hasReportItems {
+                        RepairReportCard(report: report, localization: localization, gameDir: vm.gameDir)
+                    }
+
+                    if !onDisk.isEmpty {
+                        QuarantineOnDiskCard(entries: onDisk, localization: localization)
+                    }
+
+                    if isEmpty {
+                        Section {
+                            Label(localization.L(L10n.Quarantine.noQuarantine), systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(AppDesign.Color.success)
+                        }
+                    }
                 }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -109,36 +96,16 @@ struct QuarantineView: View {
         }
     }
 
-    // MARK: - Duplicate rows (composite identity)
-
-    /// Row wrapper giving each `ModFolderRepairer.Duplicate` a stable,
-    /// collision-free `ForEach` identity. `Duplicate` is a plain value type:
-    /// two entries can legitimately carry the same
-    /// uniqueId/enabledFolder/disabledFolder triple (a pack shipping two
-    /// `manifest.json` under the same UniqueID inside the same disabled
-    /// folder), so content alone is not a safe id. Rank alone is unsafe too
-    /// (the `id: \.offset` leak documented in CLAUDE.md). Combining both
-    /// keeps the id unique without losing content-based identity across
-    /// rescans.
     // MARK: - Actions
 
-    /// Resolves the most recent `_Trash_` folder in the game dir (if any).
-    /// The reported path is validated to be inside the game directory and
-    /// start with `_Trash_` before being returned, preventing a crafted
-    /// or stale report from escaping the expected containment.
     private var quarantinePath: String? {
         guard !vm.gameDir.isEmpty else { return nil }
         let gameDirURL = URL(fileURLWithPath: vm.gameDir).resolvingSymlinksInPath()
         guard let entries = try? FileManager.default.contentsOfDirectory(atPath: gameDirURL.path) else { return nil }
-        // Prefer the path from the last report, fall back to the newest
-        // _Trash_* folder on disk.
         if let reported = vm.maintenanceStore.lastRepairReport?.trashPath,
            FileManager.default.fileExists(atPath: reported) {
             let reportedURL = URL(fileURLWithPath: reported).resolvingSymlinksInPath()
             let lastComponent = reportedURL.lastPathComponent
-            // Containment: must be inside gameDir and have the quarantine
-            // naming prefix so a stale/malformed report can't point
-            // outside the expected tree.
             if lastComponent.hasPrefix("_Trash_"),
                reportedURL.path.hasPrefix(gameDirURL.path + "/") {
                 return reported
@@ -156,11 +123,6 @@ struct QuarantineView: View {
         NSWorkspace.shared.open(URL(fileURLWithPath: path))
     }
 
-    /// Moves all `_Trash_*` folders in the game dir to the Mac Trash using
-    /// the standard NSWorkspace API. On success, clears the repair report so
-    /// the sidebar badge disappears. The result is published on the VM (not
-    /// @State on this struct) because the recycle completion fires
-    /// asynchronously after this View struct may have been recreated.
     private func emptyToMacTrash() {
         let vm = self.vm
         guard !vm.gameDir.isEmpty else { return }
@@ -184,8 +146,6 @@ struct QuarantineView: View {
                     vm.maintenanceStore.setQuarantineMessage(.init(text: localization.L(L10n.Quarantine.emptied), isError: false))
                     vm.maintenanceStore.setRepairReport(nil)
                 }
-                // X114 — le badge lit le disque : le recount suit le vidage,
-                // succès comme échec partiel.
                 vm.refreshTrash()
             }
         })
