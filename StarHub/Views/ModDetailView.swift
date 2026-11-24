@@ -81,24 +81,26 @@ struct ModDetailView: View {
     private var isTranslating: Bool { selectedTab == .translation }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Hero, état (I-T14), mise à jour (I-T13), onglets épinglés ; le
-            // contenu défile. Le mode focus masque les bandeaux : la fiche
-            // reste à un geste (Échap ou le bouton), tout ce qu'ils disent
-            // est dans l'onglet État.
-            if !(focusMode && isTranslating) {
-                heroBanner
-                if let anomaly = vm.anomaly(for: live), case let target = DetailArrival.tab(for: .anomalyBanner(dependencyOnly: anomaly.isDependencyOnly)), selectedTab != target {
-                    ModAnomalyBanner(anomaly: anomaly, vm: vm, localization: localization) { selectedTab = target }
+        BackToTopScrollView(localization) {
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                // Hero, état (I-T14) et mise à jour (I-T13) défilent avec la
+                // fiche pour libérer la hauteur utile en fenêtre compacte ;
+                // seule la barre d'onglets reste épinglée au sommet.
+                if !(focusMode && isTranslating) {
+                    heroBanner
+                    if let anomaly = vm.anomaly(for: live), case let target = DetailArrival.tab(for: .anomalyBanner(dependencyOnly: anomaly.isDependencyOnly)), selectedTab != target {
+                        ModAnomalyBanner(anomaly: anomaly, vm: vm, localization: localization) { selectedTab = target }
+                    }
+                    if let pending = PendingModUpdates.current(vm).pending(for: live) { ModUpdateBanner(pending: pending, vm: vm, localization: localization) }
                 }
-                if let pending = PendingModUpdates.current(vm).pending(for: live) { ModUpdateBanner(pending: pending, vm: vm, localization: localization) }
-            }
-            tabBar
-            BackToTopScrollView(localization) {
-                content
-                    .frame(maxWidth: (focusMode && isTranslating) ? .infinity : 700, alignment: .leading)
-                    .padding(AppDesign.Spacing.xl)
-                    .frame(maxWidth: .infinity)
+                Section {
+                    content
+                        .frame(maxWidth: (focusMode && isTranslating) ? .infinity : 700, alignment: .leading)
+                        .padding(AppDesign.Spacing.xl)
+                        .frame(maxWidth: .infinity)
+                } header: {
+                    tabBar
+                }
             }
         }
         .onAppear {

@@ -348,10 +348,9 @@ struct ModListView: View {
                            showsFilters: $showsFilters,
                            showsLabels: showsToolbarLabels)
         }
-        .confirmationDialog(
+        .itemConfirmationDialog(
             localization.plural(L10n.Mods.trashSelectionTitle, trashPlan?.trashable.count ?? 0),
-            isPresented: Binding(get: { trashPlan != nil }, set: { if !$0 { trashPlan = nil } }),
-            titleVisibility: .visible, presenting: trashPlan
+            item: $trashPlan
         ) { plan in
             Button(localization.L(L10n.Mods.trashSelection), role: .destructive) {
                 if vm.trashMods(plan.trashable) {

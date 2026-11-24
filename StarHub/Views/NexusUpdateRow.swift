@@ -74,6 +74,33 @@ private struct NexusUpdateRow: View {
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(update.name)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            switch state {
+            case .available:
+                if let url = update.updateWebsite {
+                    Button {
+                        NSWorkspace.shared.open(url)
+                    } label: {
+                        Label(localization.L(L10n.Discovery.openNexus), systemImage: "arrow.up.forward.square")
+                    }
+                    .tint(.accentColor)
+                }
+            case .snoozed:
+                Button {
+                    vm.unsnoozeUpdate(uniqueId: row.id)
+                } label: {
+                    Label(localization.L(L10n.Updates.snoozedWake), systemImage: "bell")
+                }
+                .tint(.accentColor)
+            case .affirmed:
+                Button {
+                    vm.revealAffirmedUpdate(uniqueId: row.id)
+                } label: {
+                    Label(localization.L(L10n.Updates.affirmedReveal), systemImage: "eye")
+                }
+                .tint(.accentColor)
+            }
+        }
     }
 
     private var title: some View {

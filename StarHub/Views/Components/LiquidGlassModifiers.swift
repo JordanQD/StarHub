@@ -52,4 +52,44 @@ extension View {
             self
         }
     }
+
+    /// Enables row `.swipeActions` inside non-`List` scrollable containers on
+    /// macOS 27.0+, no-op on macOS 14–26 (existing inline buttons remain the
+    /// accessible primary controls).
+    @ViewBuilder
+    func optionalSwipeActionsContainer() -> some View {
+        if #available(macOS 27.0, *) {
+            self.swipeActionsContainer()
+        } else {
+            self
+        }
+    }
+
+    /// Item-driven confirmation dialog using native `confirmationDialog(_:item:)`
+    /// on macOS 27.0+ and `isPresented:` + `presenting:` fallback on macOS 14–26.
+    @ViewBuilder
+    func itemConfirmationDialog<T, Actions: View, Message: View>(
+        _ title: String,
+        item: Binding<T?>,
+        titleVisibility: Visibility = .visible,
+        @ViewBuilder actions: @escaping (T) -> Actions,
+        @ViewBuilder message: @escaping (T) -> Message
+    ) -> some View {
+        if #available(macOS 27.0, *) {
+            self.confirmationDialog(title, item: item, titleVisibility: titleVisibility,
+                                    actions: actions, message: message)
+        } else {
+            self.confirmationDialog(
+                title,
+                isPresented: Binding(
+                    get: { item.wrappedValue != nil },
+                    set: { if !$0 { item.wrappedValue = nil } }
+                ),
+                titleVisibility: titleVisibility,
+                presenting: item.wrappedValue,
+                actions: actions,
+                message: message
+            )
+        }
+    }
 }

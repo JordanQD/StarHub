@@ -184,6 +184,19 @@ struct ModProfilesView: View {
                                 .overlay(RoundedRectangle(cornerRadius: AppDesign.Radius.lg, style: .continuous)
                                     .stroke(AppDesign.Color.accent, lineWidth: isActive ? 1.5 : 0))
                                 .animation(Motion.animation(.snappy), value: isActive)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        profileToDelete = profile
+                                    } label: {
+                                        Label(localization.L(L10n.Profiles.delete), systemImage: "trash")
+                                    }
+                                    Button {
+                                        vm.duplicateProfile(id: profile.id)
+                                    } label: {
+                                        Label(localization.L(L10n.Profiles.duplicate), systemImage: "doc.on.doc")
+                                    }
+                                    .tint(.accentColor)
+                                }
                         }
                     }
                     .padding(.horizontal, 24)
@@ -193,6 +206,7 @@ struct ModProfilesView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, AppDesign.Spacing.lg)
             }
+            .optionalSwipeActionsContainer()
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .navigationSubtitle(headerSummary)
@@ -238,53 +252,27 @@ struct ModProfilesView: View {
             Button(localization.L(L10n.Profiles.cancel), role: .cancel) { renamingProfile = nil }
         }
         // Delete confirmation
-        .confirmationDialog(
+        .itemConfirmationDialog(
             profileToDelete.map { String(format: localization.L(L10n.Profiles.deleteConfirm), $0.name) } ?? "",
-            isPresented: Binding(
-                get: { profileToDelete != nil },
-                set: { if !$0 { profileToDelete = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            // Supprimer le profil actif laissait le parc dans un état sans
-            // propriétaire : plus aucun profil actif, et sur le disque les mods
-            // que le profil supprimé avait activés. Rien ne le disait, et rien
-            // ne proposait d'en sortir.
-            //
-            // Le choix se fait donc ici, au moment où l'on décide — et il porte
-            // sur **tous** les profils restants, pas sur un successeur désigné
-            // d'office : le profil par défaut n'est pas forcément celui vers
-            // lequel on veut revenir. Ils sont proposés dans l'ordre de la
-            // liste au-dessus, celui que l'œil vient de parcourir.
-            //
-            // Réactiver sans demander aurait déplacé des centaines de dossiers
-            // sans qu'on l'ait voulu — sur ce parc, plusieurs secondes de
-            // renommage. D'où le bouton qui supprime sans rien activer, gardé.
+            item: $profileToDelete
+        ) { target in
             ForEach(deletionSuccessors) { successor in
                 Button(String(format: localization.L(L10n.Profiles.deleteActivateNamed), successor.name)) {
-                    if let p = profileToDelete {
-                        vm.deleteProfile(id: p.id)
-                        vm.applyProfile(id: successor.id)
-                    }
+                    vm.deleteProfile(id: target.id)
+                    vm.applyProfile(id: successor.id)
                     profileToDelete = nil
                 }
                 .disabled(vm.isApplyingProfile)
             }
-            // Le libellé change avec la situation : « Supprimer » seul, quand
-            // un successeur est proposé juste au-dessus, laisserait croire
-            // qu'il en active un.
             Button(deletionSuccessors.isEmpty
                    ? localization.L(L10n.Profiles.delete)
                    : localization.L(L10n.Profiles.deleteWithoutActivating),
                    role: .destructive) {
-                if let p = profileToDelete { vm.deleteProfile(id: p.id) }
+                vm.deleteProfile(id: target.id)
                 profileToDelete = nil
             }
             Button(localization.L(L10n.Profiles.cancel), role: .cancel) { profileToDelete = nil }
-        } message: {
-            // La phrase sur les configs n'apparaît que s'il y a quelque chose
-            // à perdre : l'annoncer à vide apprendrait au lecteur à ne plus
-            // la lire, le jour où elle compte.
+        } message: { _ in
             Text(profileDeletionMessage)
         }
         // Import des favoris dans le profil **actif** : les mods s'activeront
