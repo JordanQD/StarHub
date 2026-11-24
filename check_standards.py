@@ -45,7 +45,7 @@ import re
 import sys
 from typing import Callable, Iterator
 
-SOURCE_DIR = "StarHubTH"
+SOURCE_DIR = "StarHub"
 BASELINE_PATH = ".standards-baseline.json"
 # § convention de taille de fichier — le seuil de l'upstream, repris tel quel.
 # Leur plus gros fichier après refactor fait 392 lignes : le seuil est tenable,
@@ -104,22 +104,22 @@ def count_shared(text: str) -> tuple[int, int]:
 # absent mesure 0 par construction — le cliquet applaudirait la disparition de
 # la règle qu'il protège (cadrage §5).
 LOT_FILES = (
-    "StarHubTH/StarHubTHViewModel.swift",
-    "StarHubTH/Stores/GameEnvironmentStore.swift",
-    "StarHubTH/Stores/NexusMetadataStore.swift",
-    "StarHubTH/Stores/SavesStore.swift",
-    "StarHubTH/Stores/LogStore.swift",
-    "StarHubTH/Stores/SmapiHealthStore.swift",
-    "StarHubTH/Stores/ErrorHistoryStore.swift",
-    "StarHubTH/Stores/DiscoveryStore.swift",
-    "StarHubTH/Stores/MaintenanceStore.swift",
-    "StarHubTH/Stores/ProfileStore.swift",
-    "StarHubTH/Stores/TranslationHubStore.swift",
-    "StarHubTH/Stores/ProfileTranslationStore.swift",
-    "StarHubTH/Stores/ModUpdateStore.swift",
-    "StarHubTH/Stores/NexusAccountStore.swift",
-    "StarHubTH/Stores/NexusDownloadStore.swift",
-    "StarHubTH/SaveManager.swift",
+    "StarHub/App/StarHubTHViewModel.swift",
+    "StarHub/Stores/GameEnvironmentStore.swift",
+    "StarHub/Stores/NexusMetadataStore.swift",
+    "StarHub/Stores/SavesStore.swift",
+    "StarHub/Stores/LogStore.swift",
+    "StarHub/Stores/SmapiHealthStore.swift",
+    "StarHub/Stores/ErrorHistoryStore.swift",
+    "StarHub/Stores/DiscoveryStore.swift",
+    "StarHub/Stores/MaintenanceStore.swift",
+    "StarHub/Stores/ProfileStore.swift",
+    "StarHub/Stores/TranslationHubStore.swift",
+    "StarHub/Stores/ProfileTranslationStore.swift",
+    "StarHub/Stores/ModUpdateStore.swift",
+    "StarHub/Stores/NexusAccountStore.swift",
+    "StarHub/Stores/NexusDownloadStore.swift",
+    "StarHub/Services/Saves/SaveManager.swift",
 )
 # Les instances Combine que le VM peut lire dans un corps calculé — le défaut
 # du cas 4 (un `@Observable` lisant un `ObservableObject` perd le suivi en
@@ -244,12 +244,12 @@ def _computed_bodies(path: str) -> list[tuple[int, str]]:
 
 def _rule_vm_stored_state(_: str) -> int:
     return sum(1 for _n, stored, _p, _l in
-               class_members_with_lines("StarHubTH/StarHubTHViewModel.swift")
+               class_members_with_lines("StarHub/App/StarHubTHViewModel.swift")
                if stored)
 
 
 def _rule_vm_facades_to_combine(_: str) -> int:
-    path = "StarHubTH/StarHubTHViewModel.swift"
+    path = "StarHub/App/StarHubTHViewModel.swift"
     return sum(any(re.search(rf"\b{inst}\.\w+", body) for inst in COMBINE_INSTANCES)
                for _ln, body in _computed_bodies(path))
 
@@ -414,7 +414,7 @@ FILE_RULES: dict[str, Callable[[dict[str, int]], int]] = {
 #   - « Traverser » = dépasser strictement : 1 500 lignes passent, 1 501 non.
 #     MainView (1 554) est comptée dès la pose — la base naît à 1, et la coupe
 #     T3 doit la faire tomber à 0, où `--update` la resserre à jamais.
-VIEW_DIR = f"StarHubTH{os.sep}Views{os.sep}"
+VIEW_DIR = f"{SOURCE_DIR}{os.sep}Views{os.sep}"
 VIEW_CUT_LIMIT = 1500
 
 # § le même défaut, un cran plus loin : **les deux agrégats se compensent entre

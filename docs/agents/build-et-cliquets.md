@@ -5,7 +5,8 @@ Déplacé d'`AGENTS.md` §2 le 2026-11-14 (allègement) : le pourquoi et les dé
 ## Build de l’application
 
 - Ouvrir le schéma partagé StarHub dans Xcode, ou lancer `xcodebuild -project StarHub.xcodeproj -scheme StarHub build`.
-- Le projet compile les sources de `StarHubTH/` et copie les ressources dans le produit. Le schéma conserve le mode Swift 5 du précédent build incrémental.
+- Le projet compile les sources de `StarHub/` et copie les ressources dans le produit. Le schéma conserve le mode Swift 5 du précédent build incrémental.
+- L’icône `assets/StarHub.icon` est compilée par Xcode 26.3 ou ultérieur. En CI, cette version sert au build de l’application ; les tests SwiftPM utilisent Xcode 16.4.
 - `swift scripts/check-localizations.swift` vérifie les trois tables `Localizable.strings`. Les tests du guide vérifient les sections et leurs liens.
 - Pour la distribution, `./scripts/release.sh` requiert .NET et les DLL du jeu, compile la sonde et archive l’application. Pour une installation du jeu personnalisée, définissez `GamePath` sur le dossier `Contents/MacOS` du jeu.
 

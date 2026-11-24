@@ -29,7 +29,7 @@ import Testing
         #expect(first != firstWrite)
 
         let source = try String(contentsOf: repository
-            .appendingPathComponent("StarHubTH/StarHubTHViewModel.swift"), encoding: .utf8)
+            .appendingPathComponent("StarHub/App/StarHubTHViewModel.swift"), encoding: .utf8)
         #expect(source.contains("SmapiHealthFold.logIdentityDate"))
     }
 }

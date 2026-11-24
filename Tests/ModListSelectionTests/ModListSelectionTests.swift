@@ -59,6 +59,22 @@ import Testing
         #expect(s.members(in: ["B", "E"]) == ["E"])
     }
 
+    @Test func nativeSelectionIgnoresHiddenRowsAndKeepsAnExistingAnchor() {
+        var selection = ModListSelection()
+        selection.click("pack", kind: .plain, in: ["first", "pack", "pack/child"])
+        selection.replace(with: ["first", "pack", "hidden"], in: ["first", "pack", "pack/child"])
+        #expect(selection.selected == ["first", "pack"])
+        #expect(selection.anchor == "pack")
+
+        selection.replace(with: ["pack/child"], in: ["first", "pack", "pack/child"])
+        #expect(selection.selected == ["pack/child"])
+        #expect(selection.anchor == "pack/child")
+
+        selection.replace(with: [], in: ["first", "pack"])
+        #expect(selection.selected.isEmpty)
+        #expect(selection.anchor == nil)
+    }
+
     private func mod(_ name: String, enabled: Bool) -> ModItem {
         ModItem(uniqueId: "a.\(name)", name: name, folderName: name, version: "1.0", author: "",
                 description: "", nexusUrl: "", nexusModId: "", isEnabled: enabled,

@@ -1,0 +1,1196 @@
+import SwiftUI
+
+/// Rich detail pane: header, settings (category + Nexus id), and content
+/// tabs rendering `loadModDetail(for:)`'s blocks. Detail column of the
+/// split view (`navigationStore.viewingModDetail`), never a sheet.
+/// `MainView` applies `.id(mod.folderName)`: a fresh instance per mod, so
+/// tab and drafts never leak onto another mod.
+struct ModDetailView: View {
+    /// La visibilité des colonnes de la fenêtre : le mode focus replie la
+    /// barre latérale. Passé par `MainView`, propriétaire du `NavigationSplitView`.
+    @Binding var sidebarVisibility: NavigationSplitViewVisibility
+    var vm: StarHubTHViewModel
+    @ObservedObject var localization: LocalizationStore
+    let mod: ModItem
+    /// Rapport de raccourcis publié en asynchrone par un `let` du VM : sans
+    /// observation ici, une fiche ouverte avant le premier scan resterait
+    /// muette. Patron de `HomeView`/`MainView`.
+    @ObservedObject private var keybindScanService: KeybindScanService
+
+    init(vm: StarHubTHViewModel, localization: LocalizationStore, mod: ModItem,
+         sidebarVisibility: Binding<NavigationSplitViewVisibility>? = nil) {
+        self.localization = localization
+        self.vm = vm
+        self.mod = mod
+        self.keybindScanService = vm.keybindScanService
+        self._sidebarVisibility = sidebarVisibility ?? .constant(.all)
+    }
+
+    @State private var selectedTab: DetailTab = .overview
+    /// Mode focus de l'éditeur de traduction : bandeaux masqués, largeur
+    /// pleine, barre latérale repliée. Sortie : Échap ou le même bouton.
+    @State private var focusMode = false
+    /// Activation en attente : smapi.io signale le mod cassé
+    /// (`CompatibilityWarning`).
+    @State private var pendingActivation: ModItem?
+    /// Même rôle pour un conflit avec un mod actif (`ConflictActivationGate`).
+    @State private var pendingConflict: ConflictActivation?
+    /// Sélecteur « Signaler une incompatibilité… », ciblé par `folderName`
+    /// (`Picker` exige `Hashable`, qu'`ModItem` ne porte pas).
+    @State private var showReportConflict = false
+    @State private var reportConflictTargetFolder: String?
+    @State private var reportConflictNote: String = ""
+
+    /// Nexus id draft, seeded in `.onAppear` without guard (fresh `@State`
+    /// per mod via `.id`).
+    @State private var nexusIdDraft: String = ""
+    /// B3-T6 — brouillon de note, même patron (pas de fuite entre mods).
+    @State private var noteDraft: String = ""
+    @FocusState private var noteFocused: Bool
+
+    /// On-demand metadata fetch status after saving a Nexus id.
+    @State private var fetchStatus: FetchStatus = .idle
+
+    @State private var showDeleteConfirm = false
+
+    /// Traduction FR retrouvée dans une sauvegarde (mod qui n'en a plus),
+    /// cherchée hors main.
+    @State private var backupTranslation: TranslationBackupFinder.Found?
+
+    /// Fichiers de traduction jamais ouverts par le jeu (`pt-BR.json` sans
+    /// `pt.json`), cherchés hors main.
+    @State private var unloadableLocaleFiles: [I18nLocaleResolver.UnloadableLocaleFile] = []
+
+    /// Mémorisé par les profils ; rempli à l'apparition et après chaque geste,
+    /// jamais au rendu.
+    @State private var configHolders: [(profileName: String, capturedAt: Date,
+                                        bytes: Int, matchesDisk: Bool)] = []
+
+    /// Profil B de la comparaison (A = l'actif).
+    @State private var compareProfile: ModProfile?
+
+    enum FetchStatus: Equatable {
+        case idle
+        case loading
+        case success(categoryName: String?, latestVersion: String?)
+        case noApiKey
+        case failed(String)
+    }
+
+    /// En focus : l'éditeur de traduction. Ailleurs, la fiche complète.
+    private var isTranslating: Bool { selectedTab == .translation }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Hero, état (I-T14), mise à jour (I-T13), onglets épinglés ; le
+            // contenu défile. Le mode focus masque les bandeaux : la fiche
+            // reste à un geste (Échap ou le bouton), tout ce qu'ils disent
+            // est dans l'onglet État.
+            if !(focusMode && isTranslating) {
+                heroBanner
+                if let anomaly = vm.anomaly(for: live), case let target = DetailArrival.tab(for: .anomalyBanner(dependencyOnly: anomaly.isDependencyOnly)), selectedTab != target {
+                    ModAnomalyBanner(anomaly: anomaly, vm: vm, localization: localization) { selectedTab = target }
+                }
+                if let pending = PendingModUpdates.current(vm).pending(for: live) { ModUpdateBanner(pending: pending, vm: vm, localization: localization) }
+            }
+            tabBar
+            BackToTopScrollView(localization) {
+                content
+                    .frame(maxWidth: (focusMode && isTranslating) ? .infinity : 700, alignment: .leading)
+                    .padding(AppDesign.Spacing.xl)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .onAppear {
+            seedDraft()
+            noteDraft = vm.modNote(for: mod) ?? ""
+            refreshConfigHolders()
+        }
+        .onDisappear {
+            // Une fiche quittée en focus ne laisse pas la barre latérale
+            // repliée pour la fiche suivante.
+            if focusMode { sidebarVisibility = .all; focusMode = false }
+        }
+        .sheet(item: $compareProfile) { profile in
+            ProfileConfigCompareView(vm: vm, localization: localization, mod: live, other: profile,
+                                     isPresented: Binding(
+                                        get: { compareProfile != nil },
+                                        set: { if !$0 { compareProfile = nil } }))
+        }
+        // La pause renomme le dossier (`live`, pas `mod` : copie figée qui ne
+        // déclencherait jamais cet `onChange`).
+        .onChange(of: live.isEnabled) { _, _ in
+            refreshConfigHolders()
+        }
+        // B3-T6 — note sauvegardée au blur : pas un formulaire, pas de bouton.
+        .onChange(of: noteFocused) { _, focused in
+            if !focused { vm.setModNote(noteDraft, for: mod) }
+        }
+        // …et à la sortie : remplacée par `.id` avant le blur. Idempotent.
+        .onDisappear {
+            vm.setModNote(noteDraft, for: mod)
+        }
+        .compatibilityGate(vm: vm, pending: $pendingActivation) { target in
+            vm.toggleMod(target)
+        }
+        .conflictActivationGate(vm: vm, pending: $pendingConflict) { target in
+            vm.toggleMod(target)
+        }
+        // Confirmation de suppression (le geste est dans la barre).
+        .confirmationDialog(
+            String(format: localization.L(L10n.Mods.deleteConfirmTitle), mod.name),
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(localization.L(L10n.Mods.deleteMod), role: .destructive) {
+                vm.deleteMod(mod)
+                // Mod supprimé : refermer la fiche.
+                vm.navigationStore.setViewingModDetail(nil)
+            }
+            Button(localization.L(L10n.Saves.cancel), role: .cancel) { }
+        } message: {
+            Text(mod.isGroup
+                 ? localization.L(L10n.Mods.deleteConfirmPack)
+                 : localization.L(L10n.Mods.deleteConfirmMessage))
+        }
+        // Chevrons dans la zone de navigation ; SwiftUI fusionne les ToolbarItems.
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                pagerControls
+            }
+            nexusToolbarItem
+        }
+        .sheet(isPresented: $showReportConflict) {
+            ReportConflictSheet(vm: vm, localization: localization, modFolderName: mod.folderName,
+                                target: $reportConflictTargetFolder, note: $reportConflictNote,
+                                close: { showReportConflict = false })
+        }
+        .task {
+            // Onglet demandé par l'appelant (couverture FR d'un profil, alertes) :
+            // consommé sans condition et effacé aussitôt, pour que la fiche suivante
+            // s'ouvre normalement.
+            if let tab = vm.navigationStore.pendingDetailTab {
+                vm.navigationStore.pendingDetailTab = nil
+                selectedTab = tab
+            }
+            if vm.navigationStore.pendingTranslationFocus == mod.folderName {
+                vm.navigationStore.pendingTranslationFocus = nil
+                if mod.languages.contains("fr") || mod.languages.contains("en") {
+                    selectedTab = .translation
+                }
+            }
+            unloadableLocaleFiles = await vm.unloadableLocaleFiles(for: mod)
+            // Seulement si rien de FR : sinon inutile de fouiller.
+            guard !mod.languages.contains("fr") else { return }
+            backupTranslation = await vm.backupTranslation(for: mod)
+        }
+    }
+
+    /// Content tab switcher, pinned under the hero. En Traduction, les gestes
+    /// focus et plein écran partagent la rangée (`SplitRow`) et passent sous
+    /// les onglets quand la place manque, au lieu de les recouvrir.
+    private var tabBar: some View {
+        Group {
+            if isTranslating {
+                SplitRow(spacing: AppDesign.Spacing.sm) {
+                    tabPicker
+                } trailing: {
+                    TranslationFocusControls(focusMode: $focusMode,
+                                             sidebarVisibility: $sidebarVisibility,
+                                             localization: localization)
+                }
+            } else {
+                tabPicker
+            }
+        }
+        .frame(maxWidth: 700)
+        .padding(.horizontal, AppDesign.Spacing.xl)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private var tabPicker: some View {
+        Picker(localization.L(L10n.A11y.detailTabs), selection: $selectedTab) {
+            Text(localization.L(L10n.Mods.tabOverview)).tag(DetailTab.overview)
+            Text(localization.L(L10n.Mods.tabHealth)).tag(DetailTab.health)
+            Text(DependencyTreeView.tabTitle(viewModel: vm, mod: mod, localization: localization))
+                .tag(DetailTab.dependencies)
+            // Toujours offerte : un mod sans i18n est précisément celui qui
+            // reste à traduire, et l'éditeur sait afficher un état vide.
+            Text(localization.L(L10n.Mods.diffTab)).tag(DetailTab.translation)
+            Text(localization.L(L10n.Mods.tabHistory)).tag(DetailTab.history)
+            Text(localization.L(L10n.Mods.tabManagement)).tag(DetailTab.management)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+
+    // MARK: Hero (bandeau image) + bande fine + chiffres clés — le motif
+    // Découvrir, tenu par les composants partagés.
+
+    private var heroBanner: some View {
+        VStack(spacing: 0) {
+            HeroHeader(title: mod.name,
+                       subtitle: heroSubtitle,
+                       imageURL: heroPictureURL,
+                       closeHelp: localization.L(L10n.Main.close)) {
+                vm.navigationStore.requestHistoryStep(.back)  // N-00 : après un saut, ✕ ramène à l'origine
+            }
+            fineBand
+            statStrip
+            if isTopLevel {
+                ModDetailActionBar(
+                    vm: vm,
+                    localization: localization,
+                    mod: mod,
+                    pendingActivation: $pendingActivation,
+                    pendingConflict: $pendingConflict,
+                    onReportConflict: {
+                        reportConflictTargetFolder = nil
+                        reportConflictNote = ""
+                        showReportConflict = true
+                    },
+                    onDelete: (live.isStarHubProbe || live.isSmapiBundled) ? nil : { showDeleteConfirm = true })
+            }
+        }
+    }
+
+    /// « version · auteur », auteur omis si vide ou « Unknown ».
+    private var heroSubtitle: String {
+        let version = String(format: localization.L(L10n.Mods.versionPrefix), vm.displayVersion(for: mod))
+        if !mod.isGroup, !mod.author.isEmpty, mod.author != "Unknown" {
+            return "\(version) · \(mod.author)"
+        }
+        return version
+    }
+
+    private var heroPictureURL: URL? {
+        // La sonde porte la couverture de l'app (celle du splash, copiée
+        // dans le bundle par `build_app.py`) : elle n'a pas de page Nexus
+        // à illustrer sa fiche.
+        if mod.isStarHubProbe,
+           let local = Bundle.main.url(forResource: "nexus_cover_final", withExtension: "png") {
+            return local
+        }
+        guard let extra = vm.modExtra(for: mod), !extra.pictureUrl.isEmpty else { return nil }
+        return URL(string: extra.pictureUrl)
+    }
+
+    /// Catégorie, couverture FR, liens Nexus, date d'installation ; un
+    /// composant ramène à son pack (sinon cul-de-sac).
+    @ViewBuilder
+    private var fineBand: some View {
+        SplitRow(spacing: AppDesign.Spacing.lg) {
+            WrapHStack(spacing: AppDesign.Spacing.lg, lineSpacing: AppDesign.Spacing.xs) {
+                if let pack = parentPack {
+                    let title = String(format: localization.L(L10n.Mods.backToPack), pack.name)
+                    AdaptiveLabels { Button { vm.navigationStore.setViewingModDetail(pack) } label: {
+                        Label(title, systemImage: "chevron.backward").font(AppDesign.Font.footnote)
+                    }
+                    .buttonStyle(.plain).focusRing().pointingHandCursor().help(title) }
+                }
+                categoryTag
+                if mod.languages.contains("fr") { FrenchCoverageBadge(percent: vm.frenchCoverage(for: mod), unmeasuredLabel: "FR", percentFormat: localization.L(L10n.Mods.frCoveragePercent)) }
+                let link = vm.nexusLink(for: mod)
+                if !link.isEmpty {
+                    AdaptiveLabels {
+                        linkButton(icon: "ladybug", label: localization.L(L10n.Mods.detailBugs), url: link + "?tab=bugs")
+                    }
+                }
+            }
+        } trailing: {
+            if let installed = vm.installedDate(for: mod) {
+                Text(installed.formatted(date: .abbreviated, time: .omitted))
+                    .font(AppDesign.Font.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(localization.L(L10n.Mods.detailInstalled))
+            }
+        }
+        .padding(.horizontal, AppDesign.Spacing.xl)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    /// Le pack dont `mod` est un composant, s'il en est un.
+    private var parentPack: ModItem? {
+        guard !isTopLevel else { return nil }
+        return vm.scanStore.mods.first { pack in
+            pack.children?.contains { $0.folderName == mod.folderName } ?? false
+        }
+    }
+
+    /// ⌃ ⌄ sur le cadrage courant (ordre complet, pas la page) ; éteints hors
+    /// cadrage. Verticaux : ‹ › juste à côté sont Retour/Avancer (N-01). Dans la **barre de la fenêtre** : sur le hero, invisibles sur
+    /// fond clair.
+    private var pagerControls: some View {
+        let neighbors = ModDetailPager.neighbors(of: mod.folderName,
+                                                 in: vm.modList.displayOrder)
+        return HStack(spacing: AppDesign.Spacing.xs) {
+            chevron(icon: "chevron.up", target: neighbors.previous,
+                    help: localization.L(L10n.Mods.pagerPrevious))
+            chevron(icon: "chevron.down", target: neighbors.next,
+                    help: localization.L(L10n.Mods.pagerNext))
+        }
+    }
+
+    private func chevron(icon: String, target: String?, help: String) -> some View {
+        Group {
+            if let target, let destination = vm.scanStore.mods.first(where: { $0.folderName == target }) {
+                Button {
+                    vm.navigationStore.pendingDetailTab = selectedTab  // N-01 : le mod suivant garde l'onglet
+                    vm.navigationStore.setViewingModDetail(destination)
+                } label: {
+                    Image(systemName: icon)
+                        .font(.system(size: AppDesign.Icon.sm))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain).focusRing().iconHelp(help)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: AppDesign.Icon.sm))
+                    .foregroundStyle(.tertiary)
+                    .help(localization.L(L10n.Mods.pagerUnavailable))
+            }
+        }
+        .frame(width: 18, height: 18)   // cible de survol vivante
+        .contentShape(.rect)
+    }
+
+    /// Approbations Nexus (de la fiche de ce mod), version, fraîcheur, poids, langues.
+    private var statStrip: some View {
+        StatStrip(items: [
+            .init(label: localization.L(L10n.Discovery.statEndorsements), value: vm.modDetailState.flatMap {
+                $0.modId == Int(vm.resolvedNexusModId(for: mod)) ? $0.endorsements : nil }.map { $0.formatted() } ?? "—"),
+            .init(label: localization.L(L10n.ModInstall.labelVersion),
+                  value: vm.displayVersion(for: mod)),
+            .init(label: localization.L(L10n.Mods.detailUpdated), value: updatedLine),
+            .init(label: localization.L(L10n.Mods.detailSize),
+                  value: vm.sizeOnDisk(of: live).map(sizeText) ?? "—"),
+            .init(label: localization.L(L10n.Mods.detailLanguages),
+                  value: mod.languages.isEmpty
+                      ? "—"
+                      : mod.languages.map { $0.uppercased() }.joined(separator: " "),
+                  help: mod.languages.isEmpty ? nil : mod.languages.joined(separator: " ")),
+        ], hidesEmpty: !isTopLevel)  // E3 : un composant n'a pas de fiche Nexus ni de poids à lui
+        // Même cadrage que la bande : 700 pt.
+        .padding(.horizontal, AppDesign.Spacing.xl)
+        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Date courte + âge au-delà d'un an (`LastUpdateAge`).
+    private var updatedLine: String {
+        vm.nexusLastUpdated(for: mod).map { NexusUpdateAge.line(for: $0) } ?? "—"
+    }
+
+    /// Top-level folder rather than a pack component (`scanStore.mods` never
+    /// holds children).
+    private var isTopLevel: Bool {
+        vm.scanStore.mods.contains { $0.folderName == mod.folderName }
+    }
+
+    /// État courant relu dans `scanStore.mods` : `mod` est une **copie
+    /// figée**, et l'interrupteur contredisait le disque après une pause.
+    private var live: ModItem {
+        vm.scanStore.mods.first { $0.folderName == mod.folderName } ?? mod
+    }
+
+    /// Category chip: Nexus category, else the inferred offline tag.
+    @ViewBuilder
+    private var categoryTag: some View {
+        if let cat = vm.category(for: mod) {
+            HStack(spacing: 5) {
+                Circle().fill(Color(cat.color)).frame(width: 7, height: 7)
+                Text(cat.localizedName(localization.L)).font(AppDesign.Font.footnote(.semibold))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 9).padding(.vertical, AppDesign.Spacing.xs)
+            .background(Color(cat.color).opacity(0.18))
+            .clipShape(Capsule())
+        } else {
+            HStack(spacing: 5) {
+                Image(systemName: "tag.fill").font(AppDesign.Font.iconXXS)
+                Text(localization.L(L10n.ModTag.key(for: vm.inferredTagKey(for: mod)))).font(AppDesign.Font.footnote(.semibold))
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 9).padding(.vertical, AppDesign.Spacing.xs)
+            .background(Color.secondary.opacity(0.15))
+            .clipShape(Capsule())
+        }
+    }
+
+    /// « 3,84 Go », pour un pack « 3,84 Go · Pack, 12 mods » (poids du
+    /// dossier entier) ; rien sur les composants (compté une fois).
+    private func sizeText(_ bytes: Int64) -> String {
+        let formatted = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        guard live.isGroup, let count = live.children?.count else { return formatted }
+        // Pack d'un seul mod possible : pas de « Pack, 1 mods ».
+        guard count > 1 else { return formatted + " · " + localization.L(L10n.Mods.detailSizePackOne) }
+        return formatted + " · " + String(format: localization.L(L10n.Mods.detailSizePack), count)
+    }
+
+    private func linkButton(icon: String, label: String, url: String) -> some View {
+        Button {
+            if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+        } label: {
+            Label(label, systemImage: icon).font(.footnote.weight(.medium))
+        }
+        .buttonStyle(.plain).focusRing()
+        .help(label)
+        .foregroundStyle(Color.accentColor)
+        .pointingHandCursor()
+    }
+
+    // MARK: Pack contents (children of a group)
+
+    @ViewBuilder
+    private var packContentsSection: some View {
+        if let children = mod.children, !children.isEmpty {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                Text(String(format: localization.L(L10n.Mods.detailPackContents), children.count))
+                    .font(.headline)
+                VStack(spacing: 6) {
+                    ForEach(children) { child in
+                        // Chaque composant ouvre sa fiche.
+                        Button {
+                            vm.navigationStore.setViewingModDetail(child)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(child.isEnabled ? AppDesign.Color.installed : Color.secondary.opacity(0.35))
+                                    .frame(width: 7, height: 7)
+                                Text(child.name).font(AppDesign.Font.body)
+                                Spacer()
+                                if !child.version.isEmpty, child.version != "Unknown" {
+                                    Text("v\(child.version)")
+                                        .font(AppDesign.Font.monoFootnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain).focusRing()
+                        .pointingHandCursor()
+                    }
+                }
+                .padding(AppDesign.Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.primary.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    // MARK: Settings (category + Nexus id) — migrated from `ModDetailsPopover`
+
+    /// Boxed editors (pickers, text fields) kept out of the scrolling tabs
+    /// (HIG), always visible.
+    @ViewBuilder
+    private var settingsSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                categorySection
+                Divider()
+                nexusSection
+                Divider()
+                noteSection
+                Divider()
+                profileConfigSection
+            }
+            .padding(.vertical, AppDesign.Spacing.xs)
+        }
+    }
+
+    /// B3-T6 — note libre du mod **dans le profil actif** (le *pourquoi*).
+    /// Un en-tête de pack n'en porte pas (F4) ; sans profil actif, la section
+    /// l'explique au lieu de disparaître.
+    @ViewBuilder
+    private var noteSection: some View {
+        if !mod.isGroup {
+            VStack(alignment: .leading, spacing: 6) {
+                if let profile = vm.activeProfile {
+                    Text(String(format: localization.L(L10n.Mods.noteTitleProfile), profile.name))
+                        .font(.headline)
+                    TextEditor(text: $noteDraft)
+                        .font(AppDesign.Font.caption)
+                        .frame(height: 52)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .focused($noteFocused)
+                    Text(localization.L(L10n.Mods.noteHint))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(localization.L(L10n.Mods.noteTitle))
+                        .font(.headline)
+                    Text(localization.L(L10n.Mods.noteNeedsProfile))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    /// B3-T5 — `config.json` suivant le profil actif. En-tête de pack : section
+    /// **visible** qui l'explique (patron `noteSection`).
+    @ViewBuilder
+    private var profileConfigSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(localization.L(L10n.Mods.profileConfigTitle))
+                .font(.headline)
+
+            if !vm.canManageProfileConfig(live) {
+                Text(localization.L(L10n.Mods.profileConfigGroup))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                // Le `set` prend sa valeur, ne bascule pas. `live`, pas `mod` : les
+                // chemins dérivent de `physicalFolderName`.
+                Toggle(localization.L(L10n.Mods.profileConfigEnable), isOn: Binding(
+                    get: { vm.isProfileConfigManaged(live) },
+                    set: { on in
+                        vm.setProfileConfigManaged(live, on)
+                        refreshConfigHolders()
+                    }
+                ))
+                .toggleStyle(.checkbox)
+                .font(AppDesign.Font.caption)
+
+                Text(localization.L(L10n.Mods.profileConfigHint))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if vm.isProfileConfigManaged(live) {
+                    profileConfigHoldersView
+
+                    // Comparer deux profils (spec §7) ; A = l'actif.
+                    Menu {
+                        ForEach(vm.modProfiles.filter { $0.id != vm.activeProfileId }) { profile in
+                            Button(profile.name) { compareProfile = profile }
+                        }
+                    } label: {
+                        Label(localization.L(L10n.Mods.profileConfigCompare),
+                              systemImage: "rectangle.split.2x1")
+                            .font(AppDesign.Font.caption)
+                    }
+                    .disabled(vm.modProfiles.filter { $0.id != vm.activeProfileId }.isEmpty)
+                }
+
+                Button(localization.L(L10n.Mods.profileConfigReset)) {
+                    vm.resetModConfigToDefaults(live)
+                    refreshConfigHolders()
+                }
+                .buttonStyle(.bordered).focusRing(cornerRadius: 5)
+                .controlSize(.small)
+                .padding(.top, 2)
+
+                Text(localization.L(L10n.Mods.profileConfigResetHint))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Ce que chaque profil a mémorisé et **si ça diffère du disque** (sinon
+    /// un aller-retour passe pour une panne). Lu **une fois** dans
+    /// `configHolders` : au rendu, ce serait le gel des journaux.
+    @ViewBuilder
+    private var profileConfigHoldersView: some View {
+        if configHolders.isEmpty {
+            Text(localization.L(L10n.Mods.profileConfigNone))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            VStack(alignment: .leading, spacing: 3) {
+                // Par rang : deux profils peuvent porter le même nom.
+                ForEach(Array(configHolders.enumerated()), id: \.offset) { _, holder in
+                    HStack(spacing: 6) {
+                        Text(holder.profileName)
+                            .font(AppDesign.Font.footnote(.medium))
+                        Text(ByteCountFormatter.string(fromByteCount: Int64(holder.bytes),
+                                                       countStyle: .file))
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
+                        Text(holder.capturedAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Text(localization.L(holder.matchesDisk ? L10n.Mods.profileConfigSame
+                                                     : L10n.Mods.profileConfigDiffers))
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(AppDesign.Spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    private var categorySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(localization.L(L10n.Mods.categoryLabel))
+                .font(.headline)
+            categoryPicker
+            Text(localization.L(L10n.Mods.categoryEditHint))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Picker on the mod's own category; "Automatic" clears the override.
+    private var categoryPicker: some View {
+        let overrideId = vm.customCategoryId(for: mod)
+        return Picker(localization.L(L10n.Mods.categoryLabel), selection: Binding<Int?>(
+            get: { overrideId },
+            set: { newValue in vm.setCustomCategory(for: mod, categoryId: newValue) }
+        )) {
+            Text(localization.L(L10n.Mods.categoryAutomatic)).tag(Int?.none)
+            ForEach(NexusCategory.all) { cat in
+                Text(cat.localizedName(localization.L)).tag(Int?.some(cat.id))
+            }
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Nexus id editor + fetch status (the header already links to Nexus).
+    private var nexusSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(localization.L(L10n.Mods.nexusSection))
+                .font(.headline)
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Text(localization.L(L10n.Mods.nexusModId))
+                    .font(AppDesign.Font.footnote(.medium))
+                TextField("191", text: $nexusIdDraft)
+                    .font(AppDesign.Font.monoCaption)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 120)
+                    .onSubmit { commitDraft() }
+                Button(localization.L(L10n.Mods.nexusSave)) { commitDraft() }
+                    .buttonStyle(.bordered).focusRing(cornerRadius: 5)
+                    .controlSize(.small)
+                    .disabled(!isValidDraft)
+                if vm.nexusCustomModIds[mod.folderName] != nil {
+                    Button(localization.L(L10n.Mods.nexusReset), role: .destructive) { resetDraft() }
+                        .buttonStyle(.borderless).focusRing(cornerRadius: 4)
+                        .controlSize(.small)
+                        .foregroundColor(AppDesign.Color.error)
+                }
+            }
+            Text(localization.L(L10n.Mods.nexusModIdHint))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            fetchStatusRow
+            // Seulement sans fiche connue.
+            if vm.resolvedNexusModId(for: mod).isEmpty {
+                NexusIdentitySection(vm: vm, localization: localization, mod: mod)
+            }
+        }
+    }
+
+    /// Fetch status row: spinner, category + version, or error.
+    @ViewBuilder
+    private var fetchStatusRow: some View {
+        switch fetchStatus {
+        case .idle:
+            EmptyView()
+        case .loading:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(localization.L(L10n.Mods.nexusFetching))
+                    .font(AppDesign.Font.iconXS)
+                    .foregroundColor(.secondary)
+            }
+        case .success(let catName, let latest):
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: AppDesign.Spacing.xs) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(AppDesign.Color.success)
+                        .font(AppDesign.Font.iconXS)
+                    Text(localization.L(L10n.Mods.nexusFetchSuccess))
+                        .font(AppDesign.Font.iconXS(.medium))
+                        .foregroundColor(.secondary)
+                }
+                if let cat = catName {
+                    Text(String(format: localization.L(L10n.Mods.nexusFetchedCategory), cat))
+                        .font(AppDesign.Font.iconXS)
+                        .foregroundColor(AppDesign.Color.dimmedSecondary(0.85))
+                }
+                if let v = latest {
+                    Text(String(format: localization.L(L10n.Mods.nexusLatestVersion), v))
+                        .font(AppDesign.Font.iconXS)
+                        .foregroundColor(AppDesign.Color.dimmedSecondary(0.85))
+                }
+            }
+        case .noApiKey:
+            Text(localization.L(L10n.Mods.nexusNoApiKey))
+                .font(AppDesign.Font.iconXS)
+                .foregroundColor(AppDesign.Color.warning)
+        case .failed(let msg):
+            HStack(spacing: AppDesign.Spacing.xs) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(AppDesign.Color.error)
+                    .font(AppDesign.Font.iconXS)
+                Text(String(format: localization.L(L10n.Mods.nexusFetchFailed), msg))
+                    .font(AppDesign.Font.iconXS)
+                    .foregroundColor(AppDesign.Color.error)
+            }
+        }
+    }
+
+    /// Valid draft: empty (clears) or positive integer; shared by
+    /// `isValidDraft` and `commitDraft`.
+    private func isValidNexusIdDraft(_ trimmed: String) -> Bool {
+        trimmed.isEmpty || (Int(trimmed).map { $0 > 0 } ?? false)
+    }
+
+    private var isValidDraft: Bool {
+        isValidNexusIdDraft(nexusIdDraft.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private func seedDraft() {
+        // `resolved…`: a pack header has no own id; the field looked empty while
+        // the rest of the pane used the children's.
+        nexusIdDraft = vm.resolvedNexusModId(for: mod)
+    }
+
+    private func commitDraft() {
+        let trimmed = nexusIdDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidNexusIdDraft(trimmed) else { return }
+        vm.setCustomNexusModId(for: mod, modId: trimmed.isEmpty ? nil : trimmed)
+        nexusIdDraft = vm.resolvedNexusModId(for: mod)
+        // Reload the detail: a new id must change the description too.
+        vm.loadModDetail(for: mod)
+        // Fetch metadata for the saved id (badge, update detection); clearing
+        // resets to idle.
+        let effectiveId = vm.resolvedNexusModId(for: mod)
+        guard !effectiveId.isEmpty else { fetchStatus = .idle; return }
+        fetchStatus = .loading
+        vm.fetchMetadata(forNexusModId: effectiveId) { result in
+            switch result {
+            case .success(let version, let catId, _, _):
+                let catName: String? = catId.flatMap { NexusCategory.from(id: $0) }
+                    .map { $0.localizedName(localization.L) }
+                fetchStatus = .success(categoryName: catName, latestVersion: version)
+            case .noApiKey:
+                fetchStatus = .noApiKey
+            case .rateLimited(let retry):
+                fetchStatus = .failed("rate limited (\(Int(retry))s)")
+            case .error(let msg):
+                fetchStatus = .failed(msg)
+            }
+        }
+    }
+
+    private func refreshConfigHolders() {
+        configHolders = vm.profileConfigHolders(for: live)
+    }
+
+    private func resetDraft() {
+        vm.setCustomNexusModId(for: mod, modId: nil)
+        nexusIdDraft = vm.resolvedNexusModId(for: mod)
+        // Same as `commitDraft`: the description follows the id.
+        vm.loadModDetail(for: mod)
+        fetchStatus = .idle
+    }
+
+    // MARK: Dependencies
+
+    /// Transitive dependency tree (`DependencyTreeView`).
+    @ViewBuilder
+    private var dependenciesSection: some View {
+        DependencyTreeView(vm: vm, localization: localization, mod: mod)
+    }
+
+    // MARK: Error history
+
+    // MARK: Traduction
+
+    /// **Quoi** manque : une clé **absente** affiche l'anglais, une clé
+    /// **vide** n'affiche rien, en silence — 98 % à vides est pire que 60 %.
+    /// Masquée sans français.
+    @ViewBuilder
+    private var translationSection: some View {
+        // Aussi sans français si une sauvegarde en contient un ou qu'un fichier
+        // ne sera jamais lu.
+        if mod.languages.contains("fr") || backupTranslation != nil
+            || !unloadableLocaleFiles.isEmpty {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                Text(localization.L(L10n.Mods.translationSection))
+                    .font(AppDesign.Font.body(.semibold))
+
+                // Défaut du mod : le jeu ne charge que des codes nus (sauf
+                // `Data/AdditionalLanguages`). Id par indice : un même nom fautif peut
+                // apparaître deux fois.
+                ForEach(Array(unloadableLocaleFiles.enumerated()), id: \.offset) { _, file in
+                    if let expected = file.expectedName {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationUnloadableExpected),
+                                               file.fileName, expected),
+                                        icon: AppDesign.Status.warning.symbol, color: .secondary)
+                    } else {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationUnloadableUnknown),
+                                               file.fileName),
+                                        icon: AppDesign.Status.warning.symbol, color: .secondary)
+                    }
+                }
+
+                if let backup = backupTranslation {
+                    // N-11 : la sauvegarde se récupère dans Fichiers récupérables, filtrés sur ce mod.
+                    TranslationNote(String(format: localization.L(L10n.Mods.translationInBackup),
+                                           backup.modifiedAt.formatted(date: .abbreviated, time: .omitted)),
+                                    icon: "clock.arrow.circlepath", color: AppDesign.Color.warning,
+                                    link: localization.L(L10n.Recovery.openFromDetail)) {
+                        vm.navigationStore.openRecoverableFiles(for: mod.folderName)
+                    }
+                }
+
+                // La fraîcheur (anglais touché après le français) n'est dite
+                // qu'une fois, par l'éditeur juste en dessous (E6).
+                if vm.outdatedKeyCount(for: mod) > 0 {
+                    TranslationNote(String(format: localization.L(L10n.Mods.translationOutdatedKeys),
+                                           vm.outdatedKeyCount(for: mod)),
+                                    icon: "clock.badge.exclamationmark",
+                                    color: DiffStateStyle.tint(.outdated))
+                }
+
+                if mod.languages.contains("fr"), let coverage = vm.frenchCoverageDetail(for: mod) {
+                    TranslationProgressBar(percent: coverage.displayPercent)
+                    Text(String(format: localization.L(L10n.Mods.translationCounts),
+                                coverage.translated, coverage.total))
+                        .font(AppDesign.Font.footnote.monospacedDigit())
+                        .foregroundColor(.secondary)
+
+                    // Les vides d'abord : seul défaut qui casse l'affichage.
+                    if !coverage.empty.isEmpty {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationEmpty),
+                                               coverage.empty.count),
+                                        icon: "exclamationmark.triangle.fill",
+                                        color: AppDesign.Color.warning)
+                    }
+                    if !coverage.missing.isEmpty {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationMissing),
+                                               coverage.missing.count),
+                                        icon: "text.badge.minus", color: .secondary)
+                    }
+                    // Seulement au-delà d'un cinquième de clés identiques à l'anglais
+                    // (sinon la note toucherait 228/424 mods ; ici 12, traductions
+                    // recopiées).
+                    if coverage.total > 0,
+                       Double(coverage.identicalToSource.count) / Double(coverage.total) > 0.2 {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationIdentical),
+                                               coverage.identicalToSource.count),
+                                        icon: "equal.circle", color: .secondary)
+                    }
+                    if !coverage.orphan.isEmpty {
+                        TranslationNote(String(format: localization.L(L10n.Mods.translationOrphan),
+                                               coverage.orphan.count),
+                                        icon: "questionmark.circle", color: .secondary)
+                    }
+                } else if mod.languages.contains("fr") {
+                    // Calcul en cours : le dire.
+                    Text(localization.L(L10n.Mods.translationPending))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    /// Per-version errors and warnings; hidden when never logged.
+    @ViewBuilder
+    private var errorHistorySection: some View {
+        let records = vm.modErrorHistory.history(for: mod.folderName)
+        if !records.isEmpty {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                Text(localization.L(L10n.Mods.errorHistory))
+                    .font(AppDesign.Font.body(.semibold))
+                Text(localization.L(L10n.Mods.errorHistoryHint))
+                    .font(AppDesign.Font.footnote)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ForEach(records, id: \.version) { record in
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(record.version)
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            // Current version, for context.
+                            if record.version == mod.version {
+                                Text(localization.L(L10n.Mods.errorHistoryCurrent))
+                                    .font(AppDesign.Font.iconXXS(.medium))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .foregroundColor(.accentColor)
+                                    .cornerRadius(3)
+                            }
+                            Spacer()
+                            if record.errorCount > 0 {
+                                Label("\(record.errorCount)", systemImage: AppDesign.Status.error.symbol)
+                                    .font(AppDesign.Font.iconXS)
+                                    .foregroundColor(AppDesign.Color.error)
+                            }
+                            if record.warningCount > 0 {
+                                Label("\(record.warningCount)", systemImage: AppDesign.Status.warning.symbol)
+                                    .font(AppDesign.Font.iconXS)
+                                    .foregroundColor(AppDesign.Color.warning)
+                            }
+                        }
+                        Text(record.lastSeen, style: .date)
+                            .font(AppDesign.Font.iconXS)
+                            .foregroundColor(.secondary)
+                        ForEach(record.samples, id: \.self) { sample in
+                            Text(sample)
+                                .font(AppDesign.Font.monoIconXS)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(8)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
+        }
+    }
+
+    // MARK: Raccourcis (C4-T2/T9)
+
+    /// Raccourcis de **ce** mod, lus dans le rapport global. Muette sans
+    /// rapport (« aucun conflit » sans mesure mentirait) et sans conflit
+    /// (bruit). Lecture seule : agir passe par « Réglages du mod ».
+    @ViewBuilder
+    private var keybindConflictsSection: some View {
+        if let conflicts = keybindScanService.report?.conflicts(affecting: mod.folderName),
+           !conflicts.isEmpty {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                Text(localization.L(L10n.Keybinds.title))
+                    .font(AppDesign.Font.body(.semibold))
+
+                if !conflicts.collisions.isEmpty {
+                    Text(String(format: localization.L(L10n.Keybinds.collisionsHeader),
+                                conflicts.collisions.count))
+                        .font(AppDesign.Font.caption(.semibold))
+                    ForEach(conflicts.collisions, id: \.combo) { collision in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(collision.combo.display)
+                                .font(AppDesign.Font.body(.medium))
+                            ForEach(KeybindScanner.groupedUses(collision.uses)) { use in
+                                // Hors interpolation (closure multiligne ne compile pas).
+                                let paths = use.keyPaths
+                                    .map { $0.joined(separator: ".") }
+                                    .joined(separator: ", ")
+                                Text("· \(use.modName) (\(paths))")
+                                    .font(AppDesign.Font.caption).foregroundColor(.secondary)
+                                    .lineLimit(1).truncationMode(.middle)
+                            }
+                        }
+                    }
+                }
+
+                if !conflicts.gameConflicts.isEmpty {
+                    // Réserve visible : évite la fausse alerte chez qui a remappé.
+                    Text(localization.L((keybindScanService.report?.gameControlsSource ?? .defaults).caveatKey))
+                        .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    Text(String(format: localization.L(L10n.Keybinds.gameHeader),
+                                conflicts.gameConflicts.count))
+                        .font(AppDesign.Font.caption(.semibold))
+                    ForEach(conflicts.gameConflicts, id: \.control.name) { conflict in
+                        // Une ligne, tronquée au milieu (fenêtre étroite).
+                        HStack(spacing: AppDesign.Spacing.xs) {
+                            Text(conflict.control.buttons.joined(separator: " / "))
+                                .font(AppDesign.Font.body(.medium))
+                                .lineLimit(1).truncationMode(.middle)
+                            Text(conflict.control.name)
+                                .font(AppDesign.Font.footnote)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1).truncationMode(.middle)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
+        }
+    }
+
+    // MARK: Incompatibilités (tâche 9)
+
+    /// Incompatibilités **déclarées ou connues** avec ce mod, écartables ici : retour
+    /// visible là où « Signaler » vient d'être cliqué. Les observées ont leur
+    /// écran (`ModConflictSection`) ; correspondance centralisée dans
+    /// `vm.conflictPair(for:)`.
+    @ViewBuilder
+    private var declaredConflictsSection: some View {
+        let pairs = vm.modConflictVerdicts.reportedPairs(involving: mod.folderName, installed: vm.scanStore.mods)
+        if !pairs.isEmpty {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                Text(localization.L(L10n.Conflicts.title))
+                    .font(AppDesign.Font.body(.semibold))
+                ForEach(pairs, id: \.self) { pair in
+                    let otherFolder = pair.first == mod.folderName ? pair.second : pair.first
+                    let otherName = vm.scanStore.mods.flattenedMods.first(where: { $0.folderName == otherFolder })?.name
+                        ?? otherFolder
+                    HStack(spacing: AppDesign.Spacing.xs) {
+                        Text("· \(otherName)")
+                            .font(AppDesign.Font.body(.medium))
+                            .lineLimit(1).truncationMode(.middle)
+                        Spacer()
+                        Button(localization.L(L10n.Conflicts.dismissButton)) {
+                            vm.dismissConflict(pair)
+                        }
+                        .buttonStyle(.borderless).focusRing(cornerRadius: 4)
+                        .font(AppDesign.Font.footnote)
+                        .foregroundColor(.secondary)
+                        .pointingHandCursor()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
+        }
+    }
+
+    /// Candidats : parc aplati, moins ce mod (une paire `(X, X)` collisionne
+    /// avec `withinOnePack`).
+    // MARK: Tab content
+
+    private typealias HealthCheck = ModHealthChecklist.Check
+
+    @ViewBuilder
+    private var content: some View {
+        switch selectedTab {
+        case .translation:
+            // Tout le travail de traduction du mod en un onglet : chercher
+            // sur Nexus (premier niveau), fraîcheur et sauvegarde, éditeur.
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                if isTopLevel { TranslationSection(vm: vm, localization: localization, mod: live) }
+                translationSection
+                TranslationDiffView(vm: vm, localization: localization, mod: mod)
+            }
+        case .dependencies:
+            dependenciesSection
+        case .history:
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                blocksView(isChangelog: true)
+                // A1-T11 — un composant de pack a son propre journal ; l'en-tête
+                // d'un pack n'a pas d'UniqueID.
+                if !live.uniqueId.isEmpty { ModHistorySection(localization: localization, viewModel: vm, mod: live) }
+            }
+        case .management:
+            settingsSection
+        case .health:
+            // Le relevé d'abord, puis le détail par gravité ; chaque ligne à
+            // regarder du relevé défile jusqu'à sa section (même `id`).
+            ScrollViewReader { proxy in
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                    ModHealthSummary(viewModel: vm, localization: localization, mod: mod, live: live) { check in
+                        withMotion(.snappy) { proxy.scrollTo(check, anchor: .top) }
+                    }
+                    // A2-T7 — au-dessus de tout : seul à parler de code hostile.
+                    MaliciousModBanner(vm: vm, localization: localization, mod: live).id(HealthCheck.security)
+                    if let anomaly = vm.anomaly(for: live) {
+                        ModAnomalyCard(anomaly: anomaly, vm: vm, localization: localization, currentFolder: live.folderName) { selectedTab = .dependencies }
+                            .id(HealthCheck.loading)
+                    }
+                    CompatibilityBanner(vm: vm, localization: localization, mod: live).id(HealthCheck.compatibility)
+                    errorHistorySection.id(HealthCheck.log)
+                    declaredConflictsSection.id(HealthCheck.conflicts)
+                    PerformanceOverlapDetailRows(vm: vm, localization: localization, mod: live).id(HealthCheck.performanceOverlap)
+                    keybindConflictsSection.id(HealthCheck.keybinds)
+                    NexusPageBanner(vm: vm, localization: localization, mod: live).id(HealthCheck.nexusPage)
+                    // Mesure, pas alerte : en dernier, toujours présente.
+                    if !live.uniqueId.isEmpty {
+                        ModImpactSection(viewModel: vm, localization: localization, mod: live)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .cardSurface()
+                    }
+                }
+            }
+        case .overview:
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                // La sonde ouvre sa propre fiche par son mode d'emploi :
+                // l'outil maison se lit avant tout le reste.
+                if live.isStarHubProbe {
+                    ProbeManualSection(localization: localization)
+                    // D4-T6 bis : les options de la sonde, réglées d'ici —
+                    // plus jamais de config.json édité à la main.
+                    ProbeOptionsSection(localization: localization, mod: live, vm: vm)
+                }
+                ModCompatibilityCard(viewModel: vm, localization: localization, live: live,
+                                     note: vm.modDetailState.flatMap { CompatibilityNote.find(in: $0.description) },
+                                     onShowHealth: { selectedTab = .health })
+                if mod.isGroup { packContentsSection }
+                // C2-T4 — changements de clés de la dernière mise à jour ; closures
+                // directes (les canaux `pending…Focus` ne servent qu'au changement
+                // d'onglet).
+                ModUpdateDeltaSection(vm: vm, localization: localization, mod: mod,
+                                      onOpenConfig: { vm.navigationStore.setEditingModConfig(mod) },
+                                      onOpenTranslation: {
+                                          vm.navigationStore.pendingTranslationDiffFilter = .state(.missing)
+                                          selectedTab = .translation
+                                      })
+                blocksView(isChangelog: false)
+                // Ce qui se greffe sur le mod : à lire après la description.
+                if isTopLevel { SupplementSection(vm: vm, localization: localization, mod: live) }
+            }
+        }
+    }
+
+    /// Renders the description or changelog blocks with loading / empty states.
+    @ViewBuilder
+    private func blocksView(isChangelog: Bool) -> some View {
+        if let state = vm.modDetailState {
+            let blocks = isChangelog ? state.changelog : state.description
+            if blocks.isEmpty {
+                if state.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 160)
+                } else {
+                    // Genuinely absent content: neutral per-tab message, not "offline".
+                    ContentUnavailableView(
+                        localization.L(isChangelog ? L10n.Mods.detailNoChangelog : L10n.Mods.detailNoDescription),
+                        systemImage: "doc.plaintext"
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 160)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
+                    if state.isStale {
+                        stalenessHint
+                    }
+                    DescriptionBlocksView(blocks: blocks, vm: vm, localization: localization)
+                }
+            }
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 160)
+        }
+    }
+
+    /// Indicator for cached/fallback content while a refresh runs (or failed).
+    private var stalenessHint: some View {
+        Label(localization.L(L10n.Mods.detailCached), systemImage: "arrow.triangle.2.circlepath")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+}

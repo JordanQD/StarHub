@@ -75,8 +75,7 @@ mods tests/
 design/starhubfr-design-system.html
 
 # Icônes Windows du jeu (StardewValley.Icon.bmp/.ico), déposées à la racine par
-# un outil tiers — apparues le 2026-09-09. Ce ne sont pas nos assets : le bundle
-# utilise AppIcon.icns.
+# un outil tiers — apparues le 2026-09-09. L'icône de StarHub est dans assets/StarHub.icon.
 StardewValley.Icon.*
 
 # Artefacts du MCP Playwright (snapshots, journaux de console) — jamais versionnés

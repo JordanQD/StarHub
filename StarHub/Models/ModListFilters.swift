@@ -1,0 +1,170 @@
+import Foundation
+import Combine
+
+/// Scope filter for the mods list.
+enum ModFilter: String, CaseIterable, Identifiable {
+    /// `updates` — I-T13 : les mods qu'une mise à jour attend.
+    case all, enabled, disabled, issues, updates
+    var id: String { rawValue }
+}
+
+/// Three-state French-translation filter: off (all mods), only mods that ship
+/// an `fr` i18n file, or only mods that don't. Matches `ModItem.languages`
+/// (lowercased codes from the mod's `i18n/` folder).
+enum FrenchTranslationScope: Equatable {
+    case off
+    case available   // ships an i18n/fr.json
+    /// Traduit, mais pas entièrement — ceux sur lesquels il reste à faire.
+    /// Sur le parc, 31 mods contre 392 complets : sans ce cadrage ils sont
+    /// introuvables.
+    case partial
+    case missing     // translatable, but ships no i18n/fr.json
+    /// Traduit, mais l'anglais a bougé depuis — par la date du fichier ou par
+    /// une clé dont la référence ne correspond plus. 18 mods du parc au premier
+    /// lancement, sans qu'aucun diff ait été ouvert.
+    case stale
+}
+
+/// Scope for the impact filter (D5-C) : show everything, or only the mods
+/// whose measured impact is high, or only the medium ones. The classes come
+/// from the probe history (`ModImpactStore`) ; a mod never measured — or
+/// measured negligible — only passes under `.off`. On the reference parc,
+/// 6 mods are high and 23 medium out of 966 : the filter stays a spotlight,
+/// not a sorting of the world.
+enum ImpactScope: Equatable {
+    case off
+    case high
+    case medium
+}
+
+/// Scope for the category-filter menu: show everything, scope to one Nexus
+/// category, or scope to mods with no category assigned. A single enum
+/// (rather than `NexusCategory?` plus a separate boolean) keeps these three
+/// states mutually exclusive by construction.
+enum CategoryScope: Equatable {
+    case all
+    case category(NexusCategory)
+    case inferredTag(String)   // stable inferTag key, for mods with no Nexus category
+    case uncategorized         // mods with no Nexus category whose inferred tag is "Other"
+}
+
+/// Sort order for the mods list. `.name` matches `vm.mods`'s existing
+/// alphabetical order (so no extra sort is needed for it); `.activationOrder`
+/// sorts by `vm.modActivationTimestamps`, most recent first; `.installDate`
+/// sorts by `installedFileDate` (folder mod date), most recent first.
+enum ModSortOrder: String, CaseIterable, Identifiable {
+    case name, nameDescending, activationOrder, installDate, author, version, size
+    /// Nexus : le plus approuvé d'abord ; la mise à jour la plus ancienne d'abord.
+    case endorsements, lastNexusUpdate
+    var id: String { rawValue }
+}
+
+/// Ce qui explique une liste vide. Une combinaison ne désigne jamais un seul
+/// filtre comme coupable : c'est leur intersection qui ne rend rien.
+enum ModListEmptyCause: Equatable {
+    case search(String)
+    case scope(ModFilter)
+    case category
+    case config
+    case favorites
+    case blacklisted
+    case translation
+    case impact
+    case combined
+}
+
+// MARK: -
+
+/// Porteur observable du cadrage de la liste, **séparé du ViewModel**.
+///
+/// Ce n'est pas un détail d'organisation : un `@Published` sur le ViewModel
+/// publie à toute la fenêtre, `MainView` comprise — barre latérale, en-tête,
+/// zone de contenu. Chaque lettre tapée dans le champ de recherche redessinait
+/// donc l'application entière, et la frappe accusait une latence perceptible
+/// à ~900 mods. Un objet observable à part limite la publication à qui
+/// l'observe, c'est-à-dire `ModListView` seule — la portée qu'avaient les
+/// `@State` d'origine, sans leur défaut (ils mouraient avec la vue).
+///
+/// Même motif que `vm.bisection`, pour la même raison.
+final class ModListState: ObservableObject {
+    @Published var filters = ModListFilters()
+    /// I-T20 — la sélection multiple ; survit à l'ouverture d'une fiche.
+    @Published var selection = ModListSelection()
+    /// I-T21 — la feuille de nom de groupe demandée par un menu.
+    @Published var groupNameRequest: ModGroupNameRequest?
+
+    /// Le cadrage ordonné courant (noms de dossier, premier niveau), tel que
+    /// la liste vient de le rendre — liste **et** grille partagent ce flux.
+    ///
+    /// Volontairement **non publié** : la fiche et la liste s'excluent dans
+    /// `MainView`, le cadrage ne peut pas bouger sous une fiche ouverte (et
+    /// supprimer un mod ferme sa fiche). La fiche le lit à l'ouverture ; un
+    /// `@Published` de plus ici redessinerait pour rien — et sur le
+    /// ViewModel, il rouvrirait la régression de frappe que ce type a
+    /// fermée (le pager de fiche s'en sert, H-T4b).
+    var displayOrder: [String] = []
+}
+
+/// Le cadrage courant de la liste des mods : ce qu'on cherche, ce qu'on filtre,
+/// comment on trie, où on en est dans la pagination.
+///
+/// Porté par le ViewModel plutôt que par des `@State` de `ModListView` : SwiftUI
+/// détruit l'état local d'une vue quand elle quitte l'écran, si bien qu'un
+/// aller-retour vers l'onglet Diagnostic remettait la liste à zéro — tri,
+/// filtres et page compris.
+///
+struct ModListFilters: Equatable {
+    var search: String = ""
+    var scope: ModFilter = .all
+    var category: CategoryScope = .all
+    var configOnly: Bool = false
+    /// N'afficher que les mods marqués d'une étoile.
+    var favoritesOnly: Bool = false
+    /// N'afficher que les mods « à écarter ». Filtre **positif** : par
+    /// défaut tout le monde passe, seuls les blacklistés restent quand il
+    /// est actif. Le mod grisé se laisse toujours trouver sans ce filtre.
+    var blacklistedOnly: Bool = false
+    var frenchTranslation: FrenchTranslationScope = .off
+    /// N'afficher que les mods dont l'impact mesuré est élevé, ou élevé et
+    /// moyen (D5-C). La classe vient de l'historique de la sonde : tant que
+    /// `ModImpactStore` n'a pas lu, la carte est vide et le filtre actif ne
+    /// montrerait rien — la liste déclenche la lecture au premier affichage.
+    var impactScope: ImpactScope = .off
+    var sort: ModSortOrder = .name
+
+    /// Cause unique lisible par l'état vide, ou combinaison si plusieurs axes
+    /// sont actifs. `sort` n’amincit pas le résultat.
+    var emptyCause: ModListEmptyCause? {
+        var causes: [ModListEmptyCause] = []
+        if !search.isEmpty { causes.append(.search(search)) }
+        if scope != .all { causes.append(.scope(scope)) }
+        if category != .all { causes.append(.category) }
+        if configOnly { causes.append(.config) }
+        if favoritesOnly { causes.append(.favorites) }
+        if blacklistedOnly { causes.append(.blacklisted) }
+        if frenchTranslation != .off { causes.append(.translation) }
+        if impactScope != .off { causes.append(.impact) }
+        if causes.count > 1 { return .combined }
+        return causes.first
+    }
+
+    /// Retire tout ce qui peut exclure un mod, sans changer le tri choisi.
+    mutating func clearFiltering() {
+        search = ""
+        scope = .all
+        category = .all
+        configOnly = false
+        favoritesOnly = false
+        blacklistedOnly = false
+        frenchTranslation = .off
+        impactScope = .off
+    }
+
+    /// Ramène la liste à un état où un mod donné est forcément visible : tout
+    /// filtre susceptible de l'écarter est levé. Utilisé par le saut vers un
+    /// mod (ligne de journal, carte de diagnostic, recherche guidée).
+    mutating func focus(on searchTerm: String) {
+        clearFiltering()
+        search = searchTerm
+    }
+}

@@ -201,7 +201,7 @@ macOS marque d'une « quarantaine » toute app téléchargée, et refuse d'ouvri
   <img src="assets/banners/developers_banner.png" alt="Pour les développeurs" width="300">
 </p>
 
-L'app est écrite en **Swift** et **SwiftUI**. Il faut macOS 14 et Xcode 16 (la version utilisée par la CI).
+L’app est écrite en **Swift** et **SwiftUI** et fonctionne à partir de macOS 14. Pour la compiler avec son icône Icon Composer, utilisez **Xcode 26.3 ou ultérieur** sur un Mac compatible avec cette version de Xcode.
 
 ```bash
 xcodebuild -project StarHub.xcodeproj -scheme StarHub build

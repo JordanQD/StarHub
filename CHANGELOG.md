@@ -16,11 +16,40 @@ where the exact log format was verified.
 
 - **StarHubFR est disponible en chinois simplifié.** Choisissez cette langue dans **Réglages Système › Général › Langue et région › Applications** pour l’interface et le guide intégré.
 
+- La barre d’outils permet de partager les liens Nexus des mods sélectionnés. Quand une page manque, le partage inclut les informations du mod.
+
 ### Changed
 
+- Les résultats de recherche de Découvrir se chargent au fil du défilement. Dans Mises à jour des mods, le bouton de la barre d’outils affiche la progression et permet d’arrêter la vérification au survol.
+- Les résultats Nexus et SMAPI partagent une grille avec les versions installées et disponibles, les images et les notes de version quand elles sont publiées. Le bouton Mettre à jour ouvre la page de téléchargement ou utilise le téléchargement intégré pour les comptes Premium. Le menu permet de reporter la mise à jour.
+- Les mises à jour reportées et celles marquées comme déjà installées reprennent la grille des mises à jour disponibles. Le message centré « Tous les mods sont à jour » s’affiche quand ces sections sont vides. La vérification affiche son indicateur dans la barre d’outils.
+
+- Dans Découvrir, les trois rubriques présentent chacune jusqu’à huit mods dans une rangée défilante. Le titre ouvre la rubrique complète, dont les résultats se chargent au fil du défilement. Le nom de l’auteur reste dans la fiche du mod.
+
+- Dans Découvrir, le champ de recherche occupe le centre de la barre d’outils. Le menu Filtres regroupe la catégorie et l’option qui masque les mods installés.
+- Dans Découvrir, les vignettes arrondies et leurs titres reposent directement sur le fond de la page. Le champ de recherche conserve son fond lorsque le contenu défile sous les commandes de la barre d’outils.
+
+- Dans la grille sans regroupement, les cartes s’affichent directement. Leur interrupteur permet d’activer ou de mettre en pause un mod. L’auteur et le nombre d’approbations disparaissent des cartes.
+- La liste et la grille s’ouvrent sans sélection. Dans la grille, cliquez pour sélectionner une carte, utilisez ⌘ ou ⇧ pour en sélectionner plusieurs et double-cliquez pour ouvrir une fiche. Un fond uni rend les interrupteurs lisibles sur les vignettes.
+- La grille des mods reprend les cartes sans fond de Découvrir. La catégorie et la langue s’affichent à gauche, la version sans préfixe « v » à droite. Le premier clic sélectionne la carte, et un clic dans le fond efface la sélection.
+
+- La colonne des mises à jour utilise sa largeur minimale par défaut. Le menu contextuel de la grille est réservé à la gestion des mods.
+- StarHub adopte une nouvelle icône Liquid Glass.
+- Les colonnes du tableau des mods sont redimensionnables et leurs en-têtes permettent de trier. L’icône de mise à jour lance le téléchargement ou ouvre la page du fichier.
+- **La liste des mods devient un tableau macOS.** Double-cliquez sur un mod pour ouvrir sa fiche. Dans la liste et la grille, le menu contextuel permet d’ouvrir le dossier dans le Finder, d’accéder aux réglages du mod, de le ranger dans un groupe ou de le mettre à la corbeille. Le lien Nexus se trouve dans la barre de la fiche.
+
+- Le fond de la barre d’outils de la fenêtre principale reste visible pendant le défilement. Les boutons Précédent et Suivant utilisent le groupe de navigation de macOS.
+
+- **La liste des mods utilise la barre d’outils de macOS.** Retrouvez la présentation, le regroupement, le tri, l’installation et les commandes d’activation dans la barre de la fenêtre. Les filtres se déplient à la demande. La liste défile en continu. Le pied de liste affiche le nombre d’éléments, le poids et l’espace disponible.
+
+- Les icônes de navigation de la barre latérale s’affichent en contour, même sur la ligne sélectionnée.
 - **Les Réglages s’ouvrent dans leur propre fenêtre.** Accédez-y avec **⌘,** ou depuis le menu StarHubFR. La fenêtre retrouve le dernier onglet consulté. Dans À propos, retrouvez le journal des modifications, les raccourcis clavier et le signalement d’un problème. Les liens vers Nexus ou la traduction assistée laissent la page en cours ouverte. L’application suit l’apparence de macOS et adopte ses styles de texte.
 - **StarHubFR suit le choix de langue de macOS.** Pour choisir une langue uniquement pour StarHubFR, ouvrez **Réglages Système › Général › Langue et région › Applications**. L’interface et l’aide suivent ce choix à la réouverture de l’app. Les dates et les nombres suivent les formats régionaux de macOS.
 - **La barre latérale devient celle de macOS.** Son fond translucide, la ligne choisie, le survol, la navigation aux flèches et le défilement sous la barre de titre viennent désormais du système au lieu d’être dessinés par l’app : elle se comporte comme celle des autres apps, et sa largeur se règle au séparateur. Le compte prend place en pied de colonne, l’Accueil redevient une page de la liste, et les compteurs prennent la pastille standard.
+
+### Fixed
+
+- L’éditeur d’inventaire ne plante plus si un champ termine sa saisie après la fermeture ou le changement de sauvegarde.
 
 ## [1.74.1] - 2026-11-12
 

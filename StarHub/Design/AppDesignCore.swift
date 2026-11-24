@@ -1,0 +1,155 @@
+import CoreGraphics
+
+// AppDesignCore.swift
+// Design tokens centralisés pour StarHubFR — couche logique pure (testable SPM).
+// Les valeurs dérivent de l'inventaire du code existant (voir spec §1.2) :
+// chaque token correspond à une valeur réellement utilisée dans les Views,
+// afin que la migration ne provoque AUCUN diff visuel.
+//
+// Les tokens Font/Color (qui nécessitent SwiftUI) vivent côté app dans
+// StarHub/Design/AppDesignUI.swift. Ce fichier ne contient que des
+// CGFloat/Double purs pour rester testable sans dépendance UI.
+
+public enum AppDesignCore {
+
+    // MARK: - Spacing (VStack/HStack spacing, padding)
+    public enum Spacing {
+        /// 4 — micro (badge + texte). ~30 occurrences dans le code.
+        public static let xs: CGFloat = 4
+        /// 8 — standard interne. Valeur la plus utilisée (35 occ.).
+        public static let sm: CGFloat = 8
+        /// 12 — entre éléments apparentés (23 occ.).
+        public static let md: CGFloat = 12
+        /// 16 — entre sections (26 occ.).
+        public static let lg: CGFloat = 16
+        /// 24 — grosse séparation (HomeView, ModListView).
+        public static let xl: CGFloat = 24
+        /// 32 — séparation maximale (3 occ.).
+        public static let xxl: CGFloat = 32
+    }
+
+    // MARK: - Corner radius
+    public enum Radius {
+        /// 6 — sidebar items, chips. Valeur la plus utilisée (12 occ.).
+        public static let sm: CGFloat = 6
+        /// 8 — petits éléments (8 occ.).
+        public static let md: CGFloat = 8
+        /// 10 — `StandardSection` existant (4 occ.).
+        public static let section: CGFloat = 10
+        /// 12 — cartes, banner, drop zones (5 occ.).
+        public static let lg: CGFloat = 12
+    }
+
+    // MARK: - Opacity
+    public enum Opacity {
+        /// 0.05 — arrière-plans très subtils.
+        public static let subtle: Double = 0.05
+        /// 0.1 — arrière-plans moyens, borders (valeur dominante, 16 occ.).
+        public static let light: Double = 0.1
+        /// 0.15 — borders accentués, hover (12 occ.).
+        public static let medium: Double = 0.15
+        /// 0.25 — overlays modaux (4 occ.).
+        public static let strong: Double = 0.25
+        /// 0.5 — éléments désactivés (14 occ.).
+        public static let disabled: Double = 0.5
+        /// 0.8 — texte secondaire (14 occ.).
+        public static let secondary: Double = 0.8
+    }
+
+    // MARK: - Surfaces
+    /// Fonds quasi neutres de l'interface. La légère composante froide évite
+    /// la dominante olive de `.background.secondary` sans colorer les cartes.
+    public enum SurfacePalette {
+        public static let surface = DynamicRGBColor(
+            light: RGBColor(red: 245.0 / 255.0, green: 245.0 / 255.0, blue: 247.0 / 255.0),
+            dark: RGBColor(red: 37.0 / 255.0, green: 37.0 / 255.0, blue: 39.0 / 255.0))
+        public static let surfaceRaised = DynamicRGBColor(
+            light: RGBColor(red: 1, green: 1, blue: 1),
+            dark: RGBColor(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0))
+        public static let surfaceBorder = DynamicRGBColor(
+            light: RGBColor(red: 217.0 / 255.0, green: 217.0 / 255.0, blue: 222.0 / 255.0),
+            dark: RGBColor(red: 71.0 / 255.0, green: 71.0 / 255.0, blue: 75.0 / 255.0))
+    }
+
+    // MARK: - Grid (LazyVGrid adaptative)
+    /// Ce que la vitrine a codé en dur : une grille qui remplit la largeur
+    /// disponible plutôt qu'une bande horizontale qui cache ses éléments.
+    public enum Grid {
+        /// 240 — largeur minimale d'une carte, `GridItem(.adaptive(minimum:))`.
+        public static let minCardWidth: CGFloat = 240
+        /// 12 — gouttière, entre colonnes comme entre rangées. Les sections
+        /// gardent `Spacing.sm`/`Spacing.lg` pour leur propre respiration.
+        public static let gutter: CGFloat = 12
+    }
+
+    // MARK: - Metrics (hauteurs et rapports réservés)
+    /// « La place est toujours réservée » (spec refonte §2, P4) : ces valeurs
+    /// sont ce qui empêche une mise en page de sauter quand une donnée manque.
+    public enum Metrics {
+        /// 16/9 — la vignette d'un mod, dont la place est tenue même sans image.
+        public static let thumbRatio: CGFloat = 16.0 / 9.0
+        /// 150 — hauteur du bandeau d'une fiche.
+        public static let heroHeight: CGFloat = 150
+        /// 560×640 — la feuille de détail ouverte depuis une carte.
+        public static let sheetDetailSize = CGSize(width: 560, height: 640)
+        /// 18 — hauteur réservée d'une ligne de métadonnées : sans elle, une
+        /// carte sans catégorie servie décale toute sa rangée.
+        public static let metaRowHeight: CGFloat = 18
+        /// 120 — un graphique de mesures (série, nuage, distribution) :
+        /// une seule hauteur d'une carte à l'autre (audit I-T22, P4).
+        public static let chartTall: CGFloat = 120
+        /// 80 — une jauge d'une seule barre, son axe compris.
+        public static let chartShort: CGFloat = 80
+    }
+
+    // MARK: - Shadow
+    public enum Shadow {
+        /// Décolle du fond un contenu posé sur une image — une pastille
+        /// blanche sur une vignette claire s'y noierait sans elle.
+        ///
+        /// Typé explicitement : sans annotation Swift infère `Int`, que
+        /// `.shadow(color:radius:y:)` refuse.
+        public static let badge: (radius: CGFloat, y: CGFloat) = (3, 1)
+        /// Décolle une carte du fond de page (`cardSurface()`) : assez pour
+        /// lire le relief, pas assez pour faire flotter la carte.
+        public static let card: (radius: CGFloat, y: CGFloat, opacity: Double) = (6, 2, 0.08)
+    }
+
+    // MARK: - Icon (tailles de glyphe)
+    public enum Icon {
+        /// 16 — glyphe compact (fermeture d'une fiche).
+        public static let sm: CGFloat = 16
+        /// 20 — icône d'un état (`StateCard`).
+        public static let md: CGFloat = 20
+    }
+}
+
+
+/// Couleur en composantes — la représentation **Core** des couleurs de
+/// données (palettes de l'avatar, catégories Nexus). Les vues la rendent
+/// via `Color(RGBColor)` (AppDesignUI) : la donnée reste pure, la peinture
+/// appartient à la couche d'UI (§4.4).
+public struct RGBColor: Equatable, Hashable, Sendable {
+    public let red: Double
+    public let green: Double
+    public let blue: Double
+    public let opacity: Double
+
+    public init(red: Double, green: Double, blue: Double, opacity: Double = 1.0) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.opacity = opacity
+    }
+}
+
+/// Paire sRGB résolue par la couche UI selon l'apparence macOS effective.
+public struct DynamicRGBColor: Equatable, Hashable, Sendable {
+    public let light: RGBColor
+    public let dark: RGBColor
+
+    public init(light: RGBColor, dark: RGBColor) {
+        self.light = light
+        self.dark = dark
+    }
+}

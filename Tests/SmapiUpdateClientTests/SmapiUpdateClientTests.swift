@@ -134,6 +134,25 @@ struct SmapiUpdateClientTests {
         #expect(outcome.mods.count == 300)
     }
 
+    @Test func cancellingAfterOneBatchDoesNotSendTheNextBatch() async {
+        let all = entries(300)
+        let first = Array(all[..<150])
+        let second = Array(all[150...])
+        let c = client(script: [(200, body(for: first)), (200, body(for: second))])
+        let cancellation = SmapiUpdateClient.Cancellation()
+
+        let result = await withCheckedContinuation { continuation in
+            c.fetch(entries: all, gameVersion: "1.6.15", progress: { done, _ in
+                if done == 1 { cancellation.cancel() }
+            }, cancellation: cancellation) { continuation.resume(returning: $0) }
+        }
+
+        guard case .failure(.transport("cancelled")) = result else {
+            Issue.record("expected cancellation"); return
+        }
+        #expect(StubProtocol.received == 1)
+    }
+
     @Test func aFailedBatchMakesThePassPartial() async {
         // Le cas vécu : le premier lot répond, le second tombe en 503 — et sa
         // seconde chance aussi (le script épuisé rend 500 à toute requête

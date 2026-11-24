@@ -10,7 +10,7 @@ Déplacé d'`AGENTS.md` §4.6 et §5 le 2026-11-14 (allègement). Les numéros d
 
 - ~7 800 lignes (7 843 au 2026-11-05). `scanMods()`, `performToggle`, `applyProfileToFilesystem`, `toggleAllMods`, `deleteMod`, `cleanDisabledMods`, `syncInstalledModRegistry` y vivent encore.
 - Scan de `Mods/` (dont `parseModFolder`) dans `Models/ModScanner.swift`, détenu par VM (`private let scanner`).
-- Refacto **en cours** (`docs/REFACTORING.md`) : état sort vers `StarHubTH/Stores/` (64 fichiers). Règle F1-T2 : fonctionnalité neuve naît dans son type (store ou type pur dans `Models/`), jamais dans VM. Taille VM verrouillée par cliquet.
+- Refacto **en cours** (`docs/REFACTORING.md`) : état sort vers `StarHub/Stores/` (64 fichiers). Règle F1-T2 : fonctionnalité neuve naît dans son type (store ou type pur dans `Models/`), jamais dans VM. Taille VM verrouillée par cliquet.
 
 ## 5.2 Registre des mods installés
 

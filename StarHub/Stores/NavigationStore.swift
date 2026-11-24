@@ -1,0 +1,394 @@
+import Foundation
+import Observation
+
+/// L'état de **navigation** — présentation inter-vues (chantier « vider le
+/// VM de son état publié », cadrage P8) : les vues de détail que `MainView`
+/// remet à `nil` au changement d'onglet, et les requêtes posées d'une vue
+/// et consommées par une autre (patron B3-T4 : une demande peut arriver
+/// avant que la vue n'existe).
+///
+/// La règle du changement d'onglet vit dans `TabChangePlan` (Core, 11 tests,
+/// six sabotages) ; le store ne porte que l'état que cette règle lit et
+/// efface. Les poses inertes sont des `var` publiques — aucune décision ;
+/// les deux canaux s'écrivent par verbe seulement, parce que leur cycle de
+/// vie est posé-par-une-fonction, consommé-par-une-autre.
+@Observable
+/// `@MainActor` (P5-L6) : c'est l'état de navigation que les vues lisent et
+/// que le ViewModel écrit — même raison que `SaveNotesStore` et
+/// `GameEnvironmentStore`. L'isolation est ce qui rend légale la complétion
+/// `@Sendable` de `loadInventory`, dont le chargement, lui, tourne au fond.
+@MainActor
+final class NavigationStore {
+
+    /// R6 — le segment de la page d'une partie (`editingSave`) : Détails,
+    /// Mods ou Historique. Remis à Détails à chaque partie ouverte.
+    var saveSegment: SaveSegment = .details
+    /// N-08 — le dossier de la partie que la palette (↩) demande d'ouvrir.
+    var pendingSaveFocus: String?
+
+    /// A mod the user asked to jump to (from a log line or the health card).
+    ///
+    /// Lives on the store rather than being handled by `ModListView`: tabs
+    /// are built in an `if/else` chain, so when the request is made from the
+    /// Logs tab `ModListView` doesn't exist yet and can't observe a
+    /// notification. It reads and clears this on appear instead.
+    var pendingModFocus: String?
+
+    /// Le mod dont la fiche doit s'ouvrir **sur son onglet Traduction**, par
+    /// dossier logique. Posé par la couverture française d'un profil (B3-T4),
+    /// où le geste attendu n'est pas « regarde ce mod » mais « traduis-le ».
+    /// La fiche le consomme à son apparition ; il ne survit pas au passage
+    /// d'un mod à l'autre.
+    var pendingTranslationFocus: String?
+
+    /// Le mod dont l'**éditeur de configuration** doit s'ouvrir après un
+    /// changement d'onglet, par dossier logique. Posé par le rapport de
+    /// raccourcis (Alertes système, T8) ; consommé et effacé par le
+    /// `onChange` de `MainView` après sa remise à zéro des états de détail —
+    /// poser `editingModConfig` avant la bascule ne sert à rien, la remise à
+    /// zéro l'efface aussitôt (même piège que `pendingTranslationFocus`).
+    var pendingConfigFocus: String?
+
+    /// Le réglage **précis** que l'éditeur de configuration doit montrer —
+    /// le `keyPath` de la ligne du rapport de raccourcis (C4-T13). Posé avec
+    /// `pendingConfigFocus`, consommé par l'éditeur (scroll + surlignage),
+    /// effacé aux mêmes endroits que lui.
+    var pendingConfigFocusKeyPath: [String]?
+
+    /// Le mod dont la **fiche** doit s'ouvrir après un changement d'onglet —
+    /// une requête libre (dossier OU nom affiché), résolue via
+    /// `ModFocusResolver` au moment de la consommation. Posé par
+    /// `SystemAlertsView` (H-T6b) pour ses lignes SMAPI/raccourcis/conflit :
+    /// contrairement à `pendingModFocus` (qui ne fait que CADRER la liste,
+    /// voir sa doc), celui-ci ouvre la fiche elle-même — même piège, même
+    /// cure que `pendingConfigFocus` : consommé dans le `onChange` de
+    /// `MainView`, après la remise à zéro des états de détail.
+    var pendingModDetailFocus: String?
+
+    /// L'onglet sur lequel la prochaine fiche de mod doit s'ouvrir, quand
+    /// l'appelant ne veut pas la description par défaut. Posé avec
+    /// `pendingModDetailFocus` par `SystemAlertsView` : une alerte parle de
+    /// l'ÉTAT du mod (compatibilité, erreurs, raccourcis, conflits), pas de
+    /// sa prose — l'ouvrir sur la description obligeait à un clic de plus
+    /// pour lire ce qui motivait l'alerte.
+    ///
+    /// Consommé par `ModDetailView` elle-même, comme `pendingTranslationFocus`
+    /// : `selectedTab` est un `@State` privé de cette vue. Remis à `nil` par
+    /// `MainView` quand la résolution échoue, sinon la demande survivrait
+    /// jusqu'à la prochaine fiche ouverte à la main.
+    var pendingDetailTab: DetailTab?
+
+    /// C2-T4 — le cadrage du diff de traduction demandé par le bouton
+    /// « Traduire les nouveaux textes » de la section « Dernière mise à jour ».
+    /// Consommé au `.task` de `TranslationDiffView` (là seul où le filtre
+    /// existe avant que les groupes se rebâtissent), remis à `nil` aussitôt —
+    /// la réouverture manuelle de l'onglet ne rejoue pas le cadrage.
+    var pendingTranslationDiffFilter: TranslationCoverage.DiffFilter?
+
+    /// Le texte à préremplir dans la recherche des Journaux après un
+    /// changement d'onglet. Posé par `SystemAlertsView` (H-T6b) pour ses
+    /// lignes sans mod résolvable (outil externe, notice bénigne sans mod).
+    ///
+    /// Contrairement à `pendingConfigFocus`/`pendingModDetailFocus`, la
+    /// cible n'est pas un `@Published` que `MainView` lit pour choisir quelle
+    /// sous-vue rendre : `searchText` est un `@State` PRIVÉ de `LogsView`,
+    /// que `MainView` ne peut pas atteindre depuis son propre `onChange`.
+    /// `LogsView` le consomme donc lui-même, à son apparition — même patron
+    /// que `pendingModFocus` dans `ModListView`
+    /// (« une requête peut arriver avant que la vue n'existe »), pas celui de
+    /// `pendingConfigFocus`.
+    var pendingLogFocus: String?
+
+    /// D4-T4 §3a — l'en-tête d'un bloc SMAPI (« Changed save serializer »…)
+    /// que le journal doit montrer tel quel. Posé par la carte Santé, consommé
+    /// par `LogsView` à son apparition (patron `pendingLogFocus`) : la carte et
+    /// le journal ne sont plus dans le même onglet, une notification postée
+    /// vers le journal non affiché serait perdue.
+    var pendingLogSection: String?
+
+    /// ⌘F depuis un autre onglet de « Diagnostic & Performances » : le journal
+    /// prend le focus de sa recherche, puis remet ceci à `false`.
+    var pendingLogSearchFocus = false
+
+    /// Le journal filtré sur `search` (un mod, une ligne) : onglet Journal,
+    /// intention, page. Même forme qu'`openBackups(for:)`.
+    func openLog(search: String) {
+        diagnosticsSegment = .journal
+        pendingLogFocus = search
+        requestTab(.logs)
+    }
+
+    /// Le bloc SMAPI d'en-tête `section`, tel qu'écrit dans le journal.
+    func openLog(section: String) {
+        diagnosticsSegment = .journal
+        pendingLogSection = section
+        requestTab(.logs)
+    }
+
+    /// ⌘F sur l'onglet Santé : on est déjà sur la page, seul l'onglet change.
+    func focusLogSearch() {
+        diagnosticsSegment = .journal
+        pendingLogSearchFocus = true
+    }
+
+    /// Lot D de l'audit Performances (I-T22, S8) — l'onglet Performances
+    /// demandé depuis la liste, la fiche, Santé ou la palette : l'ancre à
+    /// montrer et, pour l'historique, le mod à mettre en tête. Consommé par
+    /// `PerformanceView` à son apparition et au changement (patron
+    /// `pendingLogFocus`) : la vue peut ne pas exister encore.
+    struct PerformanceFocus: Equatable {
+        let anchor: String
+        let modFolder: String?
+    }
+    var pendingPerformanceFocus: PerformanceFocus?
+
+    /// Ouvre « Diagnostic & Performances » sur l'onglet Performances, à
+    /// l'ancre voulue (`"summary"`, `"loads"`, `"mods"`…).
+    func openPerformance(anchor: String = "summary", modFolder: String? = nil) {
+        diagnosticsSegment = .performance
+        pendingPerformanceFocus = PerformanceFocus(anchor: anchor, modFolder: modFolder)
+        requestTab(.logs)
+    }
+
+    /// Intention d'ouvrir la feuille « Plan de raccourcis » : posée avant le
+    /// changement d'onglet, consommée par `KeybindReportSection` à son
+    /// apparition et au changement (patron `pendingPerformanceFocus` — le
+    /// changement d'onglet remet les états de détail à nil, MainView).
+    var pendingKeybindPlanFocus = false
+
+    /// Ouvre « Alertes système » sur le rapport de raccourcis, feuille du plan
+    /// à l'arrivée.
+    func openKeybindPlan() {
+        alertsSegment = .keybinds
+        pendingKeybindPlanFocus = true
+        requestTab(.systemAlerts)
+    }
+
+    /// I-T5 — « Sauvegardes de ce mod » : le dossier logique dont la page
+    /// Sauvegardes doit s'ouvrir filtrée et dépliée. Consommé par
+    /// `ModInstallBackupsView` à son apparition (patron `pendingLogFocus`).
+    var pendingBackupsFocus: String?
+
+    /// N-12 — le profil dont la palette (↩) demande l'aperçu : `ModProfilesView`
+    /// ouvre sa feuille sans rien activer. ⌘↩ active, par `applyProfile`.
+    var pendingProfilePreview: UUID?
+
+    func openProfilePreview(_ id: UUID) {
+        pendingProfilePreview = id
+        requestTab(.profiles)
+    }
+
+    /// Ouvre les sauvegardes d'installation d'un mod : segment, filtre, onglet.
+    func openBackups(for folderName: String) {
+        backupsSegment = .install
+        pendingBackupsFocus = folderName
+        requestTab(.backups)
+    }
+
+    /// R8 — les sauvegardes de **configuration** d'un mod, depuis l'éditeur ;
+    /// consommé par `BackupsView`.
+    var pendingConfigBackupsFocus: String?
+
+    func openConfigBackups(for folderName: String) {
+        backupsSegment = .config
+        pendingConfigBackupsFocus = folderName
+        requestTab(.backups)
+    }
+
+    /// La fiche d'un mod, onglet choisi par `DetailArrival`, depuis une page qui ne peut
+    /// pas écrire `currentTab` (onglet Performances) : l'intention traverse le
+    /// changement d'onglet et `MainView` la consomme (patron B3-T4).
+    func openModDetail(folderName: String, door: DetailDoor) {
+        pendingModDetailFocus = folderName
+        pendingDetailTab = DetailArrival.tab(for: door)
+        requestTab(.mods)
+    }
+
+    /// « Voir la fiche » depuis la fenêtre de bilan. La fenêtre ne peut
+    /// pas lire `currentTab` (`@State` de MainView) — la décision se prend
+    /// donc LÀ où vit l'état : MainView consomme ce canal et choisit la
+    /// pose directe ou le passage par le changement d'onglet (patron
+    /// B3-T4 — poser les pendings avant `currentTab` ne marche jamais).
+    private(set) var reportDetailFocus: String?
+
+    /// Consommé par MainView : la fiche est demandée (pose directe ou
+    /// changement d'onglet), le canal peut retomber.
+    /// La porte de cette demande (palette ou bilan) : l'onglet suit `DetailArrival`.
+    private(set) var reportDetailDoor: DetailDoor = .palette
+
+    func openReportDetail(for folderName: String, door: DetailDoor) {
+        reportDetailDoor = door
+        reportDetailFocus = folderName
+    }
+
+    func consumeReportDetailFocus() {
+        reportDetailFocus = nil
+    }
+
+    // MARK: - Navigation demandée depuis la scène App (I-T1 / I-T2)
+
+    /// L'onglet demandé depuis le menu « Aller » ou la palette ⌘K.
+    ///
+    /// `.commands` vit dans la scène App, `currentTab` est un `@State` de
+    /// MainView : le menu ne peut pas l'écrire. Même canal que
+    /// `reportDetailFocus` ci-dessus, pour la même raison (patron B3-T4).
+    private(set) var pendingTabRequest: SidebarDestination?
+
+    func requestTab(_ destination: SidebarDestination) { pendingTabRequest = destination }
+
+    /// Consommé par MainView une fois l'onglet appliqué.
+    func consumePendingTabRequest() {
+        pendingTabRequest = nil
+    }
+
+    /// « Retour » ou « Avancer » demandés hors de MainView — le ✕ d'une fiche,
+    /// ⌘[ et ⌘] du menu « Aller » — appliqués par MainView avec la règle de
+    /// `NavigationHistory` (N-00). Même canal que `pendingTabRequest`.
+    enum HistoryStep: Sendable { case back, forward }
+    private(set) var pendingHistoryStep: HistoryStep?
+
+    func requestHistoryStep(_ step: HistoryStep) { pendingHistoryStep = step }
+    func consumePendingHistoryStep() { pendingHistoryStep = nil }
+
+    /// « Installer des mods… » (⌘O, menu Fichier — N-07) : la feuille vit
+    /// sur `MainView` (`InstallRequestConsumer`), qui consomme la demande.
+    private(set) var pendingInstallRequest = false
+    /// Cette feuille ouverte : le dépôt sur la fenêtre (P5-5a) ne la double pas.
+    var showsInstallSheet = false
+
+    func requestInstall() {
+        pendingInstallRequest = true
+        requestTab(.mods)
+    }
+
+    func consumeInstallRequest() { pendingInstallRequest = false }
+
+    // MARK: - Poses à effet
+
+    /// Les closures d'effet — I/O injectées (patron du dépôt) : le store
+    /// décide, l'app câble la plomberie. Défauts `nil` : rien ne se
+    /// déclenche tant que le VM n'a pas câblé, et les tests injectent des
+    /// espions.
+    @ObservationIgnored private(set) var onModDetailOpen: ((ModItem) -> Void)?
+    @ObservationIgnored private(set) var onConfigEditorClosed: (() -> Void)?
+    @ObservationIgnored private(set) var loadInventory:
+        (@Sendable (SaveGameInfo, @escaping @MainActor @Sendable ([InventoryItem]) -> Void) -> Void)?
+
+    init(onModDetailOpen: ((ModItem) -> Void)? = nil,
+         onConfigEditorClosed: (() -> Void)? = nil,
+         loadInventory: (@Sendable (SaveGameInfo, @escaping @MainActor @Sendable ([InventoryItem]) -> Void) -> Void)? = nil) {
+        self.onModDetailOpen = onModDetailOpen
+        self.onConfigEditorClosed = onConfigEditorClosed
+        self.loadInventory = loadInventory
+    }
+
+    /// Câblage **après construction** — la voie de l'app : le ViewModel est
+    /// lui-même `@Observable`, une propriété `lazy` y est impossible et son
+    /// `init(localization:)` câble les effets une fois le store posé. (Les
+    /// tests passent plutôt les espions à l'`init`.)
+    func wireEffects(onModDetailOpen: ((ModItem) -> Void)?,
+                     onConfigEditorClosed: (() -> Void)?,
+                     loadInventory: (@Sendable (SaveGameInfo, @escaping @MainActor @Sendable ([InventoryItem]) -> Void) -> Void)?) {
+        self.onModDetailOpen = onModDetailOpen
+        self.onConfigEditorClosed = onConfigEditorClosed
+        self.loadInventory = loadInventory
+    }
+
+    /// Non-nil = the detail pane is showing this mod. Le poser déclenche le
+    /// chargement de la fiche (cache/local instantané, puis un
+    /// rafraîchissement en fond — `loadModDetail`, resté au VM) — sauf pour
+    /// `nil`, qui ne déclenche rien : fermer n'est pas charger.
+    private(set) var viewingModDetail: ModItem?
+
+    func setViewingModDetail(_ mod: ModItem?) {
+        viewingModDetail = mod
+        guard let mod else { return }
+        onModDetailOpen?(mod)
+    }
+
+    /// Le mod dont l'éditeur de configuration est ouvert. **X66 — toute
+    /// écriture dans un `config.json` périme le rapport de raccourcis**, et
+    /// la fermeture de l'éditeur en est une : seule la transition
+    /// non-nil → nil déclenche le rescan. La garde éprouve trois
+    /// conséquences : ouvrir l'éditeur n'a rien à rescanner (nil → non-nil),
+    /// une transition non-nil → non-nil n'est pas une fermeture, et une
+    /// « fermeture » depuis nil n'en est pas une non plus. La règle en un
+    /// seul exemplaire vit dans `rescanKeybindsAfterConfigWrite()` (VM) ;
+    /// le canal ci-dessous n'est que l'un de ses appelants.
+    private(set) var editingModConfig: ModItem?
+
+    func setEditingModConfig(_ mod: ModItem?) {
+        let oldValue = editingModConfig
+        editingModConfig = mod
+        guard oldValue != nil, editingModConfig == nil else { return }
+        onConfigEditorClosed?()
+    }
+
+    /// La sauvegarde dont l'éditeur d'inventaire est ouvert, et l'inventaire
+    /// qu'elle affiche. Poser une sauvegarde **vide l'inventaire d'abord** —
+    /// l'éditeur ne doit jamais montrer celui de la sauvegarde précédente
+    /// pendant le chargement — puis lance la lecture par `loadInventory`
+    /// (l'app la câble hors fil principal : un gros fichier de sauvegarde ne
+    /// doit pas geler l'interface). Le résultat n'atterrit que si la
+    /// sauvegarde affichée est toujours celle demandée — garde anti-course
+    /// par `id`, l'utilisateur peut changer de cible pendant que le fichier
+    /// se lit. `nil` vide sans charger.
+    private(set) var editingSave: SaveGameInfo?
+    /// Brouillon de l'inventaire, remplacé lors d'un rechargement.
+    var inventoryToEdit: [InventoryItem] = []
+
+    /// Un ancien champ peut encore valider sa valeur après un changement de sauvegarde.
+    func updateInventoryItem(id: InventoryItem.ID, _ update: (inout InventoryItem) -> Void) {
+        guard let index = inventoryToEdit.firstIndex(where: { $0.id == id }) else { return }
+        update(&inventoryToEdit[index])
+    }
+
+    /// Le segment affiché par la page « Sauvegardes des mods » (I-T8). Vit
+    /// ici plutôt qu'en `@State` : `MainView` reconstruit la page à chaque
+    /// changement d'onglet, et le segment choisi doit survivre à l'aller-retour.
+    /// Hors de la règle de `TabChangePlan` : rien ne le remet à zéro.
+    var backupsSegment: BackupsSegment = .install
+
+    /// L'onglet affiché par « Diagnostic & Performances » (D4-T4 §3a). Santé
+    /// d'abord : c'est le résumé qu'on vient chercher. Vit ici pour survivre
+    /// au changement de page, hors de la règle de `TabChangePlan`, comme
+    /// `backupsSegment`.
+    var diagnosticsSegment: DiagnosticsSegment = .health
+
+    /// L'onglet affiché par « Alertes système » : la liste triée, le rapport
+    /// des raccourcis, le panorama des conflits (autrefois deux feuilles).
+    /// Même règle que `backupsSegment`.
+    var alertsSegment: AlertsSegment = .alerts
+
+    /// L'écran d'aide des raccourcis clavier, ouvert par l'icône du pied de
+    /// la barre latérale ou par ⌘/ (menu Aide). Ici et non en `@State` de
+    /// MainView : le menu vit dans la scène App et ne peut écrire que les
+    /// canaux du ViewModel.
+    var showsShortcutsHelp = false
+
+    /// La section que la fenêtre d'aide doit montrer (spec aide intégrée §4).
+    /// La section seulement : chaque entrée ouvre la fenêtre elle-même, car
+    /// la fenêtre principale peut être fermée.
+    var pendingHelpSection: String?
+
+    /// Une section à montrer dans la fenêtre des Réglages, puis à effacer.
+    var pendingSettingsSection: SettingsSection?
+
+    func setEditingSave(_ save: SaveGameInfo?) {
+        editingSave = save
+        if save != nil { saveSegment = .details }
+        inventoryToEdit = []
+        guard let save, let load = loadInventory else { return }
+        let requestedId = save.id
+        // La complétion est `@MainActor @Sendable` (P5-L6) : le chargement
+        // part au fond, mais sa remise reste **synchrone sur l'acteur**.
+        // Un hop `Task` la différerait d'un tour — or le garde sur
+        // `requestedId`, qui refuse un inventaire arrivé après un changement
+        // de sauvegarde, doit lire l'état au moment exact de l'écriture.
+        // Deux tests du store épinglent cette synchronicité.
+        load(save) { [weak self] items in
+            guard let self, self.editingSave?.id == requestedId else { return }
+            self.inventoryToEdit = items
+        }
+    }
+}

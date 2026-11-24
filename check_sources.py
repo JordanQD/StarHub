@@ -415,15 +415,15 @@ def probe_pinned_constants(spec):
         return m.group(1) if m else None
 
     return {
-        "smapi_apiVersion": grep1("StarHubTH/Models/SmapiUpdateRequest.swift",
+        "smapi_apiVersion": grep1("StarHub/Models/SmapiUpdateRequest.swift",
                                   r'apiVersion\s*=\s*"([^"]+)"'),
-        "smapi_defaultGameVersion": grep1("StarHubTH/Models/SmapiUpdateRequest.swift",
+        "smapi_defaultGameVersion": grep1("StarHub/Models/SmapiUpdateRequest.swift",
                                           r'defaultGameVersion\s*=\s*"([^"]+)"'),
-        "nexus_apiBase": grep1("StarHubTH/Models/NexusRequestBuilder.swift",
+        "nexus_apiBase": grep1("StarHub/Models/NexusRequestBuilder.swift",
                                r'apiBase\s*=\s*"([^"]+)"'),
-        "smapi_endpoint": grep1("StarHubTH/SmapiUpdateClient.swift",
+        "smapi_endpoint": grep1("StarHub/Services/SMAPI/SmapiUpdateClient.swift",
                                 r'endpoint\s*=\s*URL\(string:\s*"([^"]+)"'),
-        "pathoschild_dumpURL": grep1("StarHubTH/Models/PathoschildCompatibilityList.swift",
+        "pathoschild_dumpURL": grep1("StarHub/Models/PathoschildCompatibilityList.swift",
                                      r'"(https://raw\.githubusercontent\.com/[^"]+)"'),
     }
 
@@ -437,13 +437,13 @@ SOURCES = [
     # — Contrats réseau vivants —
     {"key": "smapi.io/contrat", "kind": "contract", "probe": probe_smapi_contract,
      "role": "API de mise à jour : le verdict de tous les mods du parc",
-     "used_by": "StarHubTH/SmapiUpdateClient.swift"},
+     "used_by": "StarHub/Services/SMAPI/SmapiUpdateClient.swift"},
 
     {"key": "pathoschild/dump", "kind": "contract", "probe": probe_pathoschild_fields,
      "url": "https://raw.githubusercontent.com/Pathoschild/SmapiCompatibilityList"
             "/develop/data/mods.jsonc",
      "role": "filet hors-ligne des verdicts de compatibilité",
-     "used_by": "StarHubTH/Models/PathoschildCompatibilityList.swift"},
+     "used_by": "StarHub/Models/PathoschildCompatibilityList.swift"},
 
     {"key": "smapi/blacklist", "kind": "contract", "probe": probe_smapi_blacklist,
      "url": "https://smapi.io/SMAPI.blacklist.json",
@@ -451,7 +451,7 @@ SOURCES = [
              "distincte de mods.jsonc (incompatibilités) : ici les messages "
              "parlent de code hostile, et plusieurs entrées sont des reuploads "
              "piégés de mods légitimes",
-     "used_by": "StarHubTH/Models/SmapiBlacklist.swift",
+     "used_by": "StarHub/Models/SmapiBlacklist.swift",
      "note": "un écart ici n'est pas une régression mais une nouvelle menace : "
              "une entrée de plus veut dire un mod piégé de plus, à croiser au parc"},
 
@@ -461,14 +461,14 @@ SOURCES = [
                    "ItemBags%203.1.0%20%28PC%29-5382-3-1-0-1746473523.zip.json",
      "role": "A1-T11 — ce que chaque fichier Nexus contient (chemins, SHA-256) : "
              "la mise à jour y reconnaît les fichiers qu'un auteur a retirés",
-     "used_by": "StarHubTH/Models/NexusFileManifestFetcher.swift",
+     "used_by": "StarHub/Models/NexusFileManifestFetcher.swift",
      "note": "témoins : Wildroot Chronicles 1.4.2 (fichier 184199, format récent) "
              "et ItemBags 3.1.0 (format ancien, chemins seuls)"},
 
     {"key": "nexus/api-v1", "kind": "http",
      "url": "https://api.nexusmods.com/v1/games/stardewvalley.json",
      "role": "API Nexus v1 — mods, fichiers, quota, compte",
-     "used_by": "StarHubTH/Models/NexusRequestBuilder.swift",
+     "used_by": "StarHub/Models/NexusRequestBuilder.swift",
      "note": "sans clé, un 401 est la bonne réponse : on vérifie que l'hôte "
              "répond et n'a pas été retiré, pas qu'il nous laisse entrer"},
 
@@ -584,7 +584,7 @@ SOURCES = [
      "role": "mod de perf de chargement (cache d'images, TBin) ; membre de deux "
              "paires du catalogue des recouvrements (A5-T7) — une version neuve "
              "peut rendre la ligne fausse, la redécompiler",
-     "used_by": "StarHubTH/Models/PerformanceOverlap.swift"},
+     "used_by": "StarHub/Models/PerformanceOverlap.swift"},
 
     {"key": "mod/profiler", "kind": "smapi-mod", "probe": probe_smapi_mod,
      "nexusId": 12135, "uniqueId": "SinZ.Profiler",
@@ -757,13 +757,13 @@ SOURCES = [
 UNPROBED = [
     ("DeepL", "api.deepl.com et api-free.deepl.com, chemins /v2/translate et "
               "/v2/usage — une sonde consommerait le quota de la clé",
-     "StarHubTH/Models/DeepLClient.swift"),
+     "StarHub/Models/DeepLClient.swift"),
     ("IA locale", "Ollama / LM Studio sur le loopback, contrat OpenAI "
                   "`POST {base}/v1/chat/completions` — ne tourne pas toujours",
-     "StarHubTH/Models/LocalLLMClient.swift"),
+     "StarHub/Models/LocalLLMClient.swift"),
     ("Nexus GraphQL v2", "api.nexusmods.com/v2/graphql — la recherche ; "
                          "exige un jeton",
-     "StarHubTH/NexusSearchClient.swift"),
+     "StarHub/Services/Nexus/NexusSearchClient.swift"),
     ("Steam", "steam://run/413150 et les fichiers locaux du client Steam "
               "(nom et avatar)",
      "StarHubTHViewModel.launchGame / fetchSteamUser"),

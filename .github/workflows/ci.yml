@@ -27,6 +27,8 @@ jobs:
         run: swift scripts/check-localizations.swift
 
       - name: Build macOS app
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
         run: xcodebuild -project StarHub.xcodeproj -scheme StarHub -destination 'platform=macOS' build
 
       - name: Build tests

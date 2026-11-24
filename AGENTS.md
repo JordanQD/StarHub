@@ -7,7 +7,7 @@
 
 ## 1. Identité du projet
 
-- **StarHub** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHubTH/`, bundle `StarHub.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en`, `fr` et `zh-Hans`. Détail : `docs/agents/README.md`.
+- **StarHub** — gestionnaire mods Stardew Valley macOS (SwiftUI, macOS 14+), fork de **StarHubTH** (AppleBoiy). Source `StarHub/`, bundle `StarHub.app`, ID `com.mrbabilo.StarHubFR` (ancien `com.appleboiy.StarHubTH` lu en secours). Données : `~/Library/Application Support/StarHubFR/`. UI `en`, `fr` et `zh-Hans`. Détail : `docs/agents/README.md`.
 
 **Avant toucher mods, SMAPI, Nexus, profils, sauvegardes ou fichiers traduction : lire `docs/DOMAINE.md`.**
 
@@ -120,7 +120,7 @@ Détail : `docs/agents/architecture.md` (avant toucher VM, scan, registre, cache
 ## 6. UI — contraintes fixes
 
 - **Sidebar** : pas de barre de recherche. « Mod Updates » **toujours visible** (badge caché si 0).
-- **Pages de liste** (`ModListView`, `LogsView`) : `VStack(spacing: 0)` — header fixe + Divider + ScrollView + footer fixe. **Pagination** : 12 mods/page, saut direct.
+- **Pages de liste** (`ModListView`, `LogsView`) : `VStack(spacing: 0)` — header fixe + Divider + ScrollView + footer fixe. La liste des mods défile en continu.
 - Bouton textuel lisible à 560 pt **ou** icône seule + infobulle, jamais tronqué (`AdaptiveLabels`) ; rangée trop large → `SplitRow`, `WrapHStack`.
 - Détail (segments, mesure des libellés, splash `NSPanel` et ses deux pièges AppKit) : `docs/agents/ui.md`.
 

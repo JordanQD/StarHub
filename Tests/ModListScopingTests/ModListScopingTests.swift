@@ -61,13 +61,11 @@ struct ModListScopingTests {
         f.frenchTranslation = .stale
         f.impactScope = .high
         f.sort = .installDate
-        f.page = 7
 
         f.clearFiltering()
 
         #expect(f.emptyCause == nil)
         #expect(f.sort == .installDate)
-        #expect(f.page == 1)
     }
 
     // MARK: - matchesSelfOrAnyChild

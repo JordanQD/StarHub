@@ -129,7 +129,7 @@ fonctionnalité chez l'utilisateur, souvent **en silence**.
 |---|---|
 | **Point d'entrée** | `POST https://smapi.io/api/v3.0/mods` |
 | **Rôle** | le verdict de mise à jour **et** de compatibilité de tout le parc |
-| **Code** | `StarHubTH/SmapiUpdateClient.swift`, `Models/SmapiUpdateRequest.swift`, `Models/SmapiUpdateResponse.swift` |
+| **Code** | `StarHub/Services/SMAPI/SmapiUpdateClient.swift`, `Models/SmapiUpdateRequest.swift`, `Models/SmapiUpdateResponse.swift` |
 | **Clé requise** | non — gratuit, sans quota. C'est la voie principale ; Nexus n'est le filet que pour ce que smapi.io ne tranche pas |
 
 **Son mode de panne est le silence.** Le service rend `HTTP 200` et une **liste
@@ -163,7 +163,7 @@ répondent tous à l'identique.
 |---|---|
 | **URL** | `https://raw.githubusercontent.com/Pathoschild/SmapiCompatibilityList/develop/data/mods.jsonc` |
 | **Rôle** | filet hors-ligne des verdicts, quand smapi.io est muet |
-| **Code** | `StarHubTH/Models/PathoschildCompatibilityList.swift` |
+| **Code** | `StarHub/Models/PathoschildCompatibilityList.swift` |
 | **Branche** | `develop` est la branche **par défaut** ; `main` n'existe pas (un lien vers `main` rend un 404 de 14 octets) |
 
 ⚠️ C'est du **JSONC** : commentaires de ligne et virgules traînantes. Et les
@@ -206,7 +206,7 @@ comportement de SMAPI (mod `AssumeBroken` en dessous de sa borne) ; code :
 |---|---|
 | **URL** | `https://smapi.io/SMAPI.blacklist.json` |
 | **Rôle** | les mods que SMAPI refuse de charger parce qu'ils sont piégés |
-| **Code** | `StarHubTH/Models/SmapiBlacklist.swift` |
+| **Code** | `StarHub/Models/SmapiBlacklist.swift` |
 | **Relevé** | `smapi/blacklist` dans `check_sources.py` |
 
 ⚠️ **Ne pas confondre avec `mods.jsonc` (§2.2).** Celui-là porte les
@@ -323,7 +323,7 @@ résultat ; `op: OR` → tout le catalogue). Code : `Models/NexusModStats.swift`
 |---|---|
 | **Point d'entrée** | `https://api.nexusmods.com/v2/graphql` |
 | **Rôle** | la recherche de mods, la vitrine Découverte, le repli de la fiche (A3-T7 : description + `modFiles.changelogText`, **seul appel parti sans clé**) |
-| **Code** | `StarHubTH/NexusSearchClient.swift`, `Models/NexusModDetailV2.swift` (fiche) ; lien « requis par » et relecture par lots : `Models/NexusTranslationLinks.swift`, `FrenchTranslationLookup.swift` (C5-T1) |
+| **Code** | `StarHub/Services/Nexus/NexusSearchClient.swift`, `Models/NexusModDetailV2.swift` (fiche) ; lien « requis par » et relecture par lots : `Models/NexusTranslationLinks.swift`, `FrenchTranslationLookup.swift` (C5-T1) |
 | **À savoir** | le filtre est un tag `French`, pas une catégorie. `ModsFilter` porte 27 champs, dont `categoryName` et `languageName` |
 | **Sans jeton** | **faux, ce que disait cette ligne** (mesuré le 2026-09-24) : introspection, `mods(filter:…)` et `modRequirements` répondent sans clé, à condition d'envoyer un `User-Agent` — sans lui, Cloudflare rend 403. L'app garde la clé (quota, cohérence avec v1), sauf pour la fiche (A3-T7) |
 | **Traductions d'un mod** | `modRequirements { modsRequiringThisMod(count:, offset:) { totalCount nodes { modId modName notes } } }` : les fiches qui déclarent le mod comme prérequis — les traductions en font partie, **sans champ de langue** (la langue se lit dans `modName`). La section « Translations » de la page web (langue → fiche) **n'est pas exposée** par le schéma (38 champs de `Mod`, aucun). Mesuré sur le parc : 176 mods traduisibles sans `fr.json`, 94 avec un id Nexus (87 distincts) ; **10** ont une traduction FR requérante, **toutes justes** ; la recherche nom + tag `French` en rend 11 dont **4 fausses**, et ses 7 justes sont déjà dans les 10. SVE (3753) : 756 requérants, 3 des 5 traductions FR de la page y figurent. ⚠️ **Le lien ne dit pas « traduction de ce mod »** : relu par l'app (Swift, API réelle), SVE rend 8 traductions FR liées dont 4 traduisent un **autre** mod qui requiert SVE, et le tag `French` seul fait passer pour traductions des mods écrits en français (3 requérants de T's Core). Règle livrée : tags `French`+`Translation` ou titre, puis « confirmée » seulement si le titre nomme le mod — sur le parc, 9 traductions liées, 8 confirmées. Les **packs** (17 candidats) n'ont jamais d'id Nexus au manifeste de tête : pour eux, recherche par nom seule |
@@ -337,7 +337,7 @@ résultat ; `op: OR` → tout le catalogue). Code : `Models/NexusModStats.swift`
 | **Format récent** | `https://mod-file-manifests.nexusmods.com/<uri>` quand l'`uri` est en `xx/yy/zz/<uuid>` — chemins **et SHA-256** de chaque fichier, empreinte de l'archive et de sa version reconditionnée |
 | **Format ancien** | `https://file-metadata.nexusmods.com/file/nexus-files-s3-meta/1303/<modId>/<uri encodée>.json` quand l'`uri` est le nom du fichier stocké — arbre de **chemins seuls**, tailles arrondies (`578.6 kB`, unité non prouvée). Très vieux fichiers : 404 HTML. Lu par l'app depuis A1-T11 plan 2, **seulement** pour « Nettoyer les anciens fichiers » (`includeLegacy`), jamais pendant une mise à jour ; mesure du 2026-09-28 : seule référence de la version installée pour 58 % des mods Nexus du parc (585 sur 1 004) |
 | **Rôle** | la mise à jour reconnaît les fichiers qu'un auteur a retirés (identiques à une ancienne version) ; le nettoyage (plan 2) lit aussi l'ancien format |
-| **Code** | `StarHubTH/Models/NexusFileManifestFetcher.swift`, `NexusFileManifest.swift`, `NexusRequestBuilder.makeManifestRequest` |
+| **Code** | `StarHub/Models/NexusFileManifestFetcher.swift`, `NexusFileManifest.swift`, `NexusRequestBuilder.makeManifestRequest` |
 | **Relevé** | `nexus/manifestes-fichiers` dans `check_sources.py` |
 
 Mesuré le 2026-09-27 :

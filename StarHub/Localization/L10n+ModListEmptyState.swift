@@ -1,0 +1,18 @@
+extension L10n.Mods {
+    static let clearFilters = "mods_clear_filters"
+    static let noActiveFilterResults = "mods_no_active_filter_results"
+    static let noFilterResults = "mods_no_filter_results"
+    static let layoutTitle = "mods_layout_title"
+    static let sortTitle = "mods_sort_title"
+    static let filtersTitle = "mods_filters_title"
+    static let attributeFilters = "mods_attribute_filters"
+    static let activationActions = "mods_activation_actions"
+    static let tableName = "mods_table_name"
+    static let tableType = "mods_table_type"
+    static let tableEnabled = "mods_table_enabled"
+    static let statusItems = "mods_status_items"
+    static let statusSelection = "mods_status_selection"
+    static let statusOccupied = "mods_status_occupied"
+    static let statusSelectionOccupied = "mods_status_selection_occupied"
+    static let statusAvailable = "mods_status_available"
+}

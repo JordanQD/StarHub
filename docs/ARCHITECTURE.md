@@ -30,37 +30,35 @@ Elle interroge smapi.io, Nexus Mods (API v1 avec clé, GraphQL v2), GitHub (rele
 ## Arborescence
 
 ```
-StarHubTH/                  sources de l'app (le nom de l'amont est resté)
-  StarHubTHApp.swift        point d'entrée, AppDelegate, fenêtre et menus
-  StarHubTHViewModel.swift  l'ancien objet central, en cours de démontage
+StarHub/                    sources de l'app, synchronisées avec Xcode
+  App/                      point d'entrée, fenêtre, menus, ViewModel et clés de préférences
   Models/                   logique pure : types, analyseurs, règles (≈ 350 fichiers)
   Stores/                   état observable d'un domaine, un magasin par sujet (≈ 60)
   Views/                    écrans SwiftUI (≈ 120)
   Design/                   jetons de design (couleurs, tailles) côté UI
   Extensions/               petites extensions partagées
-  *.swift (racine)          managers historiques : installation, sauvegardes, SMAPI, Nexus
-  L10n*.swift               accès typé aux libellés
+  Services/                 installation, sauvegardes, SMAPI, Nexus et diagnostics
+  Localization/             accès typé aux libellés (`L10n*.swift`)
 assets/
-  en.json, fr.json          libellés de l'interface, source de vérité
-  *.lproj/                  générés par build_app.py, jamais édités
+  *.lproj/                  catalogues Localizable.strings en, fr et zh-Hans
 companion/
   StarHubFR.Probe/          la sonde : un mod SMAPI en C# (.NET)
   StarHubFR.Probe.Tests/    ses tests (dotnet test)
 Tests/                      tests Swift du cœur, un dossier par sujet
 tools/                      scripts Python hors app (relevés, oracles)
-build_app.py                compile l'app, lance les contrôles, embarque la sonde
+StarHub.xcodeproj/           projet Xcode de l'application
 check_standards.py          cliquet des conventions
 check_sources.py            relevé des sources externes
-release.py                  build de release et archive
+scripts/release.sh           build de release et archive
 ```
 
 ## Les couches
 
 ### Le cœur (`Package.swift`)
 
-`Package.swift` déclare une bibliothèque, `StarHubTHCore`, qui liste **fichier par fichier** les sources testables : presque tout `Models/`, une partie de `Stores/`, les managers racine (`ModZipInstaller`, `ModInstallBackupManager`, `SaveManager`…). C'est le seul code que `swift test` compile, donc le seul qui se teste.
+`Package.swift` déclare une bibliothèque, `StarHubTHCore`, qui liste **fichier par fichier** les sources testables : presque tout `Models/`, une partie de `Stores/` et des services comme `ModZipInstaller`, `ModInstallBackupManager` et `SaveManager`. `swift test` compile ce sous-ensemble et ses cibles de test.
 
-Une règle protège cette frontière : `build_app.py` refuse qu'un fichier du cœur importe SwiftUI. Une logique qui doit être testée naît dans `Models/`, s'ajoute à `Package.swift` et reçoit ses tests dans `Tests/<Sujet>Tests/`.
+Une logique qui doit être testée naît dans `Models/`, s'ajoute à `Package.swift` et reçoit ses tests dans `Tests/<Sujet>Tests/`.
 
 ### Les magasins (`Stores/`)
 

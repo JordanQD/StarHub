@@ -2,7 +2,7 @@
 # scripts/p5-strict.sh — passe stricte hors gate. Ne touche jamais .build.
 set -u
 cd "$(git rev-parse --show-toplevel)"
-SRC=("${(@f)$(find StarHubTH -name '*.swift' | sort)}")
+SRC=("${(@f)$(find StarHub -name '*.swift' | sort)}")
 OUT=${1:-/tmp/p5-measure}
 mkdir -p "$OUT/module-cache"
 t0=$SECONDS

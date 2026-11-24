@@ -200,7 +200,7 @@ Repeat after every new StarHub version: the quarantine comes back with each down
   <img src="assets/banners/developers_banner.png" alt="For Developers" width="300">
 </p>
 
-The app is written in **Swift** and **SwiftUI**. You need macOS 14 and Xcode 16 (the version the CI uses).
+The app is written in **Swift** and **SwiftUI** and runs on macOS 14 or later. To build it with its Icon Composer icon, use **Xcode 26.3 or later** on a Mac that supports that version of Xcode.
 
 ```bash
 xcodebuild -project StarHub.xcodeproj -scheme StarHub build

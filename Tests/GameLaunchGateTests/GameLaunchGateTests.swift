@@ -15,7 +15,7 @@ import Foundation
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let source = try String(contentsOf: repository.appendingPathComponent(
-            "StarHubTH/StarHubTHViewModel.swift"), encoding: .utf8)
+            "StarHub/App/StarHubTHViewModel.swift"), encoding: .utf8)
         // isGameRunning() is called by view bodies and resets this gate.
         // Observing that mutation continually invalidates those same views.
         #expect(source.contains("@ObservationIgnored private var launchGate = GameLaunchGate()"))

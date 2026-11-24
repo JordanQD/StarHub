@@ -58,7 +58,7 @@ for locale in locales.dropFirst() {
     }
 }
 
-let source = try String(contentsOfFile: "StarHubTH/L10n.swift", encoding: .utf8)
+let source = try String(contentsOfFile: "StarHub/Localization/L10n.swift", encoding: .utf8)
     .split(separator: "\n")
     .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
     .joined(separator: "\n")

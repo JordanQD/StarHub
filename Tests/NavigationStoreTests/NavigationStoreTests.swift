@@ -249,6 +249,23 @@ import Foundation
 
     // MARK: - Poses à effet : l'inventaire de sauvegarde
 
+    @Test func staleInventoryEditCannotWriteToAnotherItemInTheSameSlot() {
+        let s = NavigationStore()
+        let item = InventoryItem(slotIndex: 0, itemId: "0", name: "A", stack: 3, isObject: true)
+        s.inventoryToEdit = [item]
+        s.updateInventoryItem(id: item.id) { $0.stack = 4 }
+        #expect(s.inventoryToEdit.first?.stack == 4)
+
+        s.setEditingSave(nil)
+        s.updateInventoryItem(id: item.id) { $0.stack = 99 }
+        #expect(s.inventoryToEdit.isEmpty)
+
+        let replacement = InventoryItem(slotIndex: 0, itemId: "1", name: "B", stack: 2, isObject: true)
+        s.inventoryToEdit = [replacement]
+        s.updateInventoryItem(id: item.id) { $0 = .empty(slot: 0) }
+        #expect(s.inventoryToEdit == [replacement])
+    }
+
     @Test func poserUneSauvegardeVideLinventairePuisCharge() {
         let items = [InventoryItem(slotIndex: 0, itemId: "0", name: "Pomme",
                                    stack: 3, isObject: false)]

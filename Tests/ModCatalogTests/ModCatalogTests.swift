@@ -130,6 +130,10 @@ struct ModCatalogTests {
         // Le 2 arrivait dans les deux pages : une seule carte, à sa place.
         #expect(merged.hits.map(\.modId) == [1, 2, 3])
         #expect(merged.totalCount == 900)
+        #expect(merged.nextOffset == 4)
+
+        catalog.append(.trending, page: NexusModSearch.Page(hits: [], totalCount: 900))
+        #expect(catalog.state(.trending).page?.nextOffset == nil)
     }
 
     /// Ajouter sur une section jamais chargée écrit la page telle quelle —

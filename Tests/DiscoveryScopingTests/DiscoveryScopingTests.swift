@@ -110,11 +110,11 @@ struct DiscoveryScopingTests {
     // MARK: - « Voir plus »
 
     @Test func thereIsMoreWhenTheServerSaysSo() {
-        #expect(DiscoveryScoping.hasMore(received: 20, serverTotal: 33_204))
+        #expect(NexusModSearch.Page(hits: [], totalCount: 33_204, receivedCount: 20).nextOffset == 20)
     }
 
     @Test func thereIsNoMoreOnceEverythingIsReceived() {
-        #expect(!DiscoveryScoping.hasMore(received: 33, serverTotal: 33))
+        #expect(NexusModSearch.Page(hits: [], totalCount: 33, receivedCount: 33).nextOffset == nil)
     }
 
     @Test func theOffsetCountsWhatWasReceivedNotWhatIsShown() {
@@ -123,6 +123,6 @@ struct DiscoveryScopingTests {
         // même offset, et « voir plus » tournerait en rond.
         let received = [hit(1, "Un", adult: true), hit(2, "Deux")]
         #expect(rows(received).count == 1)
-        #expect(DiscoveryScoping.nextOffset(received: received.count) == 2)
+        #expect(NexusModSearch.Page(hits: received, totalCount: 3).nextOffset == 2)
     }
 }

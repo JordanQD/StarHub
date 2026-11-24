@@ -33,6 +33,16 @@ import Testing
         #expect(old.endorsements == nil)
     }
 
+    @Test func releasePreviewUsesTheProposedVersion() throws {
+        let raw = try #require(decode(NexusModDetailV2Fixtures.zebrusCore))
+        let notes = try #require(raw.notes(for: "v1.9.0"))
+        #expect(notes.contains("showing untranslated in every non-English language"))
+        #expect(!notes.contains("type-ahead"))
+        #expect(raw.releaseDate(for: "1.9") == Date(timeIntervalSince1970: 1785668658))
+        #expect(raw.notes(for: "2.0") == nil)
+        #expect(raw.releaseDate(for: "2.0") == nil)
+    }
+
     @Test func queryAsksForEndorsements() throws {
         let body = try #require(NexusModDetailV2.body(modId: 1, gameId: 1303))
         #expect(String(decoding: body, as: UTF8.self).contains("description endorsements"))

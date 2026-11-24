@@ -27,8 +27,8 @@ Deux choses distinctes portent ce nom :
 
 ## Préparer l'environnement
 
-- macOS 14 ou ultérieur.
-- **Xcode 16.4** complet, la version de la CI. Les seuls Command Line Tools ne suffisent pas.
+- L’application fonctionne à partir de macOS 14.
+- **Xcode 26.3 ou ultérieur** sur un Mac compatible pour compiler l’application et son icône Icon Composer. La CI utilise Xcode 26.3 pour l’application et Xcode 16.4 pour les tests SwiftPM. Les seuls Command Line Tools ne suffisent pas.
 - Python 3 pour les outils de maintenance, notamment le contrôle de conventions exécuté en CI.
 
 Si `xcode-select -p` pointe sur `/Library/Developer/CommandLineTools`, la compilation échoue sur `external macro implementation type 'SwiftUIMacros.StateMacro' could not be found`, répété sur chaque `@State`. Ce n'est pas une erreur de code. Préfixez la commande :
@@ -51,7 +51,7 @@ swift scripts/check-localizations.swift
 
 ## Règles du code
 
-- **Une logique pure va dans le cœur** (`StarHubTH/Models/`, déclarée dans `Package.swift`), avec ses tests. Un état partagé va dans son propre magasin (`StarHubTH/Stores/`). Rien de neuf n'entre dans `StarHubTHViewModel`.
+- **Une logique pure va dans le cœur** (`StarHub/Models/`, déclarée dans `Package.swift`), avec ses tests. Un état partagé va dans son propre magasin (`StarHub/Stores/`). Rien de neuf n'entre dans `StarHubTHViewModel`.
 - **Cliquet des conventions** : `check_standards.py`, lancé en CI, échoue si un compteur augmente — fichier de plus de 400 lignes (taille verrouillée fichier par fichier), abréviation `vm`, nouveau `DispatchQueue`, nouveau singleton `.shared`. `python3 check_standards.py --report` donne l'état.
 - **Localisation** : chaque libellé passe par `L10n.swift` et existe sous la même clé dans les trois catalogues. La CI vérifie les clés et les arguments de format.
 - **Vocabulaire métier** : lisez [`docs/DOMAINE.md`](docs/DOMAINE.md) avant de toucher aux mods, profils, sauvegardes ou traductions. Un mod en pause est un dossier préfixé d'un point (`Mods/.X`), jamais un dossier déplacé.
@@ -68,7 +68,7 @@ La carte du code — couches, flux, données sur disque, outillage — est dans 
 3. Un commit par changement logique, au format `type(portée): description` — par exemple `fix(raccourcis): …`, `feat(performances): …`, `docs(readme): …`. Français ou anglais.
 4. Ajoutez une ligne au `CHANGELOG.md`, sous `## [Unreleased]`, en français : ce qui change pour l'utilisateur, en moins de 300 caractères.
 5. Joignez une capture d'écran si l'interface change, en français et à la largeur minimale de la fenêtre si possible.
-6. La CI (Xcode 16.4) doit être verte. Elle compile l’application et le cœur, lance les tests et vérifie les conventions.
+6. La CI doit être verte. Elle compile l’application et le cœur, lance les tests et vérifie les conventions.
 
 Si un assistant IA a écrit un commit, terminez son message par un trailer `Co-Authored-By:` qui nomme le modèle réellement utilisé.
 
@@ -93,7 +93,7 @@ Open an [issue](../../issues/new/choose) and pick a template: **App bug**, **SMA
 
 ## Set up, build, test
 
-You need macOS 14+, full **Xcode 16.4** (the CI version; Command Line Tools alone are not enough) for builds and tests. The maintenance tools use Python 3.
+The app runs on macOS 14 or later. Building the app and its Icon Composer icon requires full **Xcode 26.3 or later** on a compatible Mac. CI uses Xcode 26.3 for the app and Xcode 16.4 for the SwiftPM tests. The maintenance tools use Python 3.
 
 ```bash
 xcodebuild -project StarHub.xcodeproj -scheme StarHub build
@@ -105,7 +105,7 @@ If the build fails on `external macro implementation type 'SwiftUIMacros.StateMa
 
 ## Code rules
 
-- Pure logic goes into the core (`StarHubTH/Models/`, listed in `Package.swift`) with tests; shared state gets its own store (`StarHubTH/Stores/`). Nothing new goes into `StarHubTHViewModel`.
+- Pure logic goes into the core (`StarHub/Models/`, listed in `Package.swift`) with tests; shared state gets its own store (`StarHub/Stores/`). Nothing new goes into `StarHubTHViewModel`.
 - `check_standards.py` fails when a counter grows: files over 400 lines (locked per file), the `vm` abbreviation, new `DispatchQueue`, new `.shared` singletons.
 - Every UI string uses the same key and format arguments in all three catalogs. CI checks both.
 - Read [`docs/DOMAINE.md`](docs/DOMAINE.md) before touching mods, profiles, saves or translations. A paused mod is a dot-prefixed folder (`Mods/.X`).

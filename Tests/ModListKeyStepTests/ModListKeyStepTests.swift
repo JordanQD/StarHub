@@ -3,60 +3,36 @@ import Testing
 
 @Suite("Flèches dans la liste des mods")
 struct ModListKeyStepTests {
-    /// 5 mods, pages de 2 : [a b] [c d] [e].
-    private let order = ["a", "b", "c", "d", "e"]
+    private let order = (1...30).map { "mod-\($0)" }
 
-    private func step(_ current: String?, _ move: ModListKeyStep.Move, page: Int = 1)
-        -> (folderName: String, page: Int)? {
-        ModListKeyStep.target(from: current, move: move, in: order, currentPage: page, pageSize: 2)
+    private func step(_ current: String?, _ move: ModListKeyStep.Move) -> String? {
+        ModListKeyStep.target(from: current, move: move, in: order)
     }
 
-    /// Revue finale (I-T21) : en mode groupé, la page affichée ne commence pas
-    /// à `(page - 1) × taille` — un bandeau replié y prend une place sans mod.
-    @Test func sansSelectionLesBornesDeLaPageGroupeeFontFoi() {
-        let next = ModListKeyStep.target(from: nil, move: .next, in: order, currentPage: 2, pageSize: 2,
-                                         pageBounds: 1...3)
-        let previous = ModListKeyStep.target(from: nil, move: .previous, in: order, currentPage: 2, pageSize: 2,
-                                             pageBounds: 1...3)
-        #expect(next?.folderName == "b")
-        #expect(previous?.folderName == "d")
-    }
-
-    @Test func descendreEtMonterDUnCran() {
-        #expect(step("b", .next)?.folderName == "c")
-        #expect(step("c", .previous)?.folderName == "b")
-    }
-
-    @Test func franchirUnBoutDePageChangeDePage() {
-        #expect(step("b", .next)?.page == 2)
-        #expect(step("c", .previous)?.page == 1)
-        #expect(step("d", .next)?.page == 3)
+    @Test func parcourtLaListeSansCoupure() {
+        #expect(step("mod-12", .next) == "mod-13")
+        #expect(step("mod-13", .previous) == "mod-12")
+        #expect(step("mod-24", .next) == "mod-25")
     }
 
     @Test func auxBoutsRienNeBouge() {
-        #expect(step("e", .next) == nil)
-        #expect(step("a", .previous) == nil)
+        #expect(step("mod-30", .next) == nil)
+        #expect(step("mod-1", .previous) == nil)
     }
 
-    @Test func sansSelectionOnPartDeLaPageAffichee() {
-        #expect(step(nil, .next, page: 2)?.folderName == "c")
-        #expect(step(nil, .previous, page: 2)?.folderName == "d")
-        // Dernière page incomplète : ↑ prend son seul mod.
-        #expect(step(nil, .previous, page: 3)?.folderName == "e")
-    }
-
-    /// Une sélection sortie du cadrage (filtre posé après coup) vaut
-    /// « pas de sélection » : on repart de la page, pas d'un index périmé.
-    @Test func uneSelectionHorsCadrageRepartDeLaPage() {
-        #expect(step("zz", .next, page: 2)?.folderName == "c")
+    @Test func sansSelectionOnPartDesExtremites() {
+        #expect(step(nil, .next) == "mod-1")
+        #expect(step(nil, .previous) == "mod-30")
+        #expect(step("hors-cadrage", .next) == "mod-1")
     }
 
     @Test func debutEtFin() {
-        #expect(step("c", .first).map { [$0.folderName, "\($0.page)"] } == ["a", "1"])
-        #expect(step("a", .last).map { [$0.folderName, "\($0.page)"] } == ["e", "3"])
+        #expect(step("mod-20", .first) == "mod-1")
+        #expect(step("mod-4", .last) == "mod-30")
     }
 
     @Test func listeVide() {
-        #expect(ModListKeyStep.target(from: nil, move: .next, in: [], currentPage: 1, pageSize: 12) == nil)
+        #expect(ModListKeyStep.target(from: nil, move: .next, in: []) == nil)
+        #expect(ModListKeyStep.target(from: nil, move: .last, in: []) == nil)
     }
 }

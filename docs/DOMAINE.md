@@ -71,7 +71,7 @@ SMAPI est le chargeur de mods tiers dont dépend la quasi-totalité des mods. Il
 remplace l'exécutable du jeu. L'application l'installe, le surveille et lit ses
 journaux ; **elle ne réimplémente rien de sa logique de chargement.**
 
-- **Installation** — [`SmapiInstaller.swift`](../StarHubTH/SmapiInstaller.swift).
+- **Installation** — [`SmapiInstaller.swift`](../StarHub/Services/SMAPI/SmapiInstaller.swift).
   L'installeur officiel est lancé sous le capot ; l'exécutable d'origine est
   conservé sous le nom `StardewValley-original` dans le dossier du jeu. **Sa
   présence est littéralement la façon dont l'application détecte « SMAPI est
@@ -80,7 +80,7 @@ journaux ; **elle ne réimplémente rien de sa logique de chargement.**
   gratuite.** SMAPI ne laisse derrière lui aucun artefact fiable disant sa
   version. L'application écrit donc son propre marqueur,
   `smapi-internal/.starhubth-installed-version`, juste après une installation
-  réussie ([SmapiInstaller.swift:11](../StarHubTH/SmapiInstaller.swift#L11)), et
+  réussie ([SmapiInstaller.swift:11](../StarHub/Services/SMAPI/SmapiInstaller.swift#L11)), et
   ne se rabat sur l'analyse du journal que pour les installations qu'elle n'a pas
   faites. **Ne pas « simplifier » en supposant que SMAPI publie sa version
   quelque part** — cela a été vérifié, il ne le fait pas.
@@ -131,12 +131,12 @@ journaux ; **elle ne réimplémente rien de sa logique de chargement.**
 (`Mods/.NomDuMod`), parce que SMAPI ignore les dossiers pointés. L'upstream
 déplace le dossier vers `Mods_disabled/` ; nous sommes passés au préfixe et
 gardons une migration idempotente depuis l'ancien schéma
-([StarHubTHViewModel.swift:535](../StarHubTH/StarHubTHViewModel.swift#L535)).
+([StarHubTHViewModel.swift:535](../StarHub/App/StarHubTHViewModel.swift#L535)).
 
 La conséquence à connaître : **tout dossier pointé est candidat à « mod en
 pause »**, y compris les résidus du système. C'est ce qui a fait afficher un
 `.Spotlight-V100` comme un mod désactivé. La liste de référence est
-[`OSJunk.swift`](../StarHubTH/Models/OSJunk.swift) — une seule, justement pour
+[`OSJunk.swift`](../StarHub/Models/OSJunk.swift) — une seule, justement pour
 que ce défaut ne revienne pas par duplication.
 
 ### Corbeille et quarantaine — deux choses, deux endroits, à côté de `Mods/`
@@ -156,7 +156,7 @@ que ce défaut ne revienne pas par duplication.
 - **API REST v1** (`https://api.nexusmods.com/v1`) — informations de mod, listes
   de fichiers, liens de téléchargement. Clé personnelle par utilisateur, envoyée
   en en-tête, **stockée dans le trousseau macOS — jamais dans `UserDefaults`**
-  ([NexusUpdateChecker.swift:9](../StarHubTH/NexusUpdateChecker.swift#L9)). Pas
+  ([NexusUpdateChecker.swift:9](../StarHub/Services/Nexus/NexusUpdateChecker.swift#L9)). Pas
   d'OAuth. `Models/NexusDownloadAPI.swift`, `Models/NexusRequestBuilder.swift`,
   `Models/NexusDownloader.swift`.
 - **GraphQL v2** (`https://api.nexusmods.com/v2/graphql`) — Découvrir, la
@@ -170,7 +170,7 @@ que ce défaut ne revienne pas par duplication.
   au niveau AppKit, **pas** par le `.onOpenURL` de SwiftUI, et les URL reçues
   avant que la vue n'ait câblé son gestionnaire — cas du démarrage à froid
   déclenché par un clic — sont mises en attente puis rejouées
-  ([StarHubTHApp.swift:9](../StarHubTH/StarHubTHApp.swift#L9)).
+  ([StarHubTHApp.swift:9](../StarHub/App/StarHubTHApp.swift#L9)).
 - **Limites de débit et clé révoquée sont de vrais modes de panne visibles par
   l'utilisateur**, pas des cas théoriques.
 - **La liste de compatibilité SMAPI n'est pas branchée.** Les mods cassés sont
@@ -187,7 +187,7 @@ Le différenciateur du produit, et le sujet le plus piégeux.
 - **Les auteurs les écrivent à la main**, par centaines : commentaires de
   section, virgules en trop, fins de ligne Windows (CRLF, majoritaires),
   encodages hérités. Un lecteur JSON strict en refuse près de 40 % sur une
-  modlist réelle. D'où [`I18nLenientParser.swift`](../StarHubTH/Models/I18nLenientParser.swift),
+  modlist réelle. D'où [`I18nLenientParser.swift`](../StarHub/Models/I18nLenientParser.swift),
   dont l'en-tête porte les mesures et les limites connues — **le lire avant d'y
   toucher.**
 - Un pack de traduction **vers une autre langue** (`i18n/th.json`, `zh.json`) n'a
@@ -199,7 +199,7 @@ Le différenciateur du produit, et le sujet le plus piégeux.
 
 ## 6. Sauvegardes de partie
 
-[`SaveManager.swift`](../StarHubTH/SaveManager.swift) lit et écrit le format de
+[`SaveManager.swift`](../StarHub/Services/Saves/SaveManager.swift) lit et écrit le format de
 Stardew Valley **directement**. C'est du XML, sans API exposée par le jeu : le
 lecteur fait de l'extraction ciblée par balise (`extractTag`,
 `extractSpouseFromPlayer`) plutôt qu'un modèle objet complet — **délibérément**,

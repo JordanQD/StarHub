@@ -1,0 +1,498 @@
+import SwiftUI
+
+struct MainView: View {
+     @Bindable var vm: StarHubTHViewModel
+    @ObservedObject var localization: LocalizationStore
+    // Observé séparément (même patron que `smapiInstaller`/`bisection` dans
+    // HomeView) : `report` est publié par `KeybindScanService`, un
+    // `ObservableObject` distinct — sans cet abonnement, la pastille ne se
+    // redessinerait jamais quand le scan termine (tâche 7).
+    @ObservedObject private var keybindScanService: KeybindScanService
+    @State private var currentTab: SidebarDestination = .home
+    @State private var discoverySection: ModCatalog.SectionKind?
+    @State private var forwardDiscoverySection: ModCatalog.SectionKind?
+
+    init(vm: StarHubTHViewModel, localization: LocalizationStore) {
+        self.localization = localization
+        self.vm = vm
+        self.keybindScanService = vm.keybindScanService
+    }
+
+    /// Piles, saut d'origine et règle de « Retour » : `NavigationHistory` (Core, N-00).
+    @State private var history = NavigationHistory()
+    
+    @AppStorage("launchProfile") private var launchProfile: String = "SMAPI"
+    /// Le drapeau et la clé du guide de premier lancement vivent dans
+    /// `OnboardingPresentation` — ici, seul l'état de présentation.
+    @State private var showOnboarding = false
+    
+    @State private var showDownloadedInstall = false
+    /// La feuille d'installation rouverte sur l'archive suivante d'un dépôt
+    /// multiple — le canal `vm.pendingDropPresentation` est posé par le
+    /// bouton « Archive suivante » de la fenêtre de bilan. ⚠️ Son onDismiss
+    /// ne discard RIEN : ce sont les fichiers originaux de l'utilisateur.
+    @State private var showDropInstall = false
+    @State private var showCommandPalette = false
+    @Environment(\.openWindow) private var openWindow
+
+    /// L'alerte « nouvelle release de StarHubFR » n'est présentée que si
+    /// aucune feuille d'installation — ni le guide de premier lancement —
+    /// n'occupe la fenêtre : deux `.sheet` simultanés et l'un se perd en
+    /// silence (spec §7.4).
+    private var canPresentReleaseAlert: Bool {
+        !showDownloadedInstall && !showDropInstall && !showOnboarding && !navigation.showsInstallSheet
+    }
+
+    /// Aucune feuille ni voile modal à l'écran : une superposition présentée
+    /// dessous serait invisible, et laisserait un état ouvert que personne ne
+    /// voit — la famille de bugs de `releaseCheckInFlight`.
+    ///
+    /// Bâtie **sur** `canPresentReleaseAlert` plutôt qu'en recopiant sa liste :
+    /// deux conditions jumelles divergeraient au premier ajout de feuille. S'y
+    /// ajoutent l'alerte de release elle-même (à l'écran dès qu'un tag est
+    /// disponible et que le gate la laisse passer) et l'application de profil,
+    /// dont le voile vit dans ce ZStack : la palette se dessinerait par-dessus
+    /// et laisserait naviguer pendant que les dossiers bougent.
+    private var canPresentPalette: Bool {
+        canPresentReleaseAlert
+            && vm.availableAppRelease == nil
+            && vm.profileApplyProgress == nil
+    }
+    
+
+    private var navigationTitleText: String {
+        if currentTab == .saves && navigation.editingSave != nil { return navigation.editingSave!.playerName }
+        if currentTab == .mods && navigation.editingModConfig != nil { return navigation.editingModConfig!.name }
+        if currentTab == .mods && navigation.viewingModDetail != nil { return navigation.viewingModDetail!.name }
+        // Le titre de base — exhaustif, **jamais de `default:`** : une
+        // destination ajoutée sans titre est une erreur de build, pas une
+        // fenêtre qui s'intitule « Accueil » sans qu'on le remarque.
+        switch currentTab {
+        case .mods:           return localization.L(L10n.Mods.mods)
+        case .backups:        return localization.L(L10n.ModInstall.manageBackups)
+        case .maintenance:    return localization.L(L10n.Maintenance.title)
+        case .profiles:       return localization.L(L10n.Profiles.title)
+        case .updates:        return localization.L(L10n.Main.modUpdates)
+        case .systemAlerts:   return localization.L(L10n.Main.systemAlerts)
+        case .discover:       return ""
+        case .quarantine:     return localization.L(L10n.Main.quarantine)
+        case .frenchTranslations: return localization.L(L10n.FrTranslations.title)
+        case .saves:          return localization.L(L10n.Saves.saves)
+        case .logs:           return localization.L(L10n.Logs.logs)
+        case .home:           return localization.L(L10n.Main.home)
+        }
+    }
+    
+    /// Le consommage des foci en attente + l'historique de navigation.
+    /// Extrait du `.onChange` en même temps que `destinationView`, pour
+    /// la même raison.
+    private func handleTabChange() {
+            discoverySection = nil
+            forwardDiscoverySection = nil
+            navigation.setEditingSave(nil)
+            navigation.setEditingModConfig(nil)
+            navigation.setViewingModDetail(nil)
+
+            // …sauf ce qu'une intention en attente demande d'ouvrir. Les
+            // trois n'ont pas le même sort — la traduction survit (la vue la
+            // consomme plus tard pour l'onglet), les deux autres s'effacent —
+            // et trois fonctionnalités s'y sont cassé les dents. La règle
+            // vit désormais dans `TabChangePlan` (Core, 11 tests, six
+            // sabotages) : elle était ici, hors de portée d'un test.
+            let plan = TabChangePlan.decide(
+                entering: currentTab,
+                pending: .init(translationFocus: navigation.pendingTranslationFocus,
+                               configFocus: navigation.pendingConfigFocus,
+                               modDetailFocus: navigation.pendingModDetailFocus),
+                mods: vm.scanStore.mods)
+            if plan.clearsConfigFocus {
+                navigation.pendingConfigFocus = nil
+                if plan.openModConfig == nil { navigation.pendingConfigFocusKeyPath = nil }  // sinon l'éditeur la consomme (C4-T13)
+            }
+            if plan.clearsModDetailFocus { navigation.pendingModDetailFocus = nil }
+            if plan.clearsPendingDetailTab { navigation.pendingDetailTab = nil }
+            history.detailOpenedByJump = plan.openModDetail != nil || plan.openModConfig != nil
+            // Conditionnel : les cinq `nil` sont déjà passés, et une
+            // affectation `nil` de plus rejouerait deux `didSet`.
+            if let detail = plan.openModDetail { navigation.setViewingModDetail(detail) }
+            if let config = plan.openModConfig { navigation.setEditingModConfig(config) }
+            if currentTab == .saves { navigation.consumeSaveFocus(in: vm.saves) }  // N-08, palette
+
+            history.didEnter(currentTab)
+    }
+
+    /// La vue de détail de l'onglet courant. Extraite du `body` le
+    /// 2026-09-10 : l'ajout du paramètre `localization` à chaque
+    /// destination a fait franchir au `body` le seuil de saturation du
+    /// type-checker (piège documenté CLAUDE.md) — découper en sous-vues
+    /// est le remède.
+    @ViewBuilder
+    private var destinationView: some View {
+                    switch currentTab {
+                    case .mods:
+                        if let mod = navigation.editingModConfig {
+                            // L'onglet visuel par défaut : c'est celui qui montre
+                            // les réglages du mod, l'onglet de code étant le repli
+                            // pour ce que l'écran ne sait pas rendre.
+                            // C4-T13 — le réglage précis demandé par le
+                            // rapport de raccourcis, s'il y en a un.
+                            ModConfigEditorView(vm: vm, localization: localization, mod: mod,
+                                                focusKeyPath: navigation.pendingConfigFocusKeyPath)
+                        } else if let mod = navigation.viewingModDetail {
+                            ModDetailView(vm: vm, localization: localization, mod: mod,
+                                          sidebarVisibility: $columnVisibility)
+                                .id(mod.folderName)
+                        } else {
+                            ModListView(vm: vm, localization: localization, currentTab: $currentTab)
+                        }
+                    case .backups:
+                        BackupsView(vm: vm, localization: localization)
+                    case .maintenance:
+                        MaintenanceView(vm: vm, localization: localization)
+                    case .saves:
+                        SavesTab(viewModel: vm, localization: localization, currentTab: $currentTab)
+                    case .profiles:
+                        ModProfilesView(vm: vm, localization: localization, currentTab: $currentTab)
+                    case .updates:
+                        UpdatesView(vm: vm, localization: localization)
+                    case .systemAlerts:
+                        SystemAlertsView(viewModel: vm, localization: localization, currentTab: $currentTab)
+                    case .quarantine:
+                        QuarantineView(vm: vm, localization: localization)
+                    case .discover:
+                        DiscoverView(vm: vm, localization: localization, section: Binding(
+                            get: { discoverySection },
+                            set: {
+                                discoverySection = $0
+                                forwardDiscoverySection = nil
+                            }
+                        ))
+                    case .frenchTranslations:
+                        FrenchTranslationsView(viewModel: vm, localization: localization, currentTab: $currentTab)
+                    case .logs:
+                        DiagnosticsView(viewModel: vm, localization: localization)
+                    case .home:
+                        HomeView(viewModel: vm, localization: localization, currentTab: $currentTab)
+                    }
+    }
+
+    /// Le détail du dessus, pour la règle de « Retour ».
+    private var openDetail: NavigationHistory.OpenDetail {
+        if navigation.editingSave != nil { return .saveEditor }
+        if navigation.editingModConfig != nil {
+            return .modConfig(detailUnderneath: navigation.viewingModDetail != nil)
+        }
+        return navigation.viewingModDetail != nil ? .modDetail : .none
+    }
+
+    /// « Retour » : ‹ de la barre, ✕ d'une fiche, ⌘[ — une seule règle.
+    private func stepBack() {
+        if currentTab == .discover, let discoverySection {
+            forwardDiscoverySection = discoverySection
+            self.discoverySection = nil
+            return
+        }
+        let step = history.back(from: openDetail)
+        switch step.close {
+        case .saveEditor:   navigation.setEditingSave(nil)
+        case .modConfig:    navigation.setEditingModConfig(nil)
+        case .modDetail:    navigation.setViewingModDetail(nil)
+        case .none:         break
+        }
+        if let page = step.goTo { currentTab = page }
+    }
+
+    private func stepForward() {
+        if currentTab == .discover, let forwardDiscoverySection {
+            discoverySection = forwardDiscoverySection
+            self.forwardDiscoverySection = nil
+            return
+        }
+        if let page = history.forward() { currentTab = page }
+    }
+
+    /// L’apparence du groupe et ses segments viennent de la barre d’outils.
+    private var navHistoryButtons: some View {
+        ControlGroup {
+            Button(action: stepBack) {
+                Label(localization.L(L10n.Main.navBack), systemImage: "chevron.backward")
+            }
+            .help(localization.L(L10n.Main.navBack))
+            .disabled(discoverySection == nil && !history.canGoBack(from: openDetail))
+
+            Button(action: stepForward) {
+                Label(localization.L(L10n.Main.navForward), systemImage: "chevron.forward")
+            }
+            .help(localization.L(L10n.Main.navForward))
+            .disabled(forwardDiscoverySection == nil && !history.canGoForward)
+        }
+        .controlGroupStyle(.navigation)
+    }
+
+    /// La colonne latérale. Extraite du `body` le 2026-09-10, dans la
+    /// même série que `destinationView` : saturation du type-checker.
+    ///
+    /// Trois zones, et rien de plus : le téléchargement en cours en tête (il
+    /// n'appartient à aucune page), la `List` native au milieu, le pied
+    /// d'identité en bas. Largeur, fond translucide, sélection et survol ne
+    /// sont plus écrits ici — ils appartiennent au `NavigationSplitView` et à
+    /// `List(.sidebar)` (refonte native du 2026-11-19).
+    private var sidebarColumn: some View {
+                VStack(spacing: 0) {
+                    NexusDownloadStatus(vm: vm, localization: localization)
+                        .padding(.horizontal, AppDesign.Spacing.sm)
+
+                    SidebarNavGroups(vm: vm, localization: localization, currentTab: $currentTab)
+
+                    ModsWeightFooter(vm: vm, localization: localization)
+                        .padding(.horizontal, AppDesign.Spacing.sm)
+
+                    Divider()
+
+                    SidebarAccountBar(vm: vm, localization: localization,
+                                      onTap: { currentTab = .home })
+                }
+    }
+
+    /// La visibilité des colonnes du `NavigationSplitView` : le mode focus
+    /// de l'éditeur de traduction replie la barre latérale, tout retour
+    /// d'écran la remet.
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    var body: some View {
+        ZStack {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                // Largeur de la barre latérale : un intervalle, pas une
+                // constante. Le séparateur redevient saisissable et la largeur
+                // choisie survit à la session — c'est la règle de la colonne
+                // latérale macOS depuis toujours, et une valeur figée à 240 la
+                // démentait.
+                sidebarColumn
+                    .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
+
+        } detail: {
+            // ── CONTENT AREA ─────────────────────────────────────────
+            Group {
+                // ⚠️ Exhaustif, et **jamais de `default:`** : c'est le
+                // compilateur qui garantit qu'aucune destination ne se
+                // retrouve sans page. Avant le 2026-09-09 cette répartition
+                // comparait des chaînes, et un identifiant mal écrit rendait
+                // une page blanche en silence. Même règle que
+                // `SettingsSectionOrder.sectionView`.
+                destinationView
+            }
+            .navigationTitle(navigationTitleText)
+            .onChange(of: currentTab) { _, _ in handleTabChange() }
+            // Fermées autrement : le saut est consommé.
+            .onChange(of: navigation.viewingModDetail == nil && navigation.editingModConfig == nil) { _, closed in
+                if closed { history.detailOpenedByJump = false }
+            }
+            .onChange(of: navigation.pendingHistoryStep) { _, step in
+                guard let step else { return }
+                navigation.consumePendingHistoryStep()
+                if step == .back { stepBack() } else { stepForward() }
+            }
+            .toolbar { ToolbarItem(placement: .navigation) { navHistoryButtons } }.helpLauncher(navigation: navigation, currentTab: currentTab, localization: localization)
+            .frame(minWidth: 560, minHeight: 400).focusSection().archiveDropTarget(viewModel: vm, localization: localization).bulkToggleProgress(viewModel: vm, localization: localization)
+            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+            .toolbarBackground(currentTab == .discover ? .hidden : .visible, for: .windowToolbar)
+        }
+        
+            // Application d'un profil : le voile couvre toute la fenêtre, pas
+            // seulement la page des profils — « Gérer » applique le profil puis
+            // bascule sur la page des mods, et l'utilisateur y attendrait
+            // devant une liste figée sans savoir pourquoi.
+            if let progress = vm.profileApplyProgress {
+                switch progress.phase {
+                case .movingFolders:
+                    ModalProgressOverlay(label: localization.L(L10n.Profiles.applyingMoving),
+                                         done: progress.done,
+                                         total: progress.total)
+                case .rescanning:
+                    // Le rescane publie déjà son propre avancement pour le
+                    // voile de démarrage : on le montre plutôt que de laisser
+                    // la barre pleine du temps d'avant.
+                    ModalProgressOverlay(label: localization.L(L10n.Profiles.applyingScanning),
+                                         done: vm.scanStore.scanProgress?.done ?? 0,
+                                         total: vm.scanStore.scanProgress?.total ?? 0)
+                }
+            }
+
+            // La palette ⌘K — au sommet du ZStack, donc au-dessus du voile
+            // d'application de profil. Elle ne s'y ouvre pas pour autant :
+            // `canPresentPalette` le refuse (voir plus haut).
+            if showCommandPalette {
+                CommandPaletteView(vm: vm, localization: localization, isPresented: $showCommandPalette)
+                    .zIndex(10)
+            }
+        } // End of outer ZStack
+        // No launch overlay: the splash is its own window (`LaunchSplashController`).
+        .frame(minWidth: 820, minHeight: 520)
+        .refreshesStatsWhenGameQuits(vm)
+        .onReceive(NotificationCenter.default.publisher(for: .jumpToMod)) { notification in
+            if let modName = notification.object as? String {
+                if let target = ModFocusResolver.uniqueMatch(modName, in: vm.scanStore.mods) {  // N-02 : la fiche,
+                    return navigation.openModDetail(folderName: target.folderName, door: .logJump)  // sauf ambiguïté
+                }
+                vm.selectedModID = ModFocusResolver.resolve(modName, in: vm.scanStore.mods)?.folderName
+                navigation.pendingModFocus = modName
+                currentTab = .mods
+            }
+        }
+        // Le menu « Aller » et la palette demandent un onglet ; c'est ici, où
+        // vit `currentTab`, qu'il s'applique (patron B3-T4).
+        .onChange(of: vm.pendingTabRequest) { _, requested in
+            guard let requested else { return }
+            vm.consumePendingTabRequest()
+            currentTab = requested
+        }
+        // ⌘K depuis le menu. **Refus assumé quand une feuille est ouverte** :
+        // la superposition se dessinerait sous elle — invisible, alors que la
+        // palette se croirait ouverte. On vide le canal sans rien ouvrir.
+        //
+        // ⚠️ **Bascule, pas ouverture.** ⌘K doit refermer ce qu'il a ouvert
+        // (spec §7). Un `guard canPresentPalette` seul ne le permettait pas :
+        // le garde tombait dès la palette ouverte, le canal se vidait, et
+        // rien ne se passait — ⌘K ouvrait sans jamais refermer.
+        .onChange(of: vm.paletteRequested) { _, requested in
+            guard requested else { return }
+            vm.consumePaletteRequest()
+            if showCommandPalette {
+                showCommandPalette = false
+            } else if canPresentPalette {
+                showCommandPalette = true
+            }
+        }
+        .alert(isPresented: Binding(get: { vm.alertStore.shown }, set: { vm.alertStore.shown = $0 })) {
+            Alert(
+                title: Text(localization.L(L10n.Main.alert)),
+                message: Text(vm.alertStore.message),
+                dismissButton: .default(Text(localization.L(L10n.Main.ok)))
+            )
+        }
+        // A1-T8 — au niveau racine : l'état suspendu dans le VM doit survivre au changement d'onglet.
+        .saveFingerprintPauseGate(vm: vm)
+        .bulkConflictGate(vm: vm) // A5-T8, même raison
+        // R2 — une application de profil morte en route : reprendre ou
+        // garder l'état actuel. Patron confirmationDialog de ModProfilesView
+        // (suppression de profil) ; présenté une seule fois la fenêtre
+        // révélée (surfaceApplyRecoveryIfNeeded).
+        .confirmationDialog(
+            vm.applyRecoveryDialogText ?? "",
+            isPresented: Binding(
+                get: { vm.pendingApplyRecovery != nil },
+                set: { if !$0 { vm.dismissApplyRecovery() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if vm.recoveryProfileExists {
+                Button(localization.L(L10n.VM.profileRecoveryResume)) { vm.resumeInterruptedApply() }
+                Button(localization.L(L10n.VM.profileRecoveryKeep), role: .cancel) { vm.keepCurrentDiskState() }
+            } else {
+                Button(localization.L(L10n.VM.profileRecoveryDismiss), role: .cancel) { vm.dismissApplyRecovery() }
+            }
+        }
+        // Guide de premier lancement : déclencheurs et sheet vivent dans
+        // `OnboardingPresentation` — ici, seul l'appel (la chaîne de
+        // modificateurs de ce `body` sature le vérificateur de types).
+        .modifier(OnboardingPresentation(
+            showOnboarding: $showOnboarding,
+            isLaunching: vm.isLaunching,
+            availableAppRelease: vm.availableAppRelease,
+            canPresentReleaseAlert: canPresentReleaseAlert,
+            viewModel: vm,
+            localization: localization))
+        .onChange(of: vm.pendingDownloadedZip) { _, newValue in
+            // Guide ouvert : la feuille attend sa fermeture (mutex complet,
+            // spec §7.4 — le rattrapeur de showOnboarding la repose ensuite).
+            showDownloadedInstall = (newValue != nil) && !showOnboarding
+        }
+        .sheet(isPresented: $showDownloadedInstall, onDismiss: {
+            if let url = vm.pendingDownloadedZip {
+                // Le fichier **et** le dossier qui l'isolait : le
+                // téléchargement le pose sous son vrai nom, dans un dossier à
+                // lui, pour que deux fichiers homonymes ne se croisent pas.
+                NexusFileDownload.discardDownloaded(at: url)
+            }
+            vm.pendingDownloadedZip = nil
+            vm.pendingNexusSource = nil
+            vm.clearPendingDependencyExpectation() // X120 : mêmes endroits que la source
+            // La feuille fermée, le créneau de téléchargement est libre :
+            // la file nxm:// peut dérouler le lien suivant, s'il y en a.
+            vm.drainQueuedNexusDownloads()
+        }) {
+            ModInstallView(vm: vm, localization: localization, currentTab: $currentTab, isPresented: $showDownloadedInstall, preloadedZip: vm.pendingDownloadedZip)
+        }
+        // Le bilan d'installation vit dans SA fenêtre — ouverte dès qu'un
+        // report est posé (réouverture idempotente, contenu remplacé).
+        .onChange(of: vm.pendingInstallReport) { _, report in
+            guard report != nil else { return }
+            openWindow(id: AppWindowID.installReport)
+        }
+        // « Archive suivante » de la fenêtre de bilan : la feuille se
+        // rouvre sur l'archive posée (chemin preloadedZip existant).
+        .onChange(of: vm.pendingDropPresentation) { _, url in
+            guard url != nil, !showOnboarding else { return }
+            showDropInstall = true
+        }
+        // Fermeture du guide : la feuille d'install qui attendait son créneau
+        // se présente — priorité au téléchargement posé, puis au dépôt.
+        .onChange(of: showOnboarding) { _, shown in
+            guard !shown else { return }
+            if vm.pendingDownloadedZip != nil {
+                showDownloadedInstall = true
+            } else if vm.pendingDropPresentation != nil {
+                showDropInstall = true
+            }
+        }
+        .sheet(isPresented: Bindable(navigation).showsShortcutsHelp) { ShortcutsHelpView(localization: localization) }.modifier(InstallRequestConsumer(viewModel: vm, localization: localization, currentTab: $currentTab, canPresent: canPresentReleaseAlert))
+        .sheet(isPresented: $showDropInstall, onDismiss: {
+            // PAS de discard ici : fichiers originaux de l'utilisateur.
+            vm.clearDropPresentation()
+        }) {
+            ModInstallView(vm: vm, localization: localization, currentTab: $currentTab,
+                           isPresented: $showDropInstall,
+                           preloadedZip: vm.pendingDropPresentation)
+        }
+        // « Voir la fiche » depuis une autre fenêtre : la décision vit
+        // ici, où seul vit `currentTab` (patron B3-T4).
+        .onChange(of: vm.reportDetailFocus, initial: true) { _, folder in
+            guard let folder else { return }
+            if currentTab == .mods,
+               let target = ModFocusResolver.resolve(folder, in: vm.scanStore.mods) {
+                navigation.setViewingModDetail(target)
+                navigation.pendingDetailTab = DetailArrival.tab(for: navigation.reportDetailDoor)
+            } else {
+                navigation.pendingModDetailFocus = folder
+                navigation.pendingDetailTab = DetailArrival.tab(for: navigation.reportDetailDoor)
+                currentTab = .mods
+            }
+            // Amener la fenêtre principale devant : la fiche s'y pose, la
+            // fenêtre de bilan reste ouverte derrière.
+            openWindow(id: AppWindowID.main)
+            vm.consumeReportDetailFocus()
+        }
+        // L'alerte release attend son tour : posée par le check au lancement,
+        // elle rattrape à la fermeture de chaque feuille. `item:` plutôt que
+        // `isPresented:` — la release à afficher EST l'état, et un corps
+        // conditionnel pouvait s'évaluer vide une frame (les boutons vident
+        // `availableAppRelease` avant que le drapeau ne retombe). Le gate de
+        // priorité vit dans le `get` : une feuille d'installation ouverte
+        // rend `nil`, et l'alerte revient d'elle-même à sa fermeture.
+        .sheet(item: Binding(
+            get: { canPresentReleaseAlert ? vm.availableAppRelease : nil },
+            set: { newValue in
+                // Fermeture par Esc ou clic hors cadre = acquittement aussi.
+                // ⚠️ Seulement si l'alerte était bien présentable : quand
+                // c'est le gate qui vient de la retirer (une feuille s'est
+                // ouverte par-dessus), acquitter tairait un tag que
+                // l'utilisateur n'a jamais vu.
+                guard newValue == nil, canPresentReleaseAlert,
+                      let release = vm.availableAppRelease else { return }
+                vm.acknowledgeRelease(release)
+            }
+        )) { release in
+            AppUpdateAlertView(vm: vm, localization: localization, release: release)
+        }
+    }
+}
