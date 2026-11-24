@@ -16,18 +16,6 @@ struct QuarantineView: View {
         let quarantineDir = quarantinePath
 
         VStack(spacing: 0) {
-            // En-tête commun des pages (audit UX 2026-10-02) : ce que fait la
-            // quarantaine, et ses trois gestes. ~624 pt de libellés FR pour
-            // 500 à la fenêtre minimale : icônes seules (infobulles) quand ça
-            // ne tient pas.
-            PageHeader(icon: "tray.full.fill", title: localization.L(L10n.Quarantine.title),
-                       subtitle: localization.L(L10n.Quarantine.subtitleShort)) {
-                AdaptiveLabels { HStack(spacing: AppDesign.Spacing.sm) { actions(quarantineDir) } }
-            }
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.md)
-            Divider()
-
             ScrollViewReader { proxy in
                 BackToTopScrollView(localization) {
                     VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
@@ -82,6 +70,31 @@ struct QuarantineView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppDesign.Color.windowBg)
+        .navigationSubtitle(localization.L(L10n.Quarantine.subtitleShort))
+        .toolbar {
+            ToolbarItemGroup {
+                if vm.scanStore.scanProgress != nil {
+                    ProgressView().controlSize(.small)
+                }
+                Button(action: { vm.refresh() }) {
+                    Label(localization.L(L10n.Quarantine.rescan), systemImage: "arrow.clockwise")
+                }
+                .help(localization.L(L10n.Quarantine.rescan))
+                .disabled(vm.scanStore.scanProgress != nil)
+
+                Button(action: openQuarantineFolder) {
+                    Label(localization.L(L10n.Quarantine.openFolder), systemImage: "folder")
+                }
+                .help(localization.L(L10n.Quarantine.openFolder))
+                .disabled(quarantineDir == nil)
+
+                Button(role: .destructive, action: { showEmptyConfirmation = true }) {
+                    Label(localization.L(L10n.Quarantine.emptyTrash), systemImage: "trash")
+                }
+                .help(localization.L(L10n.Quarantine.emptyTrash))
+                .disabled(quarantineDir == nil)
+            }
+        }
         .confirmationDialog(
             localization.L(L10n.Quarantine.emptyConfirmTitle),
             isPresented: $showEmptyConfirmation,
@@ -94,41 +107,6 @@ struct QuarantineView: View {
         } message: {
             Text(localization.L(L10n.Quarantine.emptyConfirmMessage))
         }
-    }
-
-    /// Les trois gestes de la page, dans l'en-tête.
-    @ViewBuilder
-    private func actions(_ quarantineDir: String?) -> some View {
-        Button(action: { vm.refresh() }) {
-            Label(localization.L(L10n.Quarantine.rescan), systemImage: "arrow.clockwise")
-        }
-        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-        .controlSize(.small)
-        .help(localization.L(L10n.Quarantine.rescan))
-        // `refresh()` est le « rafraîchissement manuel » établi — celui des
-        // installations et de l'accueil — et c'est le seul chemin qui relance
-        // la réparation dont cette page publie le rapport. Inactif pendant le
-        // scan : un second clic lancerait une double traversée du parc.
-        .disabled(vm.scanStore.scanProgress != nil)
-        if vm.scanStore.scanProgress != nil {
-            ProgressView().controlSize(.small)
-        }
-
-        Button(action: openQuarantineFolder) {
-            Label(localization.L(L10n.Quarantine.openFolder), systemImage: "folder.fill")
-        }
-        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-        .controlSize(.small)
-        .help(localization.L(L10n.Quarantine.openFolder))
-        .disabled(quarantineDir == nil)
-
-        Button(role: .destructive, action: { showEmptyConfirmation = true }) {
-            Label(localization.L(L10n.Quarantine.emptyTrash), systemImage: "trash.fill")
-        }
-        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-        .controlSize(.small)
-        .help(localization.L(L10n.Quarantine.emptyTrash))
-        .disabled(quarantineDir == nil)
     }
 
     // MARK: - Duplicate rows (composite identity)

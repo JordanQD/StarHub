@@ -66,12 +66,9 @@ struct NexusDownloadStatus: View {
             .padding(.horizontal, 10)
             .padding(.vertical, AppDesign.Spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial,
-                        in: RoundedRectangle(cornerRadius: AppDesign.Radius.md,
-                                             style: .continuous))
-            .shadow(color: .black.opacity(0.12),
-                    radius: AppDesign.Shadow.badge.radius,
-                    y: AppDesign.Shadow.badge.y)
+            .floatingGlassSurface(in: RoundedRectangle(cornerRadius: AppDesign.Radius.md, style: .continuous),
+                                  shadowRadius: AppDesign.Shadow.badge.radius,
+                                  shadowY: AppDesign.Shadow.badge.y)
             .padding(.bottom, AppDesign.Spacing.sm)
             .transition(.opacity)
             .accessibilityElement(children: .combine)

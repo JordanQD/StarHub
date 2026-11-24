@@ -39,8 +39,21 @@ struct InitialsAvatar: View {
     }
 }
 
+// MARK: - Grouped Settings Form Environment
+private struct UsesGroupedSettingsFormKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var usesGroupedSettingsForm: Bool {
+        get { self[UsesGroupedSettingsFormKey.self] }
+        set { self[UsesGroupedSettingsFormKey.self] = newValue }
+    }
+}
+
 // MARK: - Standard Section
 struct StandardSection<Content: View>: View {
+    @Environment(\.usesGroupedSettingsForm) private var usesGroupedSettingsForm
     let title: String
     let footer: String?
     /// Glyphe en tuile devant le titre, à la manière des Réglages Système ;
@@ -57,39 +70,60 @@ struct StandardSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            if !title.isEmpty {
-                HStack(spacing: AppDesign.Spacing.sm) {
-                    if let icon { IconTile(icon: icon.name, tint: icon.tint, size: 22) }
-                    Text(verbatim: title)
-                        .font(AppDesign.Font.body(.bold))
-                        .foregroundColor(.primary)
-                        .accessibilityAddTraits(.isHeader) // rotor VoiceOver : navigation par titres (I-T3)
+        if usesGroupedSettingsForm {
+            Section {
+                content
+            } header: {
+                if !title.isEmpty {
+                    HStack(spacing: AppDesign.Spacing.xs) {
+                        if let icon { IconTile(icon: icon.name, tint: icon.tint, size: 18) }
+                        Text(verbatim: title)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
+            } footer: {
+                if let footerText = footer, !footerText.isEmpty {
+                    Text(Self.footerMarkdown(footerText))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .tint(.accentColor)
                 }
             }
-
-            if icon != nil {
-                VStack(spacing: 0) { content }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .cardSurface(padding: AppDesign.Spacing.lg)
-            } else {
-                VStack(spacing: 0) {
-                    content
+        } else {
+            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                if !title.isEmpty {
+                    HStack(spacing: AppDesign.Spacing.sm) {
+                        if let icon { IconTile(icon: icon.name, tint: icon.tint, size: 22) }
+                        Text(verbatim: title)
+                            .font(AppDesign.Font.body(.bold))
+                            .foregroundColor(.primary)
+                            .accessibilityAddTraits(.isHeader) // rotor VoiceOver : navigation par titres (I-T3)
+                    }
                 }
-                .padding(AppDesign.Spacing.lg)
-                .background(Color.clear)
-                .cornerRadius(AppDesign.Radius.section)
-                .overlay(RoundedRectangle(cornerRadius: AppDesign.Radius.section).stroke(Color.primary.opacity(AppDesign.Opacity.light), lineWidth: 1))
-            }
 
-            if let footerText = footer, !footerText.isEmpty {
-                Text(Self.footerMarkdown(footerText))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                    .lineSpacing(2)
-                    .padding(.horizontal, AppDesign.Spacing.xs)
-                    .padding(.top, AppDesign.Spacing.xs)
-                    .tint(.accentColor)
+                if icon != nil {
+                    VStack(spacing: 0) { content }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .cardSurface(padding: AppDesign.Spacing.lg)
+                } else {
+                    VStack(spacing: 0) {
+                        content
+                    }
+                    .padding(AppDesign.Spacing.lg)
+                    .background(Color.clear)
+                    .cornerRadius(AppDesign.Radius.section)
+                    .overlay(RoundedRectangle(cornerRadius: AppDesign.Radius.section).stroke(Color.primary.opacity(AppDesign.Opacity.light), lineWidth: 1))
+                }
+
+                if let footerText = footer, !footerText.isEmpty {
+                    Text(Self.footerMarkdown(footerText))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundColor(.secondary)
+                        .lineSpacing(2)
+                        .padding(.horizontal, AppDesign.Spacing.xs)
+                        .padding(.top, AppDesign.Spacing.xs)
+                        .tint(.accentColor)
+                }
             }
         }
     }

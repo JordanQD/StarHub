@@ -36,7 +36,6 @@ struct MaintenanceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             MaintenanceModActions(vm: vm, localization: localization) // sorti des Réglages
             Divider()
             if let report = vm.maintenanceReport {
@@ -67,6 +66,19 @@ struct MaintenanceView: View {
             }
         }
         .background(AppDesign.Color.windowBg)
+        .navigationSubtitle(headerSubtitle)
+        .toolbar {
+            if vm.isBuildingMaintenanceReport {
+                ToolbarItem {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text(localization.L(L10n.Maintenance.loading))
+                            .font(AppDesign.Font.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
         // Passe de 0,86 s : au `.onAppear` seulement, sans chevauchement
         // (garde de `buildMaintenanceReport`) ; l'ancien rapport reste affiché.
         .onAppear {
@@ -135,24 +147,11 @@ struct MaintenanceView: View {
 
     // MARK: - Sections
 
-    /// En-tête commun des pages (audit UX 2026-10-02) : le total en sous-titre.
-    private var header: some View {
-        PageHeader(icon: "internaldrive", title: localization.L(L10n.Maintenance.title),
-                   subtitle: vm.maintenanceReport.map {
-                       String(format: localization.L(L10n.Maintenance.headerTotal),
-                              SharedFormatters.bytes($0.totalBytes))
-                   }) {
-            if vm.isBuildingMaintenanceReport {
-                HStack(spacing: 6) {
-                    ProgressView().controlSize(.small)
-                    Text(localization.L(L10n.Maintenance.loading))
-                        .font(AppDesign.Font.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, AppDesign.Spacing.xl)
-        .padding(.top, AppDesign.Spacing.md)
+    private var headerSubtitle: String {
+        vm.maintenanceReport.map {
+            String(format: localization.L(L10n.Maintenance.headerTotal),
+                   SharedFormatters.bytes($0.totalBytes))
+        } ?? ""
     }
 
     private func content(_ report: MaintenanceInventory.Report) -> some View {

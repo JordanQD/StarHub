@@ -282,6 +282,7 @@ struct MainView: View {
                 destinationView
             }
             .navigationTitle(navigationTitleText)
+            .navigationSubtitle("")
             .onChange(of: currentTab) { _, _ in handleTabChange() }
             // Fermées autrement : le saut est consommé.
             .onChange(of: navigation.viewingModDetail == nil && navigation.editingModConfig == nil) { _, closed in

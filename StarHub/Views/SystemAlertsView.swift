@@ -39,8 +39,8 @@ struct SystemAlertsView: View {
         // jamais à l'accès. La capture locale reste le geste obvious.
         let issues = viewModel.healthIssues
         VStack(alignment: .leading, spacing: 0) {
-            header(issues)
             segmentPicker(issues)
+                .padding(.top, AppDesign.Spacing.sm)
             Divider()
             // `switch`, pas des onglets montés : le rapport des raccourcis
             // lance une analyse à son apparition — monté d'office, il
@@ -66,6 +66,12 @@ struct SystemAlertsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppDesign.Color.windowBg)
+        .navigationSubtitle(alertsSubtitle(issues))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                recheckLogButton
+            }
+        }
         .sheet(item: $renameSheet) { target in
             renameSheetContent(target.name)
         }
@@ -129,27 +135,13 @@ struct SystemAlertsView: View {
 
     // MARK: - Header
 
-    private func header(_ issues: [HealthIssue]) -> some View {
-        let worst = issues.map(\.severity).max()
-        // Le sous-titre compte `actionableCount` — une notice `.info` ne
-        // compte jamais comme problème (revue globale, bloquant 1 : 7 notices
-        // bénignes sur un parc sain annonçaient « 7 problèmes »).
-        return PageHeader(icon: worst == nil ? "checkmark.shield.fill" : "exclamationmark.triangle.fill",
-                          title: localization.L(L10n.Main.systemAlerts),
-                          subtitle: issues.isEmpty ? nil
-                              : String(format: localization.L(L10n.Health.problemCount),  // E8 : pluriels justes
-                                       localization.plural(L10n.Health.problems, issues.actionableCount),
-                                       localization.plural(L10n.Health.criticals, issues.filter { $0.severity == .critical }.count)),
-                          tint: tint(for: worst)) {
-            recheckLogButton
-        }
-        .padding(.horizontal, AppDesign.Spacing.lg)
-        .padding(.vertical, AppDesign.Spacing.md)
-        .background(AppDesign.Color.windowBg)
+    private func alertsSubtitle(_ issues: [HealthIssue]) -> String {
+        guard !issues.isEmpty else { return "" }
+        return String(format: localization.L(L10n.Health.problemCount),
+                      localization.plural(L10n.Health.problems, issues.actionableCount),
+                      localization.plural(L10n.Health.criticals, issues.filter { $0.severity == .critical }.count))
     }
 
-    /// La couleur d'une gravité — vert quand il n'y a rien : un état réussi,
-    /// pas une absence d'information. Toujours doublée d'un glyphe ou d'un mot.
     private func tint(for severity: HealthIssue.Severity?) -> Color {
         switch severity {
         case .critical: return AppDesign.Color.error

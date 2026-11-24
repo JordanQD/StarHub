@@ -88,6 +88,36 @@ struct FrenchTranslationsView: View {
             }
         }
         .onAppear { if segment == nil { segment = shown } }
+        .toolbar {
+            if shown == .nexus {
+                if store.isRunning {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(localization.L(L10n.FrTranslations.cancel)) { store.cancel() }
+                    }
+                } else {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button {
+                            store.run(all.map(\.candidate)) { viewModel.log($0) }
+                        } label: {
+                            Label(localization.L(L10n.FrTranslations.rescan), systemImage: "magnifyingglass")
+                        }
+                        .prominentToolbarAction()
+                        .disabled(all.isEmpty)
+                        .help(localization.L(L10n.FrTranslations.rescanHint))
+
+                        Menu {
+                            Button(localization.L(L10n.FrTranslations.rescanAll)) {
+                                store.run(all.map(\.candidate), forceAll: true) { viewModel.log($0) }
+                            }
+                        } label: {
+                            Label(localization.L(L10n.FrTranslations.rescanAll), systemImage: "ellipsis.circle")
+                        }
+                        .disabled(all.isEmpty)
+                        .help(localization.L(L10n.FrTranslations.rescanAll))
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showArbitration) {
             TranslationArbitrationSheet(store: mergeStore, viewModel: viewModel,
                                         localization: localization,
@@ -107,48 +137,6 @@ struct FrenchTranslationsView: View {
     @ViewBuilder
     private func header(_ all: [Row], shown: Segment, workCount: Int) -> some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            PageHeader(icon: "character.bubble.fill",
-                       title: localization.L(L10n.FrTranslations.title)) {
-                if shown == .worklist {
-                    EmptyView()
-                } else if store.isRunning {
-                    Button(localization.L(L10n.FrTranslations.cancel)) { store.cancel() }
-                        .controlSize(.small)
-                } else {
-                    // Incrémental par défaut : un parc stable se lit au cache
-                    // en secondes ; le passage total vit derrière le glyph.
-                    // Un Menu seul ne convient pas : son clic OUVRIT le menu,
-                    // dont l'unique item était « tout re-balayer » — le
-                    // bouton principal n'avait aucune action propre
-                    // (2026-10-05). Et `.primaryAction()` n'existe pas sur
-                    // Menu dans ce SDK.
-                    HStack(spacing: 4) {
-                        Button {
-                            store.run(all.map(\.candidate)) { viewModel.log($0) }
-                        } label: {
-                            Label(localization.L(L10n.FrTranslations.rescan),
-                                  systemImage: "magnifyingglass")
-                        }
-                        .buttonStyle(.borderedProminent).focusRing(cornerRadius: 5)
-                        .controlSize(.small)
-                        .disabled(all.isEmpty)
-                        .help(localization.L(L10n.FrTranslations.rescanHint))
-                        Menu {
-                            Button(localization.L(L10n.FrTranslations.rescanAll)) {
-                                store.run(all.map(\.candidate), forceAll: true) { viewModel.log($0) }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                        .menuStyle(.borderlessButton).focusRing(cornerRadius: 4)
-                        .fixedSize() // E12 : un cadre de 20 pt rognait le chevron (« ⋯✓ »)
-                        .contentShape(.rect)
-                        .controlSize(.small)
-                        .disabled(all.isEmpty)
-                        .iconHelp(localization.L(L10n.FrTranslations.rescanAll))
-                    }
-                }
-            }
             Text(localization.L(L10n.FrTranslations.subtitle))
                 .font(AppDesign.Font.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

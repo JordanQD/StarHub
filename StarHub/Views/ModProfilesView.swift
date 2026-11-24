@@ -146,17 +146,6 @@ struct ModProfilesView: View {
         // septembre, revient avec l'en-tête commun des pages (audit UX
         // 2026-10-02) : il porte désormais le profil actif.
         VStack(spacing: 0) {
-            PageHeader(icon: "person.2.fill", title: localization.L(L10n.Profiles.title),
-                       subtitle: headerSummary) {
-                Button(localization.L(L10n.Profiles.addProfile)) { presentNewProfileAlert() }
-                    .buttonStyle(.borderedProminent).focusRing()
-                    .pointingHandCursor()
-            }
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
-
-            Divider()
             KeybindPlanProfileBanner(viewModel: vm, localization: localization)
             // ── Liste ────────────────────────────────────────────────────
             BackToTopScrollView(localization, showsIndicators: false) {
@@ -206,6 +195,16 @@ struct ModProfilesView: View {
             }
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .navigationSubtitle(headerSummary)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { presentNewProfileAlert() } label: {
+                    Label(localization.L(L10n.Profiles.addProfile), systemImage: "plus")
+                }
+                .prominentToolbarAction()
+                .help(localization.L(L10n.Profiles.addProfile))
+            }
+        }
         // Create
         .alert(localization.L(L10n.Profiles.createNewProfile), isPresented: $isShowingNewProfileAlert) {
             TextField(localization.L(L10n.Profiles.profileNamePlaceholder), text: $newProfileName)

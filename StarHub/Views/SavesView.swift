@@ -22,56 +22,24 @@ struct SavesView: View {
         // (en-tête de page + actions ; recherche, tri et filtre en chips),
         // contenu qui défile, pied fixe portant le compte honnête.
         VStack(spacing: 0) {
-            // ── En-tête fixe ────────────────────────────────────────────
-            // En-tête commun des pages (audit UX 2026-10-02) : la tuile de la
-            // barre latérale, le titre, ce qui existe ; disposition,
-            // rechargement et données à droite.
-            VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-                PageHeader(icon: "folder.fill", title: localization.L(L10n.Saves.saves),
-                           subtitle: headerSummary) {
-                    Picker(localization.L(L10n.Saves.listViewHint), selection: $vm.saveViewMode) {
-                        Image(systemName: "list.bullet")
-                            .tag(SaveViewMode.list)
-                        Image(systemName: "square.grid.2x2")
-                            .tag(SaveViewMode.grid)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 64)
-                    .help(vm.saveViewMode == .list
-                          ? localization.L(L10n.Saves.listViewHint)
-                          : localization.L(L10n.Saves.gridViewHint))
+            // ── Rangée filtres fixe ─────────────────────────────────────
+            HStack(spacing: AppDesign.Spacing.sm) {
+                searchField
 
-                    Button(action: { vm.reloadSaves() }) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(AppDesign.Font.caption)
-                    }
-                    .buttonStyle(.bordered).focusRing()
-                    .iconHelp(localization.L(L10n.Saves.reloadHint))
-                    SavesDataActions(vm: vm, localization: localization) // sorti des Réglages
-                }
+                Divider()
+                    .frame(height: 16)
 
-                // Rangée « affiner la liste » : recherche à la frappe, tri et
-                // filtre par tag en chips au motif Mods. La barre système
-                // `.searchable` est partie : un geste, une place (P3).
-                HStack(spacing: AppDesign.Spacing.sm) {
-                    searchField
+                sortMenu
 
-                    Divider()
-                        .frame(height: 16)
+                Divider()
+                    .frame(height: 16)
 
-                    sortMenu
+                tagMenu
 
-                    Divider()
-                        .frame(height: 16)
-
-                    tagMenu
-
-                    Spacer()
-                }
+                Spacer()
             }
             .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.md)
+            .padding(.vertical, AppDesign.Spacing.sm)
             .background(AppDesign.Color.windowBg)
 
             Divider()
@@ -136,6 +104,32 @@ struct SavesView: View {
             }
         }
         .background(AppDesign.Color.windowBg)
+        .navigationSubtitle(headerSummary ?? "")
+        .toolbar {
+            ToolbarItemGroup {
+                Picker(localization.L(L10n.Saves.listViewHint), selection: $vm.saveViewMode) {
+                    Image(systemName: "list.bullet")
+                        .accessibilityLabel(localization.L(L10n.Saves.listViewHint))
+                        .tag(SaveViewMode.list)
+                    Image(systemName: "square.grid.2x2")
+                        .accessibilityLabel(localization.L(L10n.Saves.gridViewHint))
+                        .tag(SaveViewMode.grid)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .help(vm.saveViewMode == .list
+                      ? localization.L(L10n.Saves.listViewHint)
+                      : localization.L(L10n.Saves.gridViewHint))
+
+                Button(action: { vm.reloadSaves() }) {
+                    Label(localization.L(L10n.Saves.reloadHint), systemImage: "arrow.clockwise")
+                }
+                .help(localization.L(L10n.Saves.reloadHint))
+
+                SavesDataActions(vm: vm, localization: localization)
+            }
+        }
         .sheet(item: $vm.saveToDuplicate) { save in
             DuplicateSaveSheet(vm: vm, localization: localization, save: save)
         }

@@ -19,18 +19,6 @@ struct BackupsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // En-tête commun des pages (audit UX 2026-10-02) : un seul titre,
-            // ici ; les segments gardent leurs actions, pas un second titre.
-            PageHeader(icon: "arrow.uturn.backward.circle.fill",
-                       title: localization.L(L10n.ModInstall.manageBackups),
-                       subtitle: localization.L(L10n.Backups.pageSubtitle)) {
-                // R1 — le poids et le geste qui le réduit vivent dans l'Entretien.
-                Button(localization.L(L10n.Maintenance.backupsFreeSpaceLink)) { navigation.openMaintenance() }
-                    .buttonStyle(.link).clickableCursor().focusRing(cornerRadius: 4)
-                    .font(AppDesign.Font.footnote)
-            }
-                .padding(.horizontal, AppDesign.Spacing.xl)
-                .padding(.top, AppDesign.Spacing.md)
             Picker(localization.L(L10n.A11y.backupsSegment), selection: Binding(get: { navigation.backupsSegment },
                                           set: { navigation.backupsSegment = $0 })) {
                 ForEach(BackupsSegment.allCases, id: \.self) { segment in
@@ -55,6 +43,17 @@ struct BackupsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppDesign.Color.windowBg)
+        .navigationSubtitle(localization.L(L10n.Backups.pageSubtitle))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    navigation.openMaintenance()
+                } label: {
+                    Label(localization.L(L10n.Maintenance.backupsFreeSpaceLink), systemImage: "internaldrive")
+                }
+                .help(localization.L(L10n.Maintenance.backupsFreeSpaceLink))
+            }
+        }
         .onAppear(perform: consumeConfigFocus)
         .onChange(of: navigation.pendingConfigBackupsFocus) { _, _ in consumeConfigFocus() }
     }
