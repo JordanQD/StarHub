@@ -18,9 +18,9 @@ private struct NexusUpdateRow: View {
         let extra = vm.nexusModExtras[update.nexusModId]
         let date = detail?.releaseDate(for: update.latestVersion) ?? update.uploadedTime ?? extraDate(extra)
         VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-            HStack(alignment: .top, spacing: AppDesign.Spacing.md) {
+            HStack(alignment: .center, spacing: 14) {
                 thumbnail(detail?.pictureURL ?? extra?.pictureUrl)
-                VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
+                VStack(alignment: .leading, spacing: 2) {
                     title
                     if let date {
                         Text(date.formatted(date: .abbreviated, time: .omitted))
@@ -42,10 +42,12 @@ private struct NexusUpdateRow: View {
                 HStack(alignment: .bottom, spacing: AppDesign.Spacing.sm) {
                     MarkdownText(notes)
                         .lineLimit(2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.85))
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Button(localization.L(L10n.Updates.moreNotes)) { showNotes = true }
-                        .buttonStyle(.link)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
                         .fixedSize()
                         .popover(isPresented: $showNotes, arrowEdge: .bottom) {
                             ScrollView {
@@ -58,7 +60,7 @@ private struct NexusUpdateRow: View {
                             .frame(width: 380)
                         }
                 }
-                .font(AppDesign.Font.footnote)
+                .font(.system(size: 13))
             } else {
                 Text(localization.L(L10n.Updates.noReleaseNotes))
                     .font(AppDesign.Font.footnote)
@@ -141,14 +143,18 @@ private struct NexusUpdateRow: View {
 
     private func actionButton(_ key: String, symbol: String, help: String? = nil,
                               action: @escaping () -> Void) -> some View {
-        AdaptiveLabels {
-            Button(action: action) {
-                Label(localization.L(key), systemImage: symbol)
-            }
-            .buttonStyle(.bordered).focusRing()
-            .help(localization.L(help ?? key))
+        Button(action: action) {
+            Text(localization.L(key))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 14)
+                .frame(height: UpdatePillStyle.height)
+                .background(UpdatePillStyle.background, in: Capsule())
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .buttonStyle(.plain)
+        .focusRing(cornerRadius: FocusRing.capsule)
+        .help(localization.L(help ?? key))
+        .fixedSize()
     }
 
     private var versions: some View {
@@ -174,16 +180,18 @@ private struct NexusUpdateRow: View {
     }
 
     private func thumbnail(_ link: String?) -> some View {
-        InitialsAvatar(text: update.name, initialsCount: 2, size: 54,
-                       fillColor: Color.accentColor.opacity(AppDesign.Opacity.light),
-                       textColor: .accentColor, fontSize: 16)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return InitialsAvatar(text: update.name, initialsCount: 2, size: 56,
+                              fillColor: Color.accentColor.opacity(AppDesign.Opacity.light),
+                              textColor: .accentColor, fontSize: 17)
             .overlay {
                 if let link, let url = URL(string: link), url.scheme == "https" || url.scheme == "http" {
                     CachedAsyncImage(url: url).allowsHitTesting(false)
                 }
             }
-            .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .frame(width: 56, height: 56)
+            .clipShape(shape)
+            .overlay(shape.stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
             .accessibilityHidden(true)
     }
 
