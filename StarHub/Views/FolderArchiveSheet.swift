@@ -60,10 +60,18 @@ struct FolderArchiveSheet: View {
     @State private var available: Int64?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-            Text(localization.L(request.kind == .mods ? L10n.Archive.modsTitle : L10n.Archive.savesTitle))
-                .font(AppDesign.Font.headline)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            HStack(spacing: AppDesign.Spacing.sm) {
+                IconTile(icon: "archivebox.fill", tint: AppDesign.Color.accent, size: 28)
+                Text(localization.L(request.kind == .mods ? L10n.Archive.modsTitle : L10n.Archive.savesTitle))
+                    .font(AppDesign.Font.headline(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+            .padding(.horizontal, AppDesign.Spacing.lg)
+            .padding(.top, AppDesign.Spacing.lg)
+            .padding(.bottom, AppDesign.Spacing.sm)
+
             switch store.phase {
             case .idle: plan
             case .running(let progress, let startedAt): running(progress, startedAt: startedAt)
@@ -72,8 +80,7 @@ struct FolderArchiveSheet: View {
             case .cancelled: ended(localization.L(L10n.Archive.cancelled), color: .secondary)
             }
         }
-        .padding(AppDesign.Spacing.lg)
-        .frame(width: 460)
+        .frame(minWidth: 440, idealWidth: 480)
         .interactiveDismissDisabled(store.isRunning)
         .task { await prepare() }
     }
@@ -84,47 +91,68 @@ struct FolderArchiveSheet: View {
     private var plan: some View {
         let enough = sourceBytes.map { FolderArchive.hasEnoughSpace(sourceBytes: $0, available: available) } ?? false
         let inside = destination.map { FolderArchive.destination($0, isInside: request.source) } ?? false
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            row("shippingbox", request.summary + " · " + bytesText(sourceBytes))
-            HStack(alignment: .firstTextBaseline) {
-                row("folder", destination?.path ?? "—")
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                Spacer(minLength: AppDesign.Spacing.sm)
-                Button(localization.L(L10n.Archive.choose)) { chooseDestination() }
+        Form {
+            Section {
+                formRow("shippingbox", request.summary + " · " + bytesText(sourceBytes),
+                        color: .primary, monospacedDigits: true)
+
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "folder")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, alignment: .center)
+                    Text(destination?.path ?? "—")
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(localization.L(L10n.Archive.choose)) { chooseDestination() }
+                        .controlSize(.small)
+                }
+
+                if inside {
+                    formRow("exclamationmark.triangle.fill", localization.L(L10n.Archive.insideSource),
+                            color: AppDesign.Color.error)
+                }
             }
-            if inside {
-                row("exclamationmark.triangle.fill", localization.L(L10n.Archive.insideSource))
-                    .foregroundStyle(AppDesign.Color.error)
-            }
+
             if let sourceBytes {
-                spaceRow(sourceBytes: sourceBytes, enough: enough)
-                row("clock", String(format: localization.L(L10n.Archive.estimate),
-                                    durationText(FolderArchive.estimatedSeconds(
-                                        bytes: sourceBytes, bytesPerSecond: store.bytesPerSecond))))
+                Section {
+                    spaceRow(sourceBytes: sourceBytes, enough: enough)
+                    formRow("clock", String(format: localization.L(L10n.Archive.estimate),
+                                            durationText(FolderArchive.estimatedSeconds(
+                                                bytes: sourceBytes, bytesPerSecond: store.bytesPerSecond))),
+                            color: .secondary)
+                }
             }
         }
-        .font(AppDesign.Font.caption)
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+
+        Divider()
         HStack {
             Spacer()
             Button(localization.L(L10n.Saves.cancel), role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
             Button(localization.L(L10n.Archive.start)) { start() }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!enough || inside || destination == nil)
         }
+        .padding(.horizontal, AppDesign.Spacing.lg)
+        .padding(.vertical, AppDesign.Spacing.md)
     }
 
     @ViewBuilder
     private func spaceRow(sourceBytes: Int64, enough: Bool) -> some View {
         let needed = FolderArchive.requiredBytes(sourceBytes: sourceBytes)
         if enough {
-            row("internaldrive", String(format: localization.L(L10n.Archive.spaceOK),
-                                        bytesText(available), bytesText(needed)))
+            formRow("internaldrive", String(format: localization.L(L10n.Archive.spaceOK),
+                                            bytesText(available), bytesText(needed)),
+                    color: .secondary, monospacedDigits: true)
         } else {
-            row("exclamationmark.triangle.fill", String(format: localization.L(L10n.Archive.spaceShort),
-                                                        bytesText(needed), bytesText(available)))
-                .foregroundStyle(AppDesign.Color.error)
+            formRow("exclamationmark.triangle.fill", String(format: localization.L(L10n.Archive.spaceShort),
+                                                            bytesText(needed), bytesText(available)),
+                    color: AppDesign.Color.error, monospacedDigits: true)
         }
     }
 
@@ -132,19 +160,32 @@ struct FolderArchiveSheet: View {
 
     @ViewBuilder
     private func running(_ progress: FolderArchive.Progress?, startedAt: Date) -> some View {
-        ProgressView(value: progress?.fraction ?? 0)
-        TimelineView(.periodic(from: startedAt, by: 1)) { context in
-            Text(statusText(progress, elapsed: context.date.timeIntervalSince(startedAt)))
-                .font(AppDesign.Font.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .fixedSize(horizontal: false, vertical: true)
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                    ProgressView(value: progress?.fraction ?? 0)
+                    TimelineView(.periodic(from: startedAt, by: 1)) { context in
+                        Text(statusText(progress, elapsed: context.date.timeIntervalSince(startedAt)))
+                            .font(AppDesign.Font.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, AppDesign.Spacing.xs)
+            }
         }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+
+        Divider()
         HStack {
             Spacer()
             Button(localization.L(L10n.Archive.stop), role: .cancel) { store.cancel() }
                 .keyboardShortcut(.cancelAction)
         }
+        .padding(.horizontal, AppDesign.Spacing.lg)
+        .padding(.vertical, AppDesign.Spacing.md)
     }
 
     private func statusText(_ progress: FolderArchive.Progress?, elapsed: Double) -> String {
@@ -160,35 +201,57 @@ struct FolderArchiveSheet: View {
 
     @ViewBuilder
     private func finished(_ archive: URL, bytes: Int64, seconds: Double) -> some View {
-        Label(String(format: localization.L(L10n.Archive.done), bytesText(bytes), durationText(seconds)),
-              systemImage: "checkmark.circle.fill")
-            .foregroundStyle(AppDesign.Color.success)
-            .fixedSize(horizontal: false, vertical: true)
-        Text(archive.path)
-            .font(AppDesign.Font.monoCaption)
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
-            .fixedSize(horizontal: false, vertical: true)
+        Form {
+            Section {
+                Label(String(format: localization.L(L10n.Archive.done), bytesText(bytes), durationText(seconds)),
+                      systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(AppDesign.Color.success)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(archive.path)
+                    .font(AppDesign.Font.monoCaption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+
+        Divider()
         HStack {
             Spacer()
             Button(localization.L(L10n.Archive.reveal)) {
                 NSWorkspace.shared.activateFileViewerSelecting([archive])
             }
             Button(localization.L(L10n.Saves.cleanupClose)) { dismiss() }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
         }
+        .padding(.horizontal, AppDesign.Spacing.lg)
+        .padding(.vertical, AppDesign.Spacing.md)
     }
 
     @ViewBuilder
     private func ended(_ message: String, color: Color) -> some View {
-        Text(message)
-            .foregroundStyle(color)
-            .fixedSize(horizontal: false, vertical: true)
+        Form {
+            Section {
+                Text(message)
+                    .foregroundStyle(color)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+
+        Divider()
         HStack {
             Spacer()
             Button(localization.L(L10n.Saves.cleanupClose)) { dismiss() }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
         }
+        .padding(.horizontal, AppDesign.Spacing.lg)
+        .padding(.vertical, AppDesign.Spacing.md)
     }
 
     // MARK: - Actions
@@ -233,9 +296,18 @@ struct FolderArchiveSheet: View {
 
     // MARK: - Mise en forme
 
-    private func row(_ symbol: String, _ text: String) -> some View {
-        Label(text, systemImage: symbol)
-            .fixedSize(horizontal: false, vertical: true)
+    private func formRow(_ symbol: String, _ text: String,
+                         color: Color = .primary, monospacedDigits: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(color == AppDesign.Color.error ? color : .secondary)
+                .frame(width: 18, alignment: .center)
+            Text(text)
+                .foregroundStyle(color)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func bytesText(_ bytes: Int64?) -> String {

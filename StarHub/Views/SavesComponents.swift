@@ -69,6 +69,29 @@ struct SaveAvatarView: View {
     }
 }
 
+/// Renders the save's real Stardew farmer portrait (`SaveFarmerAvatar`) by default,
+/// honoring a user-chosen custom image or preset icon when configured.
+struct SavePreviewAvatar: View {
+    let save: SaveGameInfo
+    let size: CGFloat
+    var vm: StarHubTHViewModel
+
+    var body: some View {
+        let iconPath = vm.getNote(for: save.folderName).customIconPath ?? ""
+        if SaveHeroPortrait.prefersCustomIcon(iconPath) || iconPath.hasPrefix("preset:") {
+            SaveAvatarViewLocal(iconPath: iconPath, size: size)
+        } else {
+            EquatableView(content: SaveFarmerAvatar(
+                isFemale: save.isFemale,
+                hairStyle: save.hairStyle,
+                hairColor: SaveFarmerPalette.hairColor(from: save.hairColor),
+                skinIndex: save.skinIndex,
+                size: size
+            ))
+        }
+    }
+}
+
 // MARK: - SaveGameInfo · sous-titre de rangée et de hero
 extension SaveGameInfo {
     /// « Ferme · An 3 Printemps 14 » — le sous-titre commun à la rangée de
@@ -84,17 +107,30 @@ extension SaveGameInfo {
 }
 
 // MARK: - Grid View
+
+private struct SaveCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(Motion.animation(.easeOut(duration: 0.1)), value: configuration.isPressed)
+    }
+}
+
 struct SavesGridView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let saves: [SaveGameInfo]
+    let onDelete: (SaveGameInfo) -> Void
     let columns = [GridItem(.adaptive(minimum: 130, maximum: 170), spacing: 16)]
-    
+
     var body: some View {
-        ScrollView {
+        BackToTopScrollView(localization) {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(saves) { save in
-                    SaveCardView(vm: vm, localization: localization, save: save)
+                    SaveCardView(vm: vm, localization: localization, save: save) {
+                        onDelete(save)
+                    }
                 }
             }
             .padding(20)
@@ -103,16 +139,15 @@ struct SavesGridView: View {
 }
 
 struct SaveCardView: View {
-    @State private var confirmingDelete = false
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let save: SaveGameInfo
-    @State private var isHovered = false
-    
+    let onDelete: () -> Void
+
     var body: some View {
         Button(action: { vm.navigationStore.setEditingSave(save) }) {
             VStack(spacing: AppDesign.Spacing.md) {
-                SaveAvatarView(folderName: save.folderName, size: 64, vm: vm)
+                SavePreviewAvatar(save: save, size: 64, vm: vm)
 
                 VStack(spacing: 2) {
                     let note = vm.getNote(for: save.folderName)
@@ -126,132 +161,36 @@ struct SaveCardView: View {
                     }
                     Text(save.farmName)
                         .font(AppDesign.Font.footnote)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .truncatedHelp(save.farmName, mode: .middle)
                     Text(String(format: localization.L(L10n.Saves.yearDayFormat), save.year, localization.L(save.seasonName), save.day))
                         .font(AppDesign.Font.iconXS)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
             .cardSurface(padding: AppDesign.Spacing.sm)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppDesign.Radius.lg, style: .continuous)
-                    .stroke(Color.accentColor.opacity(AppDesign.Opacity.medium),
-                            lineWidth: isHovered ? 1.5 : 0)
-            )
-            // Pas de `scaleEffect` de survol : un mouvement que « réduire les
-            // animations » ne coupe pas proprement — cohérent avec les cartes
-            // Mods du pilote.
         }
-        .buttonStyle(.plain).focusRing(cornerRadius: AppDesign.Radius.lg)
-        .onHover { isHovered = $0 }
-        .contextMenu {  // R6 : la même liste que le menu « … » de la rangée
-            SaveActionItems(save: save, viewModel: vm, localization: localization) { confirmingDelete = true }
-        }
-        // Supprimer une partie envoie tout son dossier à la corbeille. La
-        // suppression d'une **sauvegarde de secours** confirmait déjà (audit
-        // 2026-08-05) ; celle de la partie elle-même ne confirmait pas, ce qui
-        // était l'inverse du risque.
-        .confirmationDialog(localization.L(L10n.Saves.confirmDeleteSave),
-                            isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button(localization.L(L10n.Saves.deleteSave), role: .destructive) {
-                Task { await vm.deleteSave(info: save) }
-            }
-            Button(localization.L(L10n.Saves.cancel), role: .cancel) {}
-        } message: {
-            Text(localization.L(L10n.Saves.confirmDeleteSaveMsg))
+        .buttonStyle(SaveCardButtonStyle())
+        .focusRing(cornerRadius: AppDesign.Radius.lg)
+        .contextMenu {
+            SaveActionItems(save: save, viewModel: vm, localization: localization, onDelete: onDelete)
         }
     }
 }
 
-// MARK: - Tree List View
-struct SaveTreeListView: View {
-    var vm: StarHubTHViewModel
-    @ObservedObject var localization: LocalizationStore
-    let nodes: [SaveNode]
-    let depth: Int
-    @State private var expandedSaves: Set<String> = []
-    
-    var body: some View {
-        ForEach(nodes) { node in
-            let hasChildren = !node.children.isEmpty
-            let isExpanded = expandedSaves.contains(node.info.folderName)
-            
-            Button(action: { vm.navigationStore.setEditingSave(node.info) }) {
-                SaveRow(
-                    vm: vm,
-                    localization: localization,
-                    save: node.info,
-                    depth: depth,
-                    hasChildren: hasChildren,
-                    isExpanded: isExpanded,
-                    onToggleExpand: {
-                        withMotion(.easeInOut(duration: 0.2)) {
-                            if isExpanded {
-                                expandedSaves.remove(node.info.folderName)
-                            } else {
-                                expandedSaves.insert(node.info.folderName)
-                            }
-                        }
-                    }
-                )
-            }
-            .buttonStyle(.plain).focusRing()
-            
-            if hasChildren && isExpanded {
-                SaveTreeListView(vm: vm, localization: localization, nodes: node.children, depth: depth + 1)
-            }
-        }
-    }
-}
-
-// MARK: - Save Row (List)
+// MARK: - Save Row (Native List)
 struct SaveRow: View {
-    @State private var confirmingDelete = false
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let save: SaveGameInfo
-    let depth: Int
-    
-    var hasChildren: Bool = false
-    var isExpanded: Bool = false
-    var onToggleExpand: (() -> Void)? = nil
-    
-    @State private var isHovered = false
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: AppDesign.Spacing.sm) {
-            if depth > 0 {
-                HStack(spacing: AppDesign.Spacing.xs) {
-                    Spacer().frame(width: CGFloat(depth) * 16 - 8)
-                    Image(systemName: "arrow.turn.down.right")
-                        .foregroundColor(AppDesign.Color.dimmedSecondary(AppDesign.Opacity.disabled))
-                        .font(AppDesign.Font.iconXS)
-                }
-            }
-
-            // Expand/Collapse Chevron
-            if hasChildren {
-                Button(action: { onToggleExpand?() }) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(AppDesign.Font.iconXS(.bold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).focusRing()
-                .iconHelp(localization.L(L10n.Saves.expandHint)).accessibilityValue(localization.L(isExpanded ? L10n.Main.collapse : L10n.Main.expand))
-            } else {
-                Spacer().frame(width: 32)
-            }
-
             SaveAvatarView(folderName: save.folderName, size: 36, vm: vm)
 
-            // Hiérarchie nom › attributs : le fermier, puis ferme et date
-            // de jeu — l'argent vit en colonnes tenues à droite, il ne
-            // rallonge plus la phrase.
             VStack(alignment: .leading, spacing: 2) {
                 let note = vm.getNote(for: save.folderName)
                 HStack(spacing: 6) {
@@ -261,13 +200,13 @@ struct SaveRow: View {
                     }
                     Text(save.playerName)
                         .font(AppDesign.Font.rowTitle(.medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
                 let farmDay = save.farmDayLine(format: localization.L(L10n.Saves.yearDayFormat),
                                                localizedSeason: localization.L(save.seasonName))
                 Text(farmDay)
                     .font(AppDesign.Font.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .truncatedHelp(farmDay)
             }
 
@@ -275,38 +214,23 @@ struct SaveRow: View {
 
             moneyColumns
 
-            Menu {  // R6 : une seule liste d'actions (`SaveActionItems`)
-                SaveActionItems(save: save, viewModel: vm, localization: localization) { confirmingDelete = true }
+            Menu {
+                SaveActionItems(save: save, viewModel: vm, localization: localization, onDelete: onDelete)
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(AppDesign.Font.rowTitle)
                     .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                     .contentShape(.rect)
-                    .padding(.trailing, 4)
             }
-            .menuStyle(BorderlessButtonMenuStyle()).focusRing(cornerRadius: 4)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .focusRing(cornerRadius: 4)
             .iconHelp(localization.L(L10n.Mods.moreActions))
-            .frame(width: 30)
+            .fixedSize()
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .contextMenu {  // R6 : clic droit sur la rangée, même liste que « … »
-            SaveActionItems(save: save, viewModel: vm, localization: localization) { confirmingDelete = true }
-        }
-        // Même garde que sur la carte : la partie part à la corbeille avec
-        // tout son dossier. Un seul modificateur de présentation sur cette
-        // vue — deux ne se présenteraient pas tous les deux.
-        .confirmationDialog(localization.L(L10n.Saves.confirmDeleteSave),
-                            isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button(localization.L(L10n.Saves.deleteSave), role: .destructive) {
-                Task { await vm.deleteSave(info: save) }
-            }
-            Button(localization.L(L10n.Saves.cancel), role: .cancel) {}
-        } message: {
-            Text(localization.L(L10n.Saves.confirmDeleteSaveMsg))
-        }
     }
 
     /// Argent et total gagné, en colonnes tenues : ce qui se compare d'une

@@ -65,7 +65,7 @@ struct SaveCleanupSheet: View {
             footer
         }
         .padding(AppDesign.Spacing.lg)
-        .frame(width: 460)
+        .frame(minWidth: 420, idealWidth: 480, minHeight: 280)
         .task { await chargerCandidats() }
         .interactiveDismissDisabled(store.phase == .enCours)
         // Échap ferme comme « Annuler » ou « Fermer », qui portent déjà

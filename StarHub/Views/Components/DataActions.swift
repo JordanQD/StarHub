@@ -13,16 +13,14 @@ struct SavesDataActions: View {
 
     var body: some View {
         Button(action: { vm.openSavesFolder() }) {
-            Image(systemName: "folder").font(AppDesign.Font.caption)
+            Label(localization.L(L10n.Settings.savesFolder), systemImage: "folder")
         }
-        .buttonStyle(.bordered).focusRing()
-        .iconHelp(localization.L(L10n.Settings.savesFolder))
+        .help(localization.L(L10n.Settings.savesFolder))
 
         Button(action: { archive = .saves(localization) }) {
-            Image(systemName: "archivebox").font(AppDesign.Font.caption)
+            Label(localization.L(L10n.Saves.backupLabel), systemImage: "archivebox")
         }
-        .buttonStyle(.bordered).focusRing()
-        .iconHelp(localization.L(L10n.Settings.hintCompressSaves))
+        .help(localization.L(L10n.Saves.backupLabel))
         .sheet(item: $archive) { FolderArchiveSheet(localization: localization, request: $0) }
     }
 }

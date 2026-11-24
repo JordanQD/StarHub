@@ -17,13 +17,17 @@ extension ModListView {
             TableColumn(Text(Image(systemName: "arrow.up.circle")), sortUsing: ModTableSort(column: .update)) { row in
                 if let update = row.update {
                     ModTableUpdateButton(pending: update, vm: vm, localization: localization)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
-            .width(min: 35, ideal: 35)
+            .width(26)
             TableColumn(localization.L(L10n.Mods.tableName), sortUsing: ModTableSort(column: .name)) { row in
-                Text(row.mod.name).lineLimit(1).help(row.mod.name)
+                HStack(spacing: 7) {
+                    modTableThumbnail(for: row.mod)
+                    Text(row.mod.name).lineLimit(1).help(row.mod.name)
+                }
             }
-            .width(min: 118, ideal: 250)
+            .width(min: 140, ideal: 260)
             TableColumn(localization.L(L10n.Mods.tableType), sortUsing: ModTableSort(column: .type)) { row in
                 Text(row.type).lineLimit(1).help(row.type)
             }
@@ -125,6 +129,25 @@ extension ModListView {
     func selectedTableRows(in visibleRows: [ModItem]) -> [ModItem] {
         let ids = Set(listState.selection.effectiveMembers(in: visibleRows.map(\.id), current: vm.selectedModID))
         return visibleRows.filter { ids.contains($0.id) }
+    }
+
+    private func modTableThumbnail(for mod: ModItem) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
+        return ZStack {
+            shape.fill(.quaternary)
+            if let urlString = gridPictureURL(for: mod), let url = URL(string: urlString) {
+                CachedAsyncImage(url: url)
+                    .allowsHitTesting(false)
+            } else {
+                Image(systemName: "puzzlepiece.extension")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 20, height: 20)
+        .clipShape(shape)
+        .overlay(shape.stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+        .accessibilityHidden(true)
     }
 
     @discardableResult

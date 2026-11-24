@@ -1441,7 +1441,7 @@
 "saves_character_name" = "角色名称";
 "saves_character_stats" = "角色属性";
 "saves_clear_slot_hint" = "清空此栏位";
-"saves_col_day" = "游戏内日期";
+"saves_col_day" = "游戏时间";
 "saves_confirm_delete_backup" = "删除此备份？";
 "saves_confirm_delete_backup_msg" = "备份会移至废纸篓，可从那里恢复。";
 "saves_confirm_delete_save" = "删除此存档？";
@@ -1486,7 +1486,7 @@
 "saves_list_view_hint" = "以列表显示";
 "saves_max_health" = "生命值上限";
 "saves_max_stamina" = "体力上限";
-"saves_money" = "金币（G）";
+"saves_money" = "金币";
 "saves_new_character_name" = "新角色名称";
 "saves_new_farm_name" = "新农场名称";
 "saves_no_backups" = "此存档暂无备份";
@@ -1530,7 +1530,7 @@
 "saves_relative_just_now" = "刚才";
 "saves_relative_minutes_ago" = "%lld 分钟前";
 "saves_relative_minutes_ago_one" = "1分钟前";
-"saves_reload_hint" = "重新加载存档";
+"saves_reload_hint" = "刷新";
 "saves_resources" = "资源";
 "saves_restore" = "恢复";
 "saves_save_changes" = "保存更改";
@@ -1600,7 +1600,7 @@
 "settings_group_content" = "模组和内容";
 "settings_group_game" = "游戏";
 "settings_hint_compress_mods" = "将 Mods 文件夹打包成 ZIP";
-"settings_hint_compress_saves" = "将存档文件夹打包成 ZIP";
+"settings_hint_compress_saves" = "备份";
 "settings_hint_dev_logs" = "查看错误日志以排查问题";
 "settings_hint_next_launch_mode" = "下次启动游戏时使用的模式";
 "settings_hint_save_resources" = "节省系统资源";
@@ -1648,7 +1648,7 @@
 "settings_nexus_save_key" = "保存";
 "settings_open_folder" = "打开文件夹";
 "settings_play_s_m_a_p_i" = "通过 SMAPI 启动（加载模组）";
-"settings_saves_folder" = "游戏存档文件夹";
+"settings_saves_folder" = "打开存档文件夹";
 "settings_settings" = "设置";
 "settings_show_dev_logs" = "显示开发者日志";
 "settings_support" = "帮助与反馈";

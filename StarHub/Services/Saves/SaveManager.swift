@@ -69,6 +69,7 @@ struct SaveNode: Identifiable, Equatable {
     var id: String { info.id }
     let info: SaveGameInfo
     var children: [SaveNode]
+    var outlineChildren: [SaveNode]? { children.isEmpty ? nil : children }
 }
 
 /// Couleur de cheveux (`<hairstyleColor>`) : un `Color` XNA **libre**

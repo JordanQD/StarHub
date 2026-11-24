@@ -21,51 +21,16 @@ private enum SaveTimelineConfirmation: Identifiable {
 }
 
 struct SaveTimelineView: View {
-     @Bindable var vm: StarHubTHViewModel
+    @Bindable var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let save: SaveGameInfo
+    var refreshToken: Int = 0
     
     @State private var backups: [SaveBackup] = []
     @State private var confirmation: SaveTimelineConfirmation?
     
     var body: some View {
-        VStack(spacing: 0) {
-            // En-tête commun des pages (audit UX 2026-10-02) : retour, la
-            // partie et son nombre de sauvegardes, le geste qui en ajoute une.
-            VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
-                PageHeader(icon: "clock.arrow.circlepath",
-                           title: String(format: localization.L(L10n.Saves.timelineTitle), save.playerName),
-                           subtitle: String(format: localization.L(L10n.Saves.timelineSubtitle),
-                                            localization.plural(L10n.Saves.timelineBackupCount, backups.count),
-                                            save.farmName)) {
-                    Button(action: {
-                        Task {
-                            if await vm.createBackup(info: save) {
-                                loadBackups()
-                            }
-                        }
-                    }) {
-                        HStack(spacing: AppDesign.Spacing.xs) {
-                            if vm.isSaveOperationRunning {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "plus.circle.fill")
-                            }
-                            Text(localization.L(L10n.Saves.backupLabel))
-                        }
-                    }
-                    .buttonStyle(.borderedProminent).focusRing(cornerRadius: 5)
-                    .controlSize(.small)
-                    .pointingHandCursor()
-                    .disabled(vm.isSaveOperationRunning)
-                }
-            }
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.md)
-
-            Divider()
-            
-            // Content
+        Group {
             if backups.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
@@ -73,7 +38,7 @@ struct SaveTimelineView: View {
                     Text(localization.L(L10n.Saves.noBackups))
                         .multilineTextAlignment(.center)
                         .font(AppDesign.Font.rowTitle)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -81,11 +46,6 @@ struct SaveTimelineView: View {
                 BackToTopScrollView(localization) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(backups) { backup in
-                            // Pas d'index comme id : la liste est triée par
-                            // timestamp décroissant, un nouveau backup décale les
-                            // index et le @State (note en cours) fuyait vers la
-                            // rangée héritant de l'index → note sur le mauvais
-                            // backup. SaveBackup est Identifiable. Audit 2026-08-05.
                             let isLast = backup.id == backups.last?.id
                             
                             BackupRow(
@@ -96,15 +56,32 @@ struct SaveTimelineView: View {
                                 onRestore: { confirmation = .restore(backup) },
                                 onDelete: { confirmation = .delete(backup) }
                             )
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    confirmation = .delete(backup)
+                                } label: {
+                                    Label(localization.L(L10n.Saves.deleteBackupHint), systemImage: "trash")
+                                }
+                                Button {
+                                    confirmation = .restore(backup)
+                                } label: {
+                                    Label(localization.L(L10n.Saves.restore), systemImage: "arrow.uturn.backward")
+                                }
+                                .tint(.accentColor)
+                            }
                         }
                     }
                     .cardSurface(padding: AppDesign.Spacing.lg)
                     .padding(AppDesign.Spacing.xl)
                 }
+                .optionalSwipeActionsContainer()
             }
         }
         .background(AppDesign.Color.windowBg)
         .onAppear {
+            loadBackups()
+        }
+        .onChange(of: refreshToken) { _, _ in
             loadBackups()
         }
         // Un seul `.alert` : voir `SaveTimelineConfirmation`. `presenting:`
@@ -274,20 +251,15 @@ struct BackupRow: View {
 
                         Button(action: { vm.backupToBranch = backup }) {
                             Label(localization.L(L10n.Saves.branch), systemImage: "arrow.triangle.branch")
-                                .font(AppDesign.Font.caption(.medium))
                         }
-                        .buttonStyle(.plain).focusRing().pointingHandCursor()
-                        // Même teinte que l'installé : la branche crée une
-                        // partie vivante.
-                        .foregroundColor(AppDesign.Color.installed)
+                        .buttonStyle(.bordered).controlSize(.small).focusRing(cornerRadius: 5)
                         .help(localization.L(L10n.Saves.branch))
 
                         Button(action: onRestore) {
                             Label(localization.L(L10n.Saves.restore), systemImage: "arrow.uturn.backward.circle.fill")
-                                .font(AppDesign.Font.caption(.medium))
                         }
-                        .buttonStyle(.plain).focusRing().pointingHandCursor()
-                        .foregroundColor(AppDesign.Color.accent)
+                        .buttonStyle(.bordered).controlSize(.small).focusRing(cornerRadius: 5)
+                        .tint(AppDesign.Color.accent)
                         .help(localization.L(L10n.Saves.restore))
 
                         Button(action: onDelete) {
