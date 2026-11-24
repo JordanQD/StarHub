@@ -1,153 +1,156 @@
 import SwiftUI
 
-/// La section « Conflits entre mods », dans l'onglet Alertes système, juste
-/// après `KeybindReportSection` (spec A5-T2, tâche 8).
-///
-/// Trois sources bien distinctes, jamais mélangées :
-/// - `vm.contentPatcherConflicts` : ce que Content Patcher a **constaté** en
-///   rejouant, lu dans le journal SMAPI de la dernière partie — un fait
-///   passé, pas l'état du parc aujourd'hui.
-/// - `vm.modConflictVerdicts.declared` : ce que l'utilisateur a **déclaré**
-///   lui-même, sans que rien ne l'ait détecté.
-/// - `vm.modConflictVerdicts.dismissed` : ce que l'utilisateur a **écarté**
-///   d'un précédent constat — retiré des deux listes ci-dessus, jamais
-///   effacé du disque (voir `ModConflictVerdicts.orphans`).
-///
-/// Écarts au canevas du brief (mesurés en écrivant cette vue) :
-/// - **Aucun `.onAppear`** : contrairement à `KeybindReportSection`, qui
-///   déclenche son propre scan, `contentPatcherConflicts` est déjà publiée
-///   par les deux chemins de lecture du journal (`refreshSmapiLog` et le
-///   scan ordinaire). Un scan ici serait un second chemin qui doublonnerait
-///   le travail sans rien ajouter.
-/// - **`vm.scanStore.mods.flattenedMods`, pas `vm.scanStore.mods`** : un content pack est un
-///   enfant de son pack parent (`ModItem.children`), pas une entrée de
-///   premier niveau — comparer directement contre `vm.scanStore.mods` manquerait tout
-///   pack, et c'est justement le terrain de Content Patcher. Même repli que
-///   `resolveModFolder(forLoggedName:)` dans le ViewModel.
-/// - **Correspondance « paire écartée » pour `withinOnePack`** : le brief
-///   demande de retirer les paires écartées des points 2 **à 4**, y compris
-///   donc les conflits « un seul pack ». `ModConflictPair` accepte deux noms
-///   identiques (`first == second`), ce qui donne une clé stable pour ce
-///   cas d'auto-conflit — sans ce repli, un conflit `withinOnePack` écarté
-///   une fois reviendrait à chaque relecture du journal.
-/// - **Un conflit `betweenPacks` à plus de deux packs (`Multiple content
-///   packs…`) n'est jamais filtré par les verdicts, dans les deux sens** :
-///   `pair(_:)` rend `nil` pour ce cas — `ModConflictPair` ne modélise
-///   qu'une paire de deux, et choisir laquelle des C(n,2) paires internes
-///   représenterait le groupe serait une décision de modélisation que rien
-///   n'impose ici. Concrètement : un tel conflit ne peut **ni** être écarté
-///   **ni** revenir après l'avoir été — `liveConflicts` ne le retire jamais
-///   de la liste affichée. Si la tâche 9 lui donne un bouton « Écarter »
-///   quand même, un clic dessus produira un verdict que ce fichier ne sait
-///   pas lire : le repli « N écarté(s) » compterait sans que la ligne
-///   correspondante ne disparaisse jamais — une contradiction visible, pas
-///   un simple oubli. Cas rare en pratique — jamais rencontré sur le parc
-///   de 966 mods qui a servi de repère à cet axe.
-/// - **`%lld` plutôt que le `%d` du canevas brief** pour les deux compteurs
-///   (`conflicts_dismissed_count`, `conflicts_orphans`) : convention du
-///   dépôt déjà posée par `KeybindReportSection` (`keybinds_collisions_header`
-///   et consorts) — `Int` est 64 bits sur cette plateforme, `%d` attend un
-///   `Int32` et rendrait un nombre au hasard.
-/// - **Noms d'affichage résolus via `vm.scanStore.mods.flattenedMods`** partout,
-///   y compris pour les paires déclarées par l'utilisateur : `ModConflictPair`
-///   ne porte que des `folderName`, illisibles tels quels dans une liste
-///   destinée à l'utilisateur. Un nom non résolu (mod désinstallé, ou nom
-///   d'affichage que Content Patcher a mal découpé) reste affiché tel quel —
-///   jamais tu, même imparfait.
-/// - **Le vert « aucun conflit » ne couvre que les points 2 à 4** (les
-///   éléments qui appellent une action ou une lecture) : le compteur des
-///   paires écartées et la ligne des verdicts orphelins restent des
-///   post-scripta inconditionnels, montrés même sous le vert. Voir aussi
-///   « Ronde de correction 1 » plus bas : le test de vacuité lui-même a dû
-///   changer une fois cette idée poussée jusqu'au bout.
-/// - **Un état de plus que le canevas** (`conflicts_no_log`), sur le même
-///   principe que les deux états ajoutés par `KeybindReportSection`
-///   (`noGameDir`, `noModsScanned`) : le vert « aucun conflit dans le
-///   journal » ne doit sortir que si un journal a effectivement été lu.
-///   `vm.smapiLogDate == nil` distingue les deux cas — ce n'est pas une
-///   simple absence de conflit, c'est une absence de lecture, et les
-///   confondre serait le vert mensonger que le canevas demande justement
-///   de refuser (brief, point 7 : « surtout pas un silence »). Les paires
-///   déclarées restent visibles dans les deux cas : elles ne dépendent pas
-///   du journal.
-///
-/// **Ronde de correction 1** (relecture du 2026-08-30) — deux constats
-/// « Important », les deux sur le même thème : une affirmation qui ne
-/// tenait plus une fois un cas limite poussé au bout.
-/// - **Constat 1, le vert mensonger était encore possible.** Le test de
-///   vacuité portait sur les listes **après** filtrage des paires écartées
-///   (`betweenPacksConflicts`/`withinOnePackConflicts`/`declaredPairs`), pas
-///   sur `vm.contentPatcherConflicts` brut. Scénario réel : le journal
-///   rapporte deux conflits, l'utilisateur les écarte tous les deux (tâche
-///   9), les trois listes filtrées se vident, `smapiLogDate` existe toujours
-///   — et l'ancien code affichait « Aucun conflit dans le journal de la
-///   dernière partie » à côté de « 2 écarté(s) » juste en dessous. La phrase
-///   affirme un fait sur le journal, et ce fait était faux : le journal en
-///   contenait deux. La défense initiale (« même patron que
-///   `pausedIgnored`/`catalogModsIgnored` ») ne tenait pas : ces compteurs-là
-///   comptent des entrées **jamais scannées**, donc leur vert reste vrai ;
-///   une paire écartée est un conflit **détecté puis masqué par choix**, pas
-///   la même garantie. Correctif : le vert n'affirme plus rien sauf si
-///   **rien n'a été filtré**, c'est-à-dire si `vm.contentPatcherConflicts`
-///   (non filtré) est vide — sinon une ligne neutre dédiée
-///   (`conflicts_all_dismissed`) dit ce qui est vrai : tout ce que le
-///   journal rapportait a été écarté. Voir `content`.
-/// - **Constat 2, « Les deux sont actifs » était faux au pluriel.** Un
-///   conflit `betweenPacks` peut citer trois packs ou plus (forme
-///   « Multiple content packs » que `ContentPatcherConflicts.parse` gère).
-///   L'ancien `bothActive(_:)` testait correctement **tous** les noms, mais
-///   le badge affichait littéralement « Les deux sont actifs » même à
-///   quatre. Correctif : `activeBadgeLabel(for:)` choisit entre
-///   `conflicts_both_active` (exactement deux packs) et le nouveau
-///   `conflicts_all_active` (trois ou plus).
-/// - **Mineur, au passage** : le glyphe d'en-tête était figé sur
-///   `exclamationmark.triangle.fill` orange, y compris quand le corps
-///   affichait le vert. `KeybindReportSection.header` garde un glyphe
-///   neutre (`keyboard`, couleur par défaut) et réserve la couleur
-///   sémantique à la ligne de statut du corps — repris ici avec
-///   `arrow.triangle.merge`.
-///
-/// **Tâche 9** — les boutons « Écarter » : un par ligne, jamais sur un
-/// `betweenPacks` à 3 packs ou plus (`pair(_:)` y rend `nil`, voir le
-/// paragraphe qui suit). `pair(_:)` délègue désormais à
-/// `vm.conflictPair(for:)` — la fiche d'un mod (« Signaler »/« Écarter ») et
-/// `vm.conflictWarning(for:)` en ont besoin aussi, une seule correspondance
-/// partagée plutôt que trois copies qui auraient fini par diverger.
+/// Combined Conflicts tab content inside `SystemAlertsView`.
+/// Unifies Content Patcher conflicts, known/predicted/declared incompatibilities,
+/// performance overlaps, and restorable dismissed pairs into collapsible
+/// `UpdateSectionDisclosure` groups with toolbar search and native empty states.
+struct ModConflictsTabContent: View {
+    var vm: StarHubTHViewModel
+    @ObservedObject var localization: LocalizationStore
+    var searchQuery: String = ""
+    var onClearSearch: () -> Void = {}
+
+    @AppStorage(UDKey.dismissedPerformanceOverlaps) private var dismissedOverlapsRaw = ""
+
+    private var isSearching: Bool { !searchQuery.isEmpty }
+
+    private var installedMods: [ModItem] {
+        vm.scanStore.mods.flattenedMods
+    }
+
+    private func displayName(_ folderName: String) -> String {
+        installedMods.first(where: { $0.folderName == folderName })?.name ?? folderName
+    }
+
+    private func matches(_ text: String) -> Bool {
+        text.localizedCaseInsensitiveContains(searchQuery)
+    }
+
+    private func matchesPair(_ pair: ModConflictPair) -> Bool {
+        !isSearching || matches(pair.first) || matches(pair.second)
+            || matches(displayName(pair.first)) || matches(displayName(pair.second))
+    }
+
+    private func matchesConflict(_ conflict: LoadConflict) -> Bool {
+        guard isSearching else { return true }
+        if matches(conflict.asset) { return true }
+        return vm.conflictFolderNames(conflict).contains { folder in
+            matches(folder) || matches(displayName(folder))
+        }
+    }
+
+    private var filteredPerformanceMatches: [PerformanceOverlapMatch] {
+        let all = PerformanceOverlapSection.activeMatches(in: installedMods, dismissedRaw: dismissedOverlapsRaw)
+        guard isSearching else { return all }
+        return all.filter { m in
+            matches(m.firstMod.name) || matches(m.secondMod.name)
+                || matches(m.firstMod.folderName) || matches(m.secondMod.folderName)
+        }
+    }
+
+    var body: some View {
+        let dismissedSet = Set(vm.modConflictVerdicts.dismissed)
+        let liveBetween = vm.contentPatcherConflicts.filter { conflict in
+            guard conflict.kind == .betweenPacks else { return false }
+            if let p = vm.conflictPair(for: conflict), dismissedSet.contains(p) { return false }
+            return matchesConflict(conflict)
+        }
+        let liveWithin = vm.contentPatcherConflicts.filter { conflict in
+            guard conflict.kind == .withinOnePack else { return false }
+            if let p = vm.conflictPair(for: conflict), dismissedSet.contains(p) { return false }
+            return matchesConflict(conflict)
+        }
+        let known = vm.modConflictVerdicts.knownPairs(installed: installedMods).filter(matchesPair)
+        let predicted = vm.contentPatcherLoadIndex.conflictPairs
+            .filter { vm.modConflictVerdicts.verdict(for: $0) == nil }
+            .filter(matchesPair)
+        let declared = vm.modConflictVerdicts.declared.filter(matchesPair)
+        let dismissed = vm.modConflictVerdicts.dismissed.filter(matchesPair)
+        let overlaps = filteredPerformanceMatches
+
+        let hasAnyActiveConflict = !liveBetween.isEmpty || !liveWithin.isEmpty
+            || !known.isEmpty || !predicted.isEmpty || !declared.isEmpty
+        let hasAnyVisibleItem = hasAnyActiveConflict || !overlaps.isEmpty || !dismissed.isEmpty
+
+        if isSearching && !hasAnyVisibleItem {
+            ContentUnavailableView {
+                Label(localization.L(L10n.Discovery.noMatch), systemImage: "magnifyingglass")
+            } actions: {
+                Button(localization.L(L10n.Discovery.clearSearch), action: onClearSearch)
+                    .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if !isSearching && !hasAnyVisibleItem && dismissedOverlapsRaw.isEmpty {
+            emptyState
+        } else {
+            BackToTopScrollView(localization) {
+                LazyVStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+                    ModConflictSection(vm: vm,
+                                       localization: localization,
+                                       searchQuery: searchQuery)
+                    PerformanceOverlapSection(viewModel: vm,
+                                              localization: localization,
+                                              searchQuery: searchQuery)
+                }
+                .padding(AppDesign.Spacing.xl)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .optionalSwipeActionsContainer()
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if vm.smapiLogDate == nil {
+            ContentUnavailableView {
+                Label(localization.L(L10n.Conflicts.title), systemImage: "doc.text.magnifyingglass")
+            } description: {
+                Text(localization.L(L10n.Conflicts.noLogRead))
+            } actions: {
+                Button {
+                    vm.refreshSmapiLog()
+                } label: {
+                    Label(localization.L(L10n.Updates.recheckLog), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView {
+                Label {
+                    Text(localization.L(L10n.Conflicts.noneObserved))
+                } icon: {
+                    Image(systemName: AppDesign.Status.ok.symbol)
+                        .foregroundStyle(AppDesign.Status.ok.tint)
+                }
+            } description: {
+                Text(localization.L(L10n.PerformanceOverlaps.none))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// Content Patcher, known, predicted, declared, and dismissed mod conflicts.
 struct ModConflictSection: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    var searchQuery: String = ""
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-            header
-            content
-        }
-        .cardSurface(padding: AppDesign.Spacing.lg)
+    @State private var cpExpanded = true
+    @State private var knownExpanded = true
+    @State private var predictedExpanded = true
+    @State private var declaredExpanded = true
+    @State private var dismissedExpanded = false
+
+    private var isSearching: Bool { !searchQuery.isEmpty }
+
+    private func expandedBinding(_ binding: Binding<Bool>) -> Binding<Bool> {
+        isSearching ? .constant(true) : binding
     }
 
-    /// Le titre est celui de l'onglet des Alertes système : la section ne
-    /// le répète pas. La couleur sémantique vit sur la ligne de statut du
-    /// corps.
-    private var header: some View {
-        HStack {
-            // Le journal décrit la dernière partie jouée, pas l'état actuel
-            // du parc : le dire est une exigence, pas une politesse (brief,
-            // point 1). Absent tant qu'aucun journal n'a jamais été lu.
-            if let date = vm.smapiLogDate {
-                Text(String(format: localization.L(L10n.Conflicts.observedAt),
-                            DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .short)))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-    }
+    // MARK: - Derived Data
 
-    // MARK: - Données dérivées
-
-    /// Les mods installés aujourd'hui, packs dépliés — c'est contre cette
-    /// liste, jamais contre le journal, que « les deux actifs » se juge.
     var installedMods: [ModItem] {
         vm.scanStore.mods.flattenedMods
     }
@@ -156,19 +159,10 @@ struct ModConflictSection: View {
         installedMods.first(where: { $0.folderName == folderName })?.name ?? folderName
     }
 
-    /// Les `folderName` d'un conflit, résolus une fois pour toutes.
     private func folders(_ conflict: LoadConflict) -> [String] {
         vm.conflictFolderNames(conflict)
     }
 
-    /// La paire canonique d'un conflit, quand elle est représentable. `nil`
-    /// pour un `betweenPacks` à plus de deux packs (voir le commentaire de
-    /// tête) : ce conflit n'est alors jamais filtré par un verdict.
-    ///
-    /// Déléguée au ViewModel (tâche 9, `vm.conflictPair(for:)`) : la fiche
-    /// d'un mod (« Signaler »/« Écarter ») et `conflictWarning(for:)` en ont
-    /// besoin aussi — une seule correspondance conflit ↔ paire, pas une
-    /// copie par écran qui aurait fini par diverger.
     private func pair(_ conflict: LoadConflict) -> ModConflictPair? {
         vm.conflictPair(for: conflict)
     }
@@ -177,33 +171,42 @@ struct ModConflictSection: View {
         Set(vm.modConflictVerdicts.dismissed)
     }
 
-    /// Les conflits du journal, paires écartées retirées (brief : « les
-    /// paires écartées sont retirées des points 2 à 4 »).
+    private func matches(_ text: String) -> Bool {
+        text.localizedCaseInsensitiveContains(searchQuery)
+    }
+
+    private func matchesPair(_ pair: ModConflictPair) -> Bool {
+        !isSearching || matches(pair.first) || matches(pair.second)
+            || matches(displayName(pair.first)) || matches(displayName(pair.second))
+    }
+
+    private func matchesConflict(_ conflict: LoadConflict) -> Bool {
+        guard isSearching else { return true }
+        if matches(conflict.asset) { return true }
+        return folders(conflict).contains { matches($0) || matches(displayName($0)) }
+    }
+
     private func liveConflicts(kind: LoadConflict.Kind) -> [LoadConflict] {
         vm.contentPatcherConflicts.filter { conflict in
             guard conflict.kind == kind else { return false }
             if let p = pair(conflict), dismissedPairs.contains(p) { return false }
-            return true
+            return matchesConflict(conflict)
         }
     }
 
     private var betweenPacksConflicts: [LoadConflict] { liveConflicts(kind: .betweenPacks) }
     private var withinOnePackConflicts: [LoadConflict] { liveConflicts(kind: .withinOnePack) }
-    private var declaredPairs: [ModConflictPair] { vm.modConflictVerdicts.declared }
-    /// Tenues par l'app (`KnownIncompatibilities`) : badge et raison à part,
-    /// jamais « Signalé par vous ».
-    private var knownPairs: [ModConflictPair] { vm.modConflictVerdicts.knownPairs(installed: installedMods) }
-    /// A5-T4 — prévues par les fichiers, hors écartées et déjà déclarées.
+    private var declaredPairs: [ModConflictPair] { vm.modConflictVerdicts.declared.filter(matchesPair) }
+    private var knownPairs: [ModConflictPair] { vm.modConflictVerdicts.knownPairs(installed: installedMods).filter(matchesPair) }
     private var predictedPairs: [ModConflictPair] {
-        vm.contentPatcherLoadIndex.conflictPairs.filter { vm.modConflictVerdicts.verdict(for: $0) == nil }
+        vm.contentPatcherLoadIndex.conflictPairs
+            .filter { vm.modConflictVerdicts.verdict(for: $0) == nil }
+            .filter(matchesPair)
+    }
+    private var filteredDismissedPairs: [ModConflictPair] {
+        vm.modConflictVerdicts.dismissed.filter(matchesPair)
     }
 
-    /// Le libellé du badge « actifs », ou `nil` si au moins un pack cité
-    /// n'est pas installé et activé aujourd'hui. Deux libellés distincts
-    /// (ronde de correction 1, constat 2) : un `betweenPacks` peut citer
-    /// trois packs ou plus (forme « Multiple content packs » que
-    /// `ContentPatcherConflicts.parse` gère) — « Les deux sont actifs »
-    /// serait faux par construction au-delà de deux.
     private func activeBadgeLabel(for conflict: LoadConflict) -> String? {
         let names = folders(conflict)
         guard !names.isEmpty else { return nil }
@@ -212,132 +215,219 @@ struct ModConflictSection: View {
         return names.count == 2 ? localization.L(L10n.Conflicts.bothActive) : localization.L(L10n.Conflicts.allActive)
     }
 
-    // MARK: - Corps
+    // MARK: - Body
 
-    @ViewBuilder private var content: some View {
-        // Le vert ne couvre que ce qui appelle une lecture ou une action —
-        // les post-scripta (écartés, orphelins) restent en dehors de ce
-        // test, voir le commentaire de tête. Et le vert lui-même ne sort
-        // que si un journal a réellement été lu : `smapiLogDate` et
-        // `contentPatcherConflicts` sont remis à `nil`/`[]` ensemble quand
-        // le fichier journal est absent (`parseSMAPILog`, StarHubTHViewModel
-        // ~2972) — sans cette distinction, une installation qui n'a jamais
-        // lancé le jeu via SMAPI lirait « aucun conflit », un vert mensonger
-        // puisque rien n'a été regardé pour cet axe.
-        //
-        // Ronde de correction 1, constat 1 : le vert doit aussi rester vrai
-        // une fois des paires écartées. `betweenPacksConflicts`/
-        // `withinOnePackConflicts` sont déjà filtrées par verdict — les
-        // trouver vides ne dit donc pas « le journal n'a rien rapporté »,
-        // seulement « rien de non-écarté ne reste ». D'où le test sur
-        // `vm.contentPatcherConflicts`, **non filtré** : s'il est vide, le
-        // journal était réellement silencieux (vert légitime) ; s'il ne
-        // l'est pas, tout ce qu'il contenait a été écarté par choix — un
-        // fait différent, avec son propre libellé neutre.
-        if betweenPacksConflicts.isEmpty && withinOnePackConflicts.isEmpty && declaredPairs.isEmpty
-            && knownPairs.isEmpty && predictedPairs.isEmpty {
-            if vm.smapiLogDate == nil {
-                statusRow(icon: AppDesign.Status.info.symbol, color: .secondary,
-                          text: localization.L(L10n.Conflicts.noLogRead))
-            } else if vm.contentPatcherConflicts.isEmpty {
-                statusRow(icon: AppDesign.Status.ok.symbol, color: AppDesign.Status.ok.tint,
-                          text: localization.L(L10n.Conflicts.noneObserved))
-            } else {
-                statusRow(icon: AppDesign.Status.info.symbol, color: .secondary,
-                          text: localization.L(L10n.Conflicts.allDismissed))
+    var body: some View {
+        let cpCount = betweenPacksConflicts.count + withinOnePackConflicts.count
+        let noActiveConflicts = cpCount == 0 && declaredPairs.isEmpty && knownPairs.isEmpty && predictedPairs.isEmpty
+
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
+            if !isSearching && noActiveConflicts {
+                statusBanner
             }
-        } else {
-            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-                ForEach(betweenPacksConflicts, id: \.self) { conflict in
-                    betweenPacksRow(conflict)
-                }
-                ForEach(withinOnePackConflicts, id: \.self) { conflict in
-                    withinOnePackRow(conflict)
-                }
-                ForEach(declaredPairs, id: \.self) { p in
-                    declaredRow(p)
-                }
-                ForEach(knownPairs, id: \.self) { p in
-                    knownRow(p)
-                }
-                ForEach(predictedPairs, id: \.self) { p in
-                    predictedRow(p)
+
+            if cpCount > 0 {
+                UpdateSectionDisclosure(title: "\(localization.L(L10n.Conflicts.title)) (\(cpCount))",
+                                        icon: AppDesign.Status.error.symbol,
+                                        iconTint: AppDesign.Color.error,
+                                        isExpanded: expandedBinding($cpExpanded)) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(betweenPacksConflicts, id: \.self) { conflict in
+                            betweenPacksRow(conflict)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                                .modifier(ConflictRowInteractions(
+                                    folders: folders(conflict),
+                                    displayName: displayName,
+                                    navigation: vm.navigationStore,
+                                    localization: localization,
+                                    dismissAction: pair(conflict).map { p in { vm.dismissConflict(p) } }
+                                ))
+                        }
+                        ForEach(withinOnePackConflicts, id: \.self) { conflict in
+                            withinOnePackRow(conflict)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                                .modifier(ConflictRowInteractions(
+                                    folders: folders(conflict),
+                                    displayName: displayName,
+                                    navigation: vm.navigationStore,
+                                    localization: localization,
+                                    dismissAction: pair(conflict).map { p in { vm.dismissConflict(p) } }
+                                ))
+                        }
+                    }
                 }
             }
-        }
 
-        // Post-scripta inconditionnels : voir le commentaire de tête.
-        if !vm.modConflictVerdicts.dismissed.isEmpty {
-            Text(String(format: localization.L(L10n.Conflicts.dismissedCount),
-                        vm.modConflictVerdicts.dismissed.count))
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-        }
-        let orphanPairs = vm.modConflictVerdicts.orphans(among: installedMods.map(\.folderName))
-        if !orphanPairs.isEmpty {
-            Text(String(format: localization.L(L10n.Conflicts.orphans), orphanPairs.count))
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+            if !knownPairs.isEmpty {
+                UpdateSectionDisclosure(title: "\(localization.L(L10n.Conflicts.knownBadge)) (\(knownPairs.count))",
+                                        icon: "xmark.octagon.fill",
+                                        iconTint: AppDesign.Color.error,
+                                        isExpanded: expandedBinding($knownExpanded)) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(knownPairs, id: \.self) { p in
+                            knownRow(p)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                                .modifier(ConflictRowInteractions(
+                                    folders: [p.first, p.second],
+                                    displayName: displayName,
+                                    navigation: vm.navigationStore,
+                                    localization: localization,
+                                    dismissAction: { vm.dismissConflict(p) }
+                                ))
+                        }
+                    }
+                }
+            }
+
+            if !predictedPairs.isEmpty {
+                UpdateSectionDisclosure(title: "\(localization.L(L10n.Conflicts.predictedBadge)) (\(predictedPairs.count))",
+                                        icon: AppDesign.Status.warning.symbol,
+                                        iconTint: AppDesign.Color.warning,
+                                        isExpanded: expandedBinding($predictedExpanded)) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(predictedPairs, id: \.self) { p in
+                            predictedRow(p)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                                .modifier(ConflictRowInteractions(
+                                    folders: [p.first, p.second],
+                                    displayName: displayName,
+                                    navigation: vm.navigationStore,
+                                    localization: localization,
+                                    dismissAction: { vm.dismissConflict(p) }
+                                ))
+                        }
+                    }
+                }
+            }
+
+            if !declaredPairs.isEmpty {
+                UpdateSectionDisclosure(title: "\(localization.L(L10n.Conflicts.declaredByYou)) (\(declaredPairs.count))",
+                                        icon: "flag.fill",
+                                        iconTint: AppDesign.Color.info,
+                                        isExpanded: expandedBinding($declaredExpanded)) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(declaredPairs, id: \.self) { p in
+                            declaredRow(p)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                                .modifier(ConflictRowInteractions(
+                                    folders: [p.first, p.second],
+                                    displayName: displayName,
+                                    navigation: vm.navigationStore,
+                                    localization: localization,
+                                    dismissAction: { vm.dismissConflict(p) }
+                                ))
+                        }
+                    }
+                }
+            }
+
+            if !filteredDismissedPairs.isEmpty {
+                let dismissedTitle = String(format: localization.L(L10n.Conflicts.dismissedCount),
+                                            filteredDismissedPairs.count)
+                UpdateSectionDisclosure(title: dismissedTitle,
+                                        icon: "eye.slash",
+                                        iconTint: .secondary,
+                                        isExpanded: expandedBinding($dismissedExpanded)) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(filteredDismissedPairs, id: \.self) { p in
+                            dismissedRow(p)
+                                .padding(.vertical, AppDesign.Spacing.xs)
+                                .overlay(alignment: .bottom) { Divider() }
+                        }
+                    }
+                }
+            }
+
+            if !isSearching {
+                let orphanPairs = vm.modConflictVerdicts.orphans(among: installedMods.map(\.folderName))
+                if !orphanPairs.isEmpty {
+                    Text(String(format: localization.L(L10n.Conflicts.orphans), orphanPairs.count))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
-    /// Le bouton « Écarter » d'une ligne de conflit (tâche 9). Jamais posé
-    /// sur un `betweenPacks` à plus de deux packs : `pair` y est `nil` — un
-    /// clic écrirait un verdict que ce fichier ne sait pas lire (la
-    /// contradiction que le commentaire de tête met en garde).
+    @ViewBuilder
+    private var statusBanner: some View {
+        let (icon, tint, text): (String, Color, String) = {
+            if vm.smapiLogDate == nil {
+                return (AppDesign.Status.info.symbol, .secondary, localization.L(L10n.Conflicts.noLogRead))
+            } else if vm.contentPatcherConflicts.isEmpty {
+                return (AppDesign.Status.ok.symbol, AppDesign.Status.ok.tint, localization.L(L10n.Conflicts.noneObserved))
+            } else {
+                return (AppDesign.Status.info.symbol, AppDesign.Color.info, localization.L(L10n.Conflicts.allDismissed))
+            }
+        }()
+
+        HStack(spacing: AppDesign.Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(text)
+                .font(AppDesign.Font.body(.medium))
+            Spacer()
+        }
+        .padding(.horizontal, AppDesign.Spacing.md)
+        .padding(.vertical, AppDesign.Spacing.sm)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: AppDesign.Radius.md))
+    }
+
+    // MARK: - Buttons & Badges
+
     func dismissButton(for pair: ModConflictPair) -> some View {
         Button(localization.L(L10n.Conflicts.dismissButton)) {
             vm.dismissConflict(pair)
         }
-        .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-        .font(AppDesign.Font.iconXS)
-        .foregroundColor(.secondary)
-        .pointingHandCursor()
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .lineLimit(1)
+        .fixedSize()
     }
 
-    /// N-09 S8 — la fiche de chaque mod de la ligne, à côté d'« Écarter ».
     func detailMenu(_ folders: [String]) -> some View {
         ModPairDetailMenu(folders: folders, name: displayName, navigation: vm.navigationStore, localization: localization)
     }
 
-    func badge(_ text: String) -> some View {
+    func badge(_ text: String, tint: Color = .secondary) -> some View {
         Text(text)
             .font(AppDesign.Font.iconXS(.semibold))
-            .foregroundColor(.secondary)
+            .foregroundStyle(tint)
             .padding(.horizontal, AppDesign.Spacing.xs)
             .padding(.vertical, 2)
-            .background(Color.primary.opacity(0.08))
-            .cornerRadius(4)
+            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
     }
+
+    // MARK: - Rows
 
     private func betweenPacksRow(_ conflict: LoadConflict) -> some View {
         let names = folders(conflict).map(displayName)
         return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: AppDesign.Spacing.xs) {
-                Text("· \(names.joined(separator: " × "))")
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Text(names.joined(separator: " × "))
                     .font(AppDesign.Font.body(.medium))
                     .lineLimit(1).truncationMode(.middle)
                 if let label = activeBadgeLabel(for: conflict) {
-                    badge(label)
+                    badge(label, tint: AppDesign.Color.error)
                 }
                 Spacer(minLength: AppDesign.Spacing.sm)
                 detailMenu(folders(conflict))
-                // `nil` pour un `betweenPacks` à 3 packs ou plus : pas de
-                // bouton, voir le commentaire de tête de `pair(_:)`.
                 if let p = pair(conflict) {
                     dismissButton(for: p)
                 }
             }
             Text(String(format: localization.L(L10n.Conflicts.asset), conflict.asset))
-                .font(AppDesign.Font.caption).foregroundColor(.secondary)
+                .font(AppDesign.Font.caption).foregroundStyle(.secondary)
                 .lineLimit(1).truncationMode(.middle)
-            // La TRACE « Affected patches » de Content Patcher : quel patch
-            // de chaque mod réclame l'asset. Absente quand la TRACE a été
-            // jetée par le cap mémoire du journal ou n'a jamais été écrite
-            // (`withinOnePack` n'en émet pas) — vide veut dire inconnu, la
-            // ligne s'abstient plutôt que d'inventer.
             if !conflict.affectedPatches.isEmpty {
                 Text(String(format: localization.L(L10n.Conflicts.affectedPatches),
                             conflict.affectedPatches.joined(separator: ", ")))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
             }
         }
@@ -345,7 +435,7 @@ struct ModConflictSection: View {
 
     private func withinOnePackRow(_ conflict: LoadConflict) -> some View {
         let name = displayName(folders(conflict).first ?? "")
-        return HStack(spacing: AppDesign.Spacing.xs) {
+        return HStack(spacing: AppDesign.Spacing.sm) {
             Text(String(format: localization.L(L10n.Conflicts.withinOne), name))
                 .font(AppDesign.Font.body(.medium))
                 .lineLimit(1).truncationMode(.middle)
@@ -358,11 +448,10 @@ struct ModConflictSection: View {
     }
 
     private func declaredRow(_ pair: ModConflictPair) -> some View {
-        HStack(spacing: AppDesign.Spacing.xs) {
-            Text("· \(displayName(pair.first)) × \(displayName(pair.second))")
+        HStack(spacing: AppDesign.Spacing.sm) {
+            Text("\(displayName(pair.first)) × \(displayName(pair.second))")
                 .font(AppDesign.Font.body(.medium))
                 .lineLimit(1).truncationMode(.middle)
-            badge(localization.L(L10n.Conflicts.declaredByYou))
             Spacer(minLength: AppDesign.Spacing.sm)
             detailMenu([pair.first, pair.second])
             dismissButton(for: pair)
@@ -371,20 +460,87 @@ struct ModConflictSection: View {
 
     private func knownRow(_ pair: ModConflictPair) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: AppDesign.Spacing.xs) {
-                Text("· \(displayName(pair.first)) × \(displayName(pair.second))")
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Text("\(displayName(pair.first)) × \(displayName(pair.second))")
                     .font(AppDesign.Font.body(.medium))
                     .lineLimit(1).truncationMode(.middle)
-                badge(localization.L(L10n.Conflicts.knownBadge))
                 Spacer(minLength: AppDesign.Spacing.sm)
                 detailMenu([pair.first, pair.second])
                 dismissButton(for: pair)
             }
             if let key = KnownIncompatibilities.reasonKey(for: pair, in: installedMods) {
                 Text(localization.L(key))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func dismissedRow(_ pair: ModConflictPair) -> some View {
+        let title = pair.first == pair.second
+            ? displayName(pair.first)
+            : "\(displayName(pair.first)) × \(displayName(pair.second))"
+        let folders = pair.first == pair.second ? [pair.first] : [pair.first, pair.second]
+        return HStack(spacing: AppDesign.Spacing.sm) {
+            Text(title)
+                .font(AppDesign.Font.body)
+                .foregroundStyle(.secondary)
+                .lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: AppDesign.Spacing.sm)
+            detailMenu(folders)
+            Button(localization.L(L10n.PerformanceOverlaps.restore)) {
+                vm.restoreConflict(pair)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .lineLimit(1)
+            .fixedSize()
+        }
+        .contextMenu {
+            ForEach(folders, id: \.self) { folder in
+                Button(displayName(folder)) {
+                    vm.navigationStore.openModDetail(folderName: folder, door: .alert(dependency: false))
+                }
+            }
+            Divider()
+            Button(localization.L(L10n.PerformanceOverlaps.restore)) {
+                vm.restoreConflict(pair)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(localization.L(L10n.PerformanceOverlaps.restore)) {
+                vm.restoreConflict(pair)
+            }
+            .tint(.accentColor)
+        }
+    }
+}
+
+private struct ConflictRowInteractions: ViewModifier {
+    let folders: [String]
+    let displayName: (String) -> String
+    let navigation: NavigationStore
+    @ObservedObject var localization: LocalizationStore
+    let dismissAction: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        content
+            .contextMenu {
+                ForEach(folders, id: \.self) { folder in
+                    Button(displayName(folder)) {
+                        navigation.openModDetail(folderName: folder, door: .alert(dependency: false))
+                    }
+                }
+                if let dismissAction {
+                    Divider()
+                    Button(localization.L(L10n.Conflicts.dismissButton), action: dismissAction)
+                }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if let dismissAction {
+                    Button(localization.L(L10n.Conflicts.dismissButton), action: dismissAction)
+                        .tint(.secondary)
+                }
+            }
     }
 }

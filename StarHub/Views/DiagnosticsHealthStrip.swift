@@ -8,13 +8,15 @@ import SwiftUI
 struct DiagnosticsHealthStrip: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    var compact: Bool = false
     // Observé séparément, comme dans `HomeView` : `BisectionRunner` publie
     // son propre état.
     @ObservedObject private var bisection: BisectionRunner
 
-    init(viewModel: StarHubTHViewModel, localization: LocalizationStore) {
+    init(viewModel: StarHubTHViewModel, localization: LocalizationStore, compact: Bool = false) {
         self.viewModel = viewModel
         self.localization = localization
+        self.compact = compact
         self.bisection = viewModel.bisection
     }
 
@@ -50,32 +52,31 @@ struct DiagnosticsHealthStrip: View {
     var body: some View {
         let health = health
         HStack(spacing: AppDesign.Spacing.sm) {
-            // L'état se lit d'un tenant sous VoiceOver ; le bouton reste un
-            // élément à part, actionnable.
-            HStack(spacing: AppDesign.Spacing.sm) {
-                Image(systemName: health.icon).foregroundColor(health.color)
-                Text(health.text).font(AppDesign.Font.footnote(.medium))
-                // Même signal que le badge de la carte : un journal périmé ne
-                // décrit plus le jeu actuel.
+            HStack(spacing: AppDesign.Spacing.xs) {
+                Image(systemName: health.icon).foregroundStyle(health.color)
+                Text(health.text).font(compact ? .caption : AppDesign.Font.footnote(.medium))
                 if viewModel.smapiLogStale {
                     Text(localization.L(L10n.Logs.healthStale))
-                        .font(AppDesign.Font.caption)
-                        .foregroundColor(.secondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 if let search {
                     Label(search.text, systemImage: search.icon)
-                        .font(AppDesign.Font.footnote)
+                        .font(compact ? .caption : AppDesign.Font.footnote)
                 }
             }
             .accessibilityElement(children: .combine)
-            Spacer(minLength: AppDesign.Spacing.sm)
+            if !compact {
+                Spacer(minLength: AppDesign.Spacing.sm)
+            }
             Button(localization.L(L10n.Logs.stripOpenHealth)) {
                 viewModel.navigationStore.diagnosticsSegment = .health
             }
-            .font(AppDesign.Font.footnote)
+            .buttonStyle(.link)
+            .font(compact ? .caption : AppDesign.Font.footnote)
         }
         .lineLimit(1)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, compact ? 0 : 12)
+        .padding(.vertical, compact ? 0 : 6)
     }
 }

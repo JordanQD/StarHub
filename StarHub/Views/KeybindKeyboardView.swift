@@ -24,15 +24,19 @@ struct KeybindKeyboardGroup: View {
     @AppStorage("keybindKeyboard.showGamepad") private var showGamepad = true
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
+        UpdateSectionDisclosure(title: localization.L(L10n.Keybinds.keyboardHeader),
+                                icon: "keyboard",
+                                iconTint: .accentColor,
+                                isExpanded: $isExpanded) {
             let index = KeybindDevicePlacement.index(settings)
             let keys = MacKeyboardGeometry.keys(MacKeyLayout.keyboardKind).map(DrawnKey.init)
             VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
                 Text(localization.L(L10n.Keybinds.keyboardHint))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 KeyboardBoard(keys: keys, index: index, localization: localization,
                               openConfig: openConfig)
+                    .cardSurface(padding: AppDesign.Spacing.md)
                 HStack(spacing: AppDesign.Spacing.md) {
                     Toggle(localization.L(L10n.Keybinds.keyboardMouse), isOn: $showMouse)
                     Toggle(localization.L(L10n.Keybinds.keyboardGamepad), isOn: $showGamepad)
@@ -47,12 +51,9 @@ struct KeybindKeyboardGroup: View {
                 }
                 leftovers(index, keys: keys)
                 Text(localization.L(L10n.Keybinds.keyboardModelNote))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
             }
             .padding(.top, AppDesign.Spacing.xs)
-        } label: {
-            Text(localization.L(L10n.Keybinds.keyboardHeader))
-                .font(AppDesign.Font.body(.semibold))
         }
     }
 

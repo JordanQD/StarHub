@@ -68,7 +68,7 @@
 "bisect_show_mods" = "仍处于启用状态的模组";
 "bisect_start" = "开始排查";
 "bisect_step_of" = "第 %lld 步，共 %lld 步";
-"bisect_title" = "排查导致问题的模组";
+"bisect_title" = "排查模组";
 "bisect_waiting" = "请在游戏中确认问题是否仍存在，然后返回这里。";
 "category_10" = "用户界面";
 "category_11" = "作弊";
@@ -454,7 +454,7 @@
 "logs_health_open_mod" = "查看此模组";
 "logs_health_packs_count" = "%lld 个模组包";
 "logs_health_patched" = "修改游戏代码的模组";
-"logs_health_reveal" = "在“访达”中显示 SMAPI 日志";
+"logs_health_reveal" = "在访达显示";
 "logs_health_save_serializer" = "修改存档的模组";
 "logs_health_sg_broken" = "有问题的模组已经加载。请更新或停用它们，以免游玩时出错。";
 "logs_health_sg_duplicate" = "“%@”安装了两份。请在 Mods/ 中保留一份并删除另一份，否则无法加载。";
@@ -469,7 +469,7 @@
 "logs_health_sg_save" = "“%@”会修改存档。请先备份存档，并避免在同一存档的游玩过程中途移除此模组。";
 "logs_health_sg_skipped" = "“%1$@”无法加载（%2$@）。请检查它是否支持当前的游戏版本，并确认 manifest.json 有效。";
 "logs_health_show_in_log" = "在日志中显示此模组的记录";
-"logs_health_show_section" = "查看 SMAPI 对此类别的完整记录";
+"logs_health_show_section" = "查看 SMAPI 完整记录";
 "logs_health_skipped" = "未加载的模组";
 "logs_health_stale" = "日志已过期";
 "logs_health_suggestions_title" = "建议操作";

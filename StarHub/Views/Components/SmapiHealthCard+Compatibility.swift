@@ -1,23 +1,16 @@
 import SwiftUI
 
-// Le bloc « compatibilité smapi.io » de la carte de santé, sorti du fichier
-// principal le 2026-09-25 quand ses lignes ont reçu leurs actions (fiche,
-// lien proposé, journal).
 extension SmapiHealthCard {
 
-    /// D'où viennent les verdicts affichés (A2-T3) : permet au bandeau de
-    /// signaler la fraîcheur de la source. Une lecture depuis le cache disque
-    /// d'il y a huit heures n'a pas le même poids qu'un verdict tout juste
-    /// sorti de smapi.io, et l'utilisateur a le droit de savoir.
     @ViewBuilder
     var compatibilitySourceBadge: some View {
         switch vm.compatibilitySource {
         case .live:
-            pill(text: localization.L(L10n.Mods.compatSourceLive), color: .green)
+            pill(text: localization.L(L10n.Mods.compatSourceLive), color: AppDesign.Color.success)
         case .pathoschildDump:
             pill(text: String(format: localization.L(L10n.Mods.compatSourcePathoschild),
                               PathoschildDateLabel.string(from: vm.pathoschildDumpDate)),
-                 color: .orange)
+                 color: AppDesign.Color.warning)
         case .diskCache:
             pill(text: String(format: localization.L(L10n.Mods.compatSourceCache),
                               PathoschildDateLabel.string(from: vm.pathoschildDumpDate)),
@@ -38,52 +31,70 @@ extension SmapiHealthCard {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(color.opacity(AppDesignCore.Opacity.medium))
-        .foregroundColor(color)
-        .cornerRadius(AppDesignCore.Radius.sm)
+        .background(color.opacity(AppDesignCore.Opacity.medium), in: RoundedRectangle(cornerRadius: AppDesignCore.Radius.sm))
+        .foregroundStyle(color)
     }
 
-    /// Ce que smapi.io dit de la compatibilité du parc.
-    ///
-    /// **Les deux chiffres vont ensemble, et le second n'est pas décoratif** :
-    /// sur le parc de référence, sept mods sont signalés et **552 sur 840 sont
-    /// inconnus** de smapi.io. Montrer les sept sans dire les 552 laisserait
-    /// croire que le reste est vérifié sain, ce que personne n'a établi.
     @ViewBuilder
-    var compatibilityBlock: some View {
+    var compatibilityRow: some View {
         let flagged = vm.compatibilityFlaggedMods
         let unknown = vm.compatibilityUnknownCount
         if !flagged.isEmpty || unknown > 0 {
-            sectionCard(flagged.isEmpty ? .secondary : .red) {
-                sectionTitle(String(format: localization.L(L10n.Mods.compatHealthFlagged), flagged.count),
-                             icon: "exclamationmark.triangle.fill",
-                             color: flagged.isEmpty ? .secondary : .red,
-                             trailing: { AnyView(compatibilitySourceBadge) })
-                ForEach(flagged.prefix(8), id: \.name) { entry in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(entry.name)
-                            .font(AppDesign.Font.footnote(.medium))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(CompatibilityWarning.label(entry.verdict.status, localization))
-                            .font(AppDesign.Font.iconXS(.semibold))
-                            .foregroundColor(CompatibilityWarning.tint(entry.verdict.status))
-                        if let brokeIn = entry.verdict.brokeIn {
-                            Text(String(format: localization.L(L10n.Mods.compatBrokeIn), brokeIn))
-                                .font(AppDesign.Font.iconXS)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
+            let title = String(format: localization.L(L10n.Mods.compatHealthFlagged), flagged.count)
+            let preview = flagged.isEmpty ? nil : flagged.prefix(3).map(\.name).joined(separator: " · ")
+            groupedRow(key: "compatibility",
+                       icon: flagged.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                       tint: flagged.isEmpty ? AppDesign.Color.success : AppDesign.Color.error,
+                       title: title,
+                       preview: preview,
+                       defaultOpen: !flagged.isEmpty) {
+                compatibilitySourceBadge
+
+                if !flagged.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(flagged.prefix(8), id: \.name) { entry in
+                            HStack(alignment: .center, spacing: AppDesign.Spacing.sm) {
+                                Text(entry.name)
+                                    .font(AppDesign.Font.body(.medium))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Text(CompatibilityWarning.label(entry.verdict.status, localization))
+                                    .font(AppDesign.Font.iconXS(.semibold))
+                                    .foregroundStyle(CompatibilityWarning.tint(entry.verdict.status))
+                                    .padding(.horizontal, AppDesignCore.Spacing.xs)
+                                    .padding(.vertical, 2)
+                                    .background(CompatibilityWarning.tint(entry.verdict.status).opacity(0.12),
+                                                in: RoundedRectangle(cornerRadius: 4))
+                                if let brokeIn = entry.verdict.brokeIn {
+                                    Text(String(format: localization.L(L10n.Mods.compatBrokeIn), brokeIn))
+                                        .font(AppDesign.Font.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: AppDesign.Spacing.sm)
+                                compatActions(entry.folderName, name: entry.name, links: entry.verdict.links)
+                            }
+                            .padding(.vertical, AppDesign.Spacing.xs)
+                            .contextMenu {
+                                Button(localization.L(L10n.Logs.healthOpenMod)) {
+                                    vm.navigationStore.openModDetail(folderName: entry.folderName, door: .compatibilityCard)
+                                }
+                                Button(localization.L(L10n.Logs.healthShowInLog)) {
+                                    vm.navigationStore.openLog(search: entry.name)
+                                }
+                                if let link = entry.verdict.links.first, let url = URL(string: link.url) {
+                                    Divider()
+                                    Button(link.label) { NSWorkspace.shared.open(url) }
+                                }
+                            }
                         }
-                        Spacer(minLength: 0)
-                        compatActions(entry.folderName, name: entry.name, links: entry.verdict.links)
                     }
                 }
+
                 if unknown > 0 {
-                    // N-09 : ce que « inconnu » veut dire, plutôt qu'un saut
-                    // vers une liste de 82 % du parc (S10, écarté).
                     Text(String(format: localization.L(L10n.Mods.compatHealthUnknown), unknown))
-                        .font(AppDesign.Font.iconXS)
-                        .foregroundColor(.secondary)
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .help(localization.L(L10n.Mods.compatHealthUnknownHelp))
                 }
@@ -91,27 +102,18 @@ extension SmapiHealthCard {
         }
     }
 
-    /// Un mod que smapi.io juge cassé ou abandonné : sa fiche (onglet État,
-    /// qui détaille le verdict), le lien que smapi.io propose (version non
-    /// officielle, remplaçant) s'il y en a un, et ses lignes du journal.
-    /// La fiche passe par `pendingModDetailFocus` : poser la fiche puis
-    /// changer d'onglet serait effacé (patron B3-T4).
     func compatActions(_ folderName: String, name: String,
-                               links: [ModCompatibility.Link]) -> some View {
-        HStack(spacing: 2) {
+                       links: [ModCompatibility.Link]) -> some View {
+        HStack(spacing: AppDesign.Spacing.xs) {
             actionButton(AppDesign.openDetailSymbol, help: L10n.Logs.healthOpenMod) {
                 vm.navigationStore.openModDetail(folderName: folderName, door: .compatibilityCard)
             }
             if let link = links.first, let url = URL(string: link.url) {
                 Button { NSWorkspace.shared.open(url) } label: {
                     Image(systemName: "arrow.up.right.square")
-                        .font(AppDesign.Font.footnote)
-                        .foregroundColor(.accentColor)
-                        .frame(width: 20, height: 20)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).focusRing()
-                .pointingHandCursor()
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
                 .iconHelp(link.label)
             }
             actionButton("text.magnifyingglass", help: L10n.Logs.healthShowInLog) {

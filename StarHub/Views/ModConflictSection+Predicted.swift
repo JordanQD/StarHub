@@ -9,17 +9,19 @@ extension ModConflictSection {
         let assets = ContentPatcherLoadTargets.assets(activating: [pair.first], other: pair.second,
                                                       in: vm.contentPatcherLoadIndex.pairs)
         return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: AppDesign.Spacing.xs) {
-                Text("· \(displayName(pair.first)) × \(displayName(pair.second))")
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Text("\(displayName(pair.first)) × \(displayName(pair.second))")
                     .font(AppDesign.Font.body(.medium))
                     .lineLimit(1).truncationMode(.middle)
-                badge(localization.L(dormant ? L10n.Conflicts.predictedDormant : L10n.Conflicts.predictedBadge))
+                if dormant {
+                    badge(localization.L(L10n.Conflicts.predictedDormant), tint: .secondary)
+                }
                 Spacer(minLength: AppDesign.Spacing.sm)
                 detailMenu([pair.first, pair.second])
                 dismissButton(for: pair)
             }
             Text(String(format: localization.L(L10n.Conflicts.predictedDetail), assets.joined(separator: ", ")))
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

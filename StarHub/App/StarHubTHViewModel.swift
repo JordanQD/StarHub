@@ -6473,6 +6473,13 @@ final class StarHubTHViewModel {
         recomputeHealthIssues()
     }
 
+    /// Restores a previously dismissed conflict pair back to active reporting.
+    func restoreConflict(_ pair: ModConflictPair) {
+        modConflictVerdicts.clearVerdict(for: pair)
+        saveConflictVerdicts()
+        recomputeHealthIssues()
+    }
+
     // MARK: - Bissection (recherche du mod responsable)
 
     /// Recherche par moitiés, créée à la demande. `lazy` refusé par

@@ -1,23 +1,21 @@
 import SwiftUI
 
 struct LogsView: View {
-    /// ⌘F amène ici (voir `SearchFieldShortcut`).
-    @FocusState private var searchFocused: Bool
-
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    @Binding var searchText: String
+    @Binding var searchPresented: Bool
+    @Binding var autoScroll: Bool
+    @Binding var groupByMod: Bool
+    @Binding var showClearConfirm: Bool
+    var copyTrigger: Int = 0
 
     // Source tabs: nil = All, .app = StarHubFR, .smapi = SMAPI
     @State private var selectedSource: LogSource? = nil
     // Level filter (TRACE pill hidden on the StarHubFR source)
     @State private var selectedLevel: LogLevel? = nil
-    @State private var searchText: String = ""
-    @State private var autoScroll: Bool = true
-    @State private var showClearConfirm: Bool = false
     /// Ids of folded families the user expanded.
     @State private var expandedGroups: Set<String> = []
-    /// Group the list into per-mod sections instead of one chronological stream.
-    @State private var groupByMod: Bool = false
     /// When set, the list shows only this SMAPI warning-group block (header +
     /// the mods it lists), as written in the log.
     @State private var sectionHeader: String? = nil
@@ -162,108 +160,7 @@ struct LogsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, AppDesign.Spacing.xl)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .windowBackgroundColor))
-
-            Divider()
-
-            // ── Toolbar ──────────────────────────────────────────────
-            HStack(spacing: 10) {
-                // Search
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                        .font(AppDesign.Font.caption)
-                    TextField(localization.L(L10n.Logs.searchPlaceholder), text: $searchText)
-                        .textFieldStyle(.plain)
-                        .font(AppDesign.Font.caption)
-                        .searchFieldShortcut($searchFocused)
-                    if !searchText.isEmpty {
-                        Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                        }.buttonStyle(.plain).focusRing()
-                         .iconHelp(localization.L(L10n.Logs.clearSearchHint))
-                    }
-                }
-                .padding(.horizontal, AppDesignCore.Spacing.sm)
-                .padding(.vertical, AppDesignCore.Spacing.xs)
-                .background(AppDesign.Color.textBg)
-                .cornerRadius(AppDesignCore.Radius.sm)
-
-                Spacer()
-
-                // Auto-scroll
-                Button { autoScroll.toggle() } label: {
-                    Image(systemName: autoScroll ? "arrow.down.to.line" : "arrow.down.to.line.compact")
-                        .foregroundColor(autoScroll ? .accentColor : .secondary)
-                        // macOS n'affiche une infobulle qu'après ~2 s de
-                        // survol immobile *dans* la zone : sur un glyphe de
-                        // ~13 pt, le curseur n'y tient pas et l'aide ne sort
-                        // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain).focusRing()
-                .iconHelp(localization.L(L10n.Logs.autoScrollHint))
-
-                // Copy
-                Button {
-                    let text = views.filtered
-                        .map { $0.formattedLine }
-                        .joined(separator: "\n")
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                } label: {
-                    Image(systemName: "doc.on.clipboard")
-                        .foregroundColor(.secondary)
-                        // macOS n'affiche une infobulle qu'après ~2 s de
-                        // survol immobile *dans* la zone : sur un glyphe de
-                        // ~13 pt, le curseur n'y tient pas et l'aide ne sort
-                        // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain).focusRing()
-                .iconHelp(localization.L(L10n.Logs.copyAll))
-
-                // Group by mod
-                Button { groupByMod.toggle() } label: {
-                    Image(systemName: groupByMod ? "rectangle.grid.1x2.fill" : "rectangle.grid.1x2")
-                        .foregroundColor(groupByMod ? .accentColor : .secondary)
-                        // macOS n'affiche une infobulle qu'après ~2 s de
-                        // survol immobile *dans* la zone : sur un glyphe de
-                        // ~13 pt, le curseur n'y tient pas et l'aide ne sort
-                        // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain).focusRing()
-                .iconHelp(localization.L(L10n.Logs.groupByMod))
-
-                // Reload SMAPI log (loadSmapiLog replaces existing SMAPI entries)
-                Button {
-                    viewModel.loadSmapiLog()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundColor(.secondary)
-                        // macOS n'affiche une infobulle qu'après ~2 s de
-                        // survol immobile *dans* la zone : sur un glyphe de
-                        // ~13 pt, le curseur n'y tient pas et l'aide ne sort
-                        // jamais. 18×18 est le seuil documenté du dépôt.
-                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain).focusRing()
-                .iconHelp(localization.L(L10n.Logs.refreshHint))
-
-                // Clear app logs (destructive — confirmed via dialog below)
-                Button(localization.L(L10n.Logs.clearLogs)) {
-                    showClearConfirm = true
-                }
-                .font(AppDesign.Font.caption)
-            }
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, 6)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(.bar)
 
             Divider()
 
@@ -272,13 +169,14 @@ struct LogsView: View {
             if let header = sectionHeader {
                 HStack(spacing: 8) {
                     Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(.tint)
                         .font(AppDesign.Font.footnote)
                     Text(header)
                         .font(AppDesign.Font.footnote(.medium))
                     Spacer()
                     Button(localization.L(L10n.Logs.backToAllLogs)) { sectionHeader = nil }
-                        .font(AppDesign.Font.footnote)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                 }
                 .padding(.horizontal, AppDesign.Spacing.xl)
                 .padding(.vertical, 6)
@@ -288,25 +186,23 @@ struct LogsView: View {
 
             // ── Entries ──────────────────────────────────────────────
             if views.filtered.isEmpty {
-                // Deux vides très différents, qui ne se lèvent pas pareil : un
-                // filtre qui exclut tout part d'un geste, une absence réelle de
-                // lignes ne part pas. Dire lequel, et n'offrir l'action que
-                // quand elle existe — `StateCard.actionTitle` est optionnel
-                // pour exactement ce cas.
                 let isFiltered = selectedLevel != nil
                     || !searchText.isEmpty
                     || selectedSource != nil
-                StateCard(
-                    icon: isFiltered ? "line.3.horizontal.decrease.circle" : "text.badge.checkmark",
-                    text: localization.L(isFiltered ? L10n.Logs.emptyFilteredTitle : L10n.Logs.noLogs),
-                    actionTitle: isFiltered ? localization.L(L10n.Logs.emptyFilteredAction) : nil
-                ) {
-                    selectedLevel = nil
-                    searchText = ""
-                    selectedSource = nil
+                ContentUnavailableView {
+                    Label(localization.L(isFiltered ? L10n.Logs.emptyFilteredTitle : L10n.Logs.noLogs),
+                          systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "text.badge.checkmark")
+                } actions: {
+                    if isFiltered {
+                        Button(localization.L(L10n.Logs.emptyFilteredAction)) {
+                            selectedLevel = nil
+                            searchText = ""
+                            selectedSource = nil
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
-                .padding(AppDesignCore.Spacing.lg)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     // LazyVStack (not List): List was constructing/measuring all
@@ -334,21 +230,30 @@ struct LogsView: View {
                     }
                 }
             }
-
-            Divider()
-
-            // ── Status bar ───────────────────────────────────────────
-            HStack {
-                Text(String(format: localization.L(L10n.Logs.entryCount), views.filtered.count, viewModel.logEntries.count))
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                Spacer()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: AppDesign.Spacing.md) {
+                    Text(String(format: localization.L(L10n.Logs.entryCount), views.filtered.count, viewModel.logEntries.count))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    DiagnosticsHealthStrip(viewModel: viewModel, localization: localization, compact: true)
+                }
+                .padding(.horizontal, AppDesign.Spacing.xl)
+                .padding(.vertical, AppDesign.Spacing.xs)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(.bar)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .onChange(of: copyTrigger) { _, _ in
+            let text = logViews.filtered
+                .map { $0.formattedLine }
+                .joined(separator: "\n")
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        }
         .confirmationDialog(localization.L(L10n.Logs.clearConfirmTitle),
                             isPresented: $showClearConfirm,
                             titleVisibility: .visible) {
@@ -386,7 +291,7 @@ struct LogsView: View {
         // Onglet quitté : le champ caché ne doit pas garder le focus clavier,
         // sinon la frappe irait dans une recherche invisible.
         .onChange(of: viewModel.navigationStore.diagnosticsSegment) { _, segment in
-            if segment != .journal { searchFocused = false }
+            if segment != .journal { searchPresented = false }
         }
     }
 
@@ -421,9 +326,7 @@ struct LogsView: View {
     private func consumePendingLogSearchFocus() {
         guard viewModel.navigationStore.pendingLogSearchFocus else { return }
         viewModel.navigationStore.pendingLogSearchFocus = false
-        // Un tour plus tard : le champ doit d'abord être réactivé par le
-        // rendu qui affiche l'onglet. `Task` et non `DispatchQueue` (cliquet).
-        Task { @MainActor in searchFocused = true }
+        Task { @MainActor in searchPresented = true }
     }
 
     /// The chronological stream: single entries plus folded families.

@@ -51,7 +51,7 @@ struct SeverityBadge: View {
         switch severity {
         case .critical: return AppDesign.Color.error
         case .warning: return AppDesign.Color.warning
-        case .info: return AppDesign.Color.secondary
+        case .info: return AppDesign.Color.info
         }
     }
 
@@ -62,6 +62,6 @@ struct SeverityBadge: View {
             Text(label)
                 .font(AppDesign.Font.caption(.medium))
         }
-        .foregroundColor(tint)
+        .foregroundStyle(tint)
     }
 }

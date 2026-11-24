@@ -4,7 +4,7 @@ import AppKit
 extension KeybindReportSection {
     /// C4-T13 — le rapport en Markdown daté, là où l'utilisateur le veut :
     /// panneau d'enregistrement, écriture atomique, échec au journal.
-    func exportReport(_ report: KeybindScanner.KeybindReport) {
+    static func exportReport(_ report: KeybindScanner.KeybindReport, vm: StarHubTHViewModel) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
         panel.nameFieldStringValue = "starhubfr-raccourcis-\(DateFormatter.posixStamp()).md"
@@ -16,5 +16,9 @@ extension KeybindReportSection {
         } catch {
             vm.log("Export du rapport impossible : \(error.localizedDescription)", level: .warning)
         }
+    }
+
+    func exportReport(_ report: KeybindScanner.KeybindReport) {
+        Self.exportReport(report, vm: vm)
     }
 }

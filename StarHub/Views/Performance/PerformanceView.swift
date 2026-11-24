@@ -12,11 +12,11 @@ struct PerformanceView: View {
     var environment: SessionEnvironmentStore
     var sloDiagnostic: SloDiagnosticSessionStore
     var stardropiumDiagnostic: SloDiagnosticSessionStore
-    @State var comparing = false
+    @Binding var comparing: Bool
     /// Une seule feuille de benchmark pour l'onglet (chargements, analyse) :
     /// le dossier pré-rempli s'efface à la fermeture — rouverte du bouton
     /// générique, elle repart vierge (Review Focus 5).
-    @State private var showBenchmark = false
+    @Binding var showBenchmark: Bool
     @State private var benchmarkPrefill: String?
     /// « Sonde et réglages », en bas : déplié par le lien de la ligne sonde.
     @State var settingsExpanded = false
@@ -26,18 +26,14 @@ struct PerformanceView: View {
     /// La session la plus récente lue à la dernière visite : une plus
     /// récente à cette visite se signale (lot D, G9).
     @State private var lastSeenSession: String?
-    /// La rangée d'ancres est sortie de l'écran : le retour en haut s'affiche.
-    @State private var scrolledPastTop = false
-    /// Incrémenté à chaque saut programmé : le retour en haut se remesure.
-    @State var scrollRecheck = 0
     @AppStorage(UDKey.probeLoadEarlyConsent) var loadEarlyConsent: Bool?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppDesign.Spacing.lg) {
-                    navigation(proxy).backToTopMarker(scrolledPast: $scrolledPastTop, recheck: scrollRecheck) { viewModel.log($0) }
+            Form {
+                Section {
+                    navigation(proxy)
                     PerformanceMeasurementStatus(viewModel: viewModel, localization: localization, store: store) {
                         settingsExpanded = true
                         jump(to: "settings", proxy)
@@ -50,94 +46,108 @@ struct PerformanceView: View {
                     }
                     PerformanceGuidedBar(viewModel: viewModel, localization: localization, store: store,
                                          otherMeasures: otherMeasures(proxy))
-                    Picker(localization.L(L10n.Performance.inGameTitle), selection: $comparing) {
-                        Text(localization.L(L10n.PerformanceEvidence.lastSession)).tag(false)
-                        Text(localization.L(L10n.PerformanceEvidence.compare)).tag(true)
-                    }.pickerStyle(.menu)
                     if comparing { selectors }
                     if let newest = newestSide, let seen = lastSeenSession, newest.session != seen {
                         Label(String(format: localization.L(L10n.Performance.newSessionLine),
                                      PerformanceMetricText.source(newest)), systemImage: "sparkles")
                             .font(AppDesign.Font.footnote(.semibold))
                     }
-                    let live = PerformanceStatusLine.isLive(viewModel, store)
-                    PerformanceCard {
-                        PerformanceSummarySection(localization: localization, report: comparing ? store.report : nil,
-                                                  single: comparing ? nil : store.singleSummary,
-                                                  probeInstalled: probeInstalled)
-                    }.liveRefreshFlash(live ? store.lastLoadedAt : nil, reduceMotion: reduceMotion).id("summary")
+                }
+                let live = PerformanceStatusLine.isLive(viewModel, store)
+                Section(localization.L(L10n.PerformanceEvidence.summary)) {
+                    PerformanceSummarySection(localization: localization,
+                                              report: comparing ? store.report : nil,
+                                              single: comparing ? nil : store.singleSummary,
+                                              probeInstalled: probeInstalled,
+                                              showsTitle: false)
+                        .liveRefreshFlash(live ? store.lastLoadedAt : nil, reduceMotion: reduceMotion)
+
                     if !comparing, store.sides.count >= 2 {
-                        PerformanceCard {
-                            SplitRow {
-                                Text(localization.L(L10n.Performance.analysisSingleHint))
-                                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
-                            } trailing: {
-                                Button(localization.L(L10n.PerformanceEvidence.compare)) { comparing = true }
-                                    .buttonStyle(.bordered).focusRing(cornerRadius: 5).controlSize(.small).clickableCursor()
-                            }
+                        HStack(spacing: AppDesign.Spacing.sm) {
+                            Text(localization.L(L10n.Performance.analysisSingleHint))
+                                .font(AppDesign.Font.footnote)
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: AppDesign.Spacing.sm)
+                            Button(localization.L(L10n.PerformanceEvidence.compare)) { comparing = true }
+                                .buttonStyle(.bordered)
                         }
                     }
-                    if comparing, let report = store.report {
-                        PerformanceCard {
-                            PerformanceAnalysisSection(viewModel: viewModel, localization: localization,
-                                                       store: store, report: report,
-                                                       onBenchmark: { openBenchmark($0) })
-                        }.id("analysis")
+                }
+                .id("summary")
+                if comparing, let report = store.report {
+                    Section(localization.L(L10n.Performance.sectionAnalysis)) {
+                        PerformanceAnalysisSection(viewModel: viewModel, localization: localization,
+                                                   store: store, report: report,
+                                                   onBenchmark: { openBenchmark($0) })
                     }
+                    .id("analysis")
+                }
                     // Lot A (S4) : la carte vit dès que le store a lu, sonde ou
                     // pas — le benchmark n'exige que la sonde, pas une session.
-                    if store.status != .idle && store.status != .loading {
-                        PerformanceCard {
-                            PerformanceLoadsSection(viewModel: viewModel, localization: localization, store: store,
-                                                    openBenchmark: { openBenchmark($0) })
-                        }.id("loads")
-                    } else if viewModel.benchmark.interrupted != nil {
+                if store.status != .idle && store.status != .loading {
+                    Section {
+                        PerformanceLoadsSection(viewModel: viewModel, localization: localization, store: store,
+                                                openBenchmark: { openBenchmark($0) },
+                                                showsHeader: false)
+                    } header: {
+                        HStack {
+                            Text(localization.L(L10n.Performance.loadsTitle))
+                            Spacer()
+                            Button(localization.L(L10n.Benchmark.open)) { openBenchmark(nil) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(viewModel.benchmark.isActive || !probeInstalled)
+                        }
+                    }
+                    .id("loads")
+                } else if viewModel.benchmark.interrupted != nil {
+                    Section(localization.L(L10n.Benchmark.title)) {
                         PerformanceBenchmarkStatus(runner: viewModel.benchmark, localization: localization)
                     }
+                }
                     if comparing, let report = store.report {
-                        PerformanceCard {
+                        Section {
                             PerformanceChangesSection(viewModel: viewModel, localization: localization,
                                                       report: report, configDiffs: store.configDiffs)
                         }
-                        PerformanceCard { PerformanceSmoothnessSection(localization: localization, report: report) }.id("game")
+                        Section(localization.L(L10n.Performance.inGameTitle)) { PerformanceSmoothnessSection(localization: localization, report: report) }.id("game")
                         PerformanceCard { PerformanceCostsSection(viewModel: viewModel, localization: localization, report: report) }
                     }
                     // Lot B (S3) : les outils tiers n'ont une carte pleine que
                     // s'ils sont installés, et après les mesures de la sonde ;
                     // absents, une ligne chacun dans « Autres outils », repliée.
-                    if !Self.toolAbsent(sloDiagnostic) {
+                if !Self.toolAbsent(sloDiagnostic) {
+                    Section(localization.L(L10n.PerformanceSloDiagnostic.title)) {
                         PerformanceSloDiagnosticSection(
                             viewModel: viewModel, localization: localization,
                             store: sloDiagnostic, runtime: sloRuntime)
-                            .id("slo")
                     }
-                    if !Self.toolAbsent(stardropiumDiagnostic) {
+                    .id("slo")
+                }
+
+                if !Self.toolAbsent(stardropiumDiagnostic) {
+                    Section(localization.L(L10n.StardropiumMemory.title)) {
                         PerformanceStardropiumMemorySection(viewModel: viewModel, localization: localization,
-                                                           store: environment, diagnostic: stardropiumDiagnostic,
-                                                           runtime: sloRuntime)
-                            .id("stardropium")
+                                                            store: environment, diagnostic: stardropiumDiagnostic,
+                                                            runtime: sloRuntime)
                     }
-                    detailsCard
-                    toolsCard
-                    if store.unreadableLines > 0 {
+                    .id("stardropium")
+                }
+
+                detailsSection
+                toolsSection
+
+                if store.unreadableLines > 0 {
+                    Section {
                         Text(String(format: localization.L(L10n.Performance.unreadable), store.unreadableLines))
-                            .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .padding(AppDesign.Spacing.lg)
-                // Place pour le retour en haut : il ne couvre pas la dernière carte.
-                .padding(.bottom, AppDesign.Spacing.xxl)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .overlay(alignment: .bottomTrailing) {
-                if scrolledPastTop {
-                    BackToTopButton(title: localization.L(L10n.Main.backToTop)) {
-                        jump(to: BackToTop.anchor, proxy)
-                    }
-                    .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.8)))
-                }
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: scrolledPastTop)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(AppDesign.Color.windowBg)
             .onAppear { consumeFocus(proxy) }
             .onChange(of: viewModel.navigationStore.pendingPerformanceFocus) { _, _ in consumeFocus(proxy) }
         }
@@ -227,31 +237,34 @@ struct PerformanceView: View {
         return true
     }
 
-    /// Lot B (S7) : quatre volets repliés sous une seule carte.
-    private var detailsCard: some View {
-        PerformanceCard {
-            Text(localization.L(L10n.PerformanceEvidence.detailsCardTitle))
-                .font(AppDesign.Font.headline(.semibold))
+    /// Grouped "详情与设置" section with title outside the box and direct native rows.
+    private var detailsSection: some View {
+        Section(localization.L(L10n.PerformanceEvidence.detailsCardTitle)) {
             DisclosureGroup(historyTitle, isExpanded: $historyExpanded) {
                 PerformanceImpactSection(viewModel: viewModel, localization: localization, focus: historyFocus)
-            }.id("mods")
-            Divider()
+            }
+            .id("mods")
+
             DisclosureGroup(texturesTitle) {
                 PerformanceTextureSection(viewModel: viewModel, localization: localization)
-            }.id("textures")
-            Divider()
+            }
+            .id("textures")
+
             DisclosureGroup(localization.L(L10n.Performance.envTitle)) {
                 PerformanceEnvironmentSection(localization: localization, store: environment)
             }
+
             if !probeActionCardVisible {
-                Divider()
                 DisclosureGroup(localization.L(L10n.PerformanceEvidence.settings), isExpanded: $settingsExpanded) {
                     PerformanceProbeSection(viewModel: viewModel, localization: localization, store: store,
                                             loadOrderBannerHoisted: PerformanceMeasurementStatus.hoistsLoadOrderBanner(
-                                                viewModel, store, consent: loadEarlyConsent))
-                }.id("settings")
+                                                viewModel, store, consent: loadEarlyConsent),
+                                            embedded: true)
+                }
+                .id("settings")
             }
-        }.id("details")
+        }
+        .id("details")
     }
 
     private var probeActionCardVisible: Bool {
@@ -280,26 +293,22 @@ struct PerformanceView: View {
         return "\(title) (\(impact.textureRows.count))"
     }
 
-    /// Lot B (S3) : les outils tiers absents, une ligne chacun, repliés.
     @ViewBuilder
-    private var toolsCard: some View {
+    private var toolsSection: some View {
         if Self.toolAbsent(sloDiagnostic) || Self.toolAbsent(stardropiumDiagnostic) {
-            PerformanceCard {
-                DisclosureGroup(localization.L(L10n.PerformanceEvidence.toolsCardTitle)) {
-                    VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-                        if Self.toolAbsent(sloDiagnostic) {
-                            PerformanceSloDiagnosticSection(
-                                viewModel: viewModel, localization: localization,
-                                store: sloDiagnostic, runtime: sloRuntime, compact: true)
-                        }
-                        if Self.toolAbsent(stardropiumDiagnostic) {
-                            PerformanceStardropiumDiagnosticControls(
-                                viewModel: viewModel, localization: localization,
-                                store: stardropiumDiagnostic, runtime: sloRuntime, compact: true)
-                        }
-                    }.padding(.top, AppDesign.Spacing.sm)
+            Section(localization.L(L10n.PerformanceEvidence.toolsCardTitle)) {
+                if Self.toolAbsent(sloDiagnostic) {
+                    PerformanceSloDiagnosticSection(
+                        viewModel: viewModel, localization: localization,
+                        store: sloDiagnostic, runtime: sloRuntime, compact: true)
                 }
-            }.id("tools")
+                if Self.toolAbsent(stardropiumDiagnostic) {
+                    PerformanceStardropiumDiagnosticControls(
+                        viewModel: viewModel, localization: localization,
+                        store: stardropiumDiagnostic, runtime: sloRuntime, compact: true)
+                }
+            }
+            .id("tools")
         }
     }
 

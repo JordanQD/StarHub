@@ -18,6 +18,7 @@ struct KeybindOverviewGroup: View {
     @ObservedObject var localization: LocalizationStore
     let bindings: [KeybindScanner.SettingBinding]
     @Binding var isExpanded: Bool
+    var externalQuery: String = ""
     /// Le geste de l'engrenage, composé par `KeybindReportSection`.
     let openConfig: (String, [String]) -> Void
 
@@ -25,37 +26,46 @@ struct KeybindOverviewGroup: View {
     /// 171 réglages ne lient aucune touche et noyaient la liste. Rien n'est
     /// perdu — « Tous » et « Non assignés » restent à un clic.
     @State private var filter: KeybindScanner.OverviewFilter = .bound
-    @State private var query = ""
+    @State private var localQuery = ""
+
+    private var effectiveQuery: String {
+        let trimmedExternal = externalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedExternal.isEmpty ? localQuery : trimmedExternal
+    }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            let shown = KeybindScanner.overview(bindings, filter: filter, query: query)
+        let shown = KeybindScanner.overview(bindings, filter: filter, query: effectiveQuery)
+        let title = String(format: localization.L(L10n.Keybinds.allHeader),
+                           effectiveQuery.isEmpty ? bindings.count : shown.count)
+        UpdateSectionDisclosure(title: title,
+                                icon: "list.bullet.rectangle",
+                                iconTint: .secondary,
+                                isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-                controls
+                if externalQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    controls
+                } else {
+                    filterPicker
+                }
                 Text(String(format: localization.L(L10n.Keybinds.filterCount), shown.count))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                    .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
                 if shown.isEmpty {
                     Text(localization.L(L10n.Keybinds.noMatch))
-                        .font(AppDesign.Font.caption).foregroundColor(.secondary)
+                        .font(AppDesign.Font.caption).foregroundStyle(.secondary)
+                        .padding(.vertical, AppDesign.Spacing.xs)
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(shown) { row($0) }
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(shown) { binding in
+                            row(binding)
+                                .overlay(alignment: .bottom) { Divider() }
+                        }
                     }
                 }
             }
             .padding(.top, AppDesign.Spacing.xs)
-        } label: {
-            Text(String(format: localization.L(L10n.Keybinds.allHeader), bindings.count))
-                .font(AppDesign.Font.body(.semibold))
         }
     }
 
-    /// Côte à côte si la carte le permet, empilés sinon : le segmenté garde
-    /// sa largeur idéale (`fixedSize`, jamais tronqué) et le volet de détail
-    /// descend à 560 pt — la ligne entière n'y tient pas toujours.
-    /// `SplitRow` (un `Layout`) et non un `ViewThatFits` : le ✕ qui apparaît au
-    /// premier caractère élargit la rangée, et une bascule entre deux
-    /// branches recréait le champ en pleine frappe.
     private var controls: some View {
         SplitRow(spacing: AppDesign.Spacing.sm) { filterPicker } trailing: { searchField }
     }
@@ -75,14 +85,14 @@ struct KeybindOverviewGroup: View {
     private var searchField: some View {
         HStack {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .font(AppDesign.Font.caption)
-            TextField(localization.L(L10n.Keybinds.searchPlaceholder), text: $query)
+            TextField(localization.L(L10n.Keybinds.searchPlaceholder), text: $localQuery)
                 .textFieldStyle(.plain)
                 .font(AppDesign.Font.caption)
-            if !query.isEmpty {
-                Button { query = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+            if !localQuery.isEmpty {
+                Button { localQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain).focusRing().iconHelp(localization.L(L10n.Discovery.clearSearch))
             }

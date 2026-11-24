@@ -37,7 +37,6 @@ struct PerformanceCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) { content }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .cardSurface(padding: AppDesign.Spacing.lg)
     }
 }
 

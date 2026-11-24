@@ -10,7 +10,6 @@ extension PerformanceView {
     /// remesurer (`scrollRecheck`).
     func jump(to id: String, _ proxy: ScrollViewProxy, animated: Bool = true) {
         withAnimation(reduceMotion || !animated ? nil : .easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .top) }
-        scrollRecheck += 1
     }
 
     func navigation(_ proxy: ScrollViewProxy) -> some View {
