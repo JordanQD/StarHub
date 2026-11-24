@@ -56,6 +56,11 @@ public struct ModConflictVerdicts: Codable, Equatable, Sendable {
         verdicts[pair] = ModConflictVerdict(isDeclared: false, note: note, decidedAt: date)
     }
 
+    /// Removes any verdict (declared or dismissed) for `pair`, restoring default reporting.
+    public mutating func clearVerdict(for pair: ModConflictPair) {
+        verdicts[pair] = nil
+    }
+
     /// X148 — les verdicts suivent un dossier renommé. Un verdict est une
     /// **affirmation** sur un mod : en collision, rien ne dit lequel il visait,
     /// il reste en place (`SharedKeyPolicy.leaveBehind`).

@@ -96,11 +96,11 @@ extension PerformanceOverlap {
     // seule change de statut, `GameLocation.timeUpdate` avec Stardropium
     // (conditionnelle → par défaut). Radiance re-décompilée en 2.4.7 : mêmes
     // cibles qu'en 2.4.5.
-    private static let ultraSmooth = Member(uniqueId: "palmhacker13.UltraSmooth", measuredVersion: "2.8.4",
+    private static let ultraSmooth = Member(uniqueId: "palmhacker13.UltraSmooth", measuredVersion: "2.9.2",
                                             assemblyName: "UltraSmooth")
     private static let stardropium = Member(uniqueId: "Arshia1381.Stardropium", measuredVersion: "0.3.0",
                                             assemblyName: "Stardropium")
-    private static let radiance = Member(uniqueId: "phuicmt.SDVRadiance", measuredVersion: "2.4.7",
+    private static let radiance = Member(uniqueId: "phuicmt.SDVRadiance", measuredVersion: "2.4.9",
                                          assemblyName: "SDV-Radiance")
     private static let stardewOptimizer = Member(uniqueId: "baiyu.StardewOptimizer", measuredVersion: "3.0.3",
                                                  assemblyName: "StardewOptimizer")

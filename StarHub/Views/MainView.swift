@@ -282,6 +282,7 @@ struct MainView: View {
                 destinationView
             }
             .navigationTitle(navigationTitleText)
+            .navigationSubtitle("")
             .onChange(of: currentTab) { _, _ in handleTabChange() }
             // Fermées autrement : le saut est consommé.
             .onChange(of: navigation.viewingModDetail == nil && navigation.editingModConfig == nil) { _, closed in
@@ -363,13 +364,18 @@ struct MainView: View {
                 showCommandPalette = true
             }
         }
-        .alert(isPresented: Binding(get: { vm.alertStore.shown }, set: { vm.alertStore.shown = $0 })) {
-            Alert(
-                title: Text(localization.L(L10n.Main.alert)),
-                message: Text(vm.alertStore.message),
-                dismissButton: .default(Text(localization.L(L10n.Main.ok)))
-            )
+        .alert(
+            localization.L(L10n.Main.alert),
+            isPresented: Binding(get: { vm.alertStore.shown }, set: { vm.alertStore.shown = $0 })
+        ) {
+            Button(localization.L(L10n.Main.ok), role: .cancel) {}
+        } message: {
+            Text(vm.alertStore.message)
         }
+        .overlay(alignment: .bottom) {
+            ToastBannerView(store: vm.toastStore)
+        }
+        .modifier(TranslationReplaceDialog(vm: vm, localization: localization))
         // A1-T8 — au niveau racine : l'état suspendu dans le VM doit survivre au changement d'onglet.
         .saveFingerprintPauseGate(vm: vm)
         .bulkConflictGate(vm: vm) // A5-T8, même raison

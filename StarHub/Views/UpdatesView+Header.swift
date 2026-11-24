@@ -27,6 +27,8 @@ extension UpdatesView {
 
 struct UpdateSectionDisclosure<Content: View>: View {
     let title: String
+    var icon: String? = nil
+    var iconTint: Color? = nil
     @Binding var isExpanded: Bool
     @ViewBuilder let content: () -> Content
 
@@ -36,6 +38,12 @@ struct UpdateSectionDisclosure<Content: View>: View {
                 isExpanded.toggle()
             } label: {
                 HStack(spacing: AppDesign.Spacing.sm) {
+                    if let icon {
+                        Image(systemName: icon)
+                            .font(.headline)
+                            .foregroundStyle(iconTint ?? .primary)
+                            .accessibilityHidden(true)
+                    }
                     Text(title)
                         .font(.headline)
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")

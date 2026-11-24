@@ -1,21 +1,84 @@
 import SwiftUI
 
-extension KeybindReportSection {
-    /// Plan de raccourcis (spec 2026-10-15 §4) — ouvre la feuille dès qu'un
-    /// rapport est là : c'est sur lui que le plan se calcule. Pendant un scan,
-    /// le rapport publié est l'ancien : grisé jusqu'au nouveau.
-    var planButton: some View {
-        Button(action: { showsPlan = true }) {
+/// Toolbar actions for the Keybinds segment inside `SystemAlertsView`.
+/// Observes `KeybindScanService` directly so disabled/loading states update live.
+struct KeybindToolbarActions: View {
+    var vm: StarHubTHViewModel
+    @ObservedObject var service: KeybindScanService
+    @ObservedObject var localization: LocalizationStore
+    @Binding var showsPlan: Bool
+
+    private var noGameDir: Bool { vm.gameDir.isEmpty }
+
+    var body: some View {
+        Button {
+            showsPlan = true
+        } label: {
             Label(localization.L(L10n.KeybindPlan.propose), systemImage: "wand.and.stars")
-                .lineLimit(1)
         }
-        .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-        .controlSize(.small)
-        .pointingHandCursor()
         .disabled(service.report == nil || service.isScanning || noGameDir)
         .help(localization.L(L10n.KeybindPlan.proposeHint))
+
+        Button {
+            if let report = service.report {
+                KeybindReportSection.exportReport(report, vm: vm)
+            }
+        } label: {
+            Label(localization.L(L10n.Keybinds.export), systemImage: "square.and.arrow.up")
+        }
+        .disabled(service.report == nil)
+        .help(localization.L(L10n.Keybinds.exportHint))
+
+        Button {
+            service.scan(mods: vm.scanStore.mods, gameDir: vm.gameDir)
+        } label: {
+            Label(localization.L(L10n.Keybinds.rescan), systemImage: "arrow.clockwise")
+        }
+        .disabled(service.isScanning || noGameDir)
+        .help(localization.L(L10n.Keybinds.rescan))
+    }
+}
+
+/// Bottom `.bar` status bar for the Keybinds segment.
+struct KeybindStatusBar: View {
+    @ObservedObject var service: KeybindScanService
+    @ObservedObject var localization: LocalizationStore
+
+    var body: some View {
+        if service.isScanning {
+            bar {
+                ProgressView().controlSize(.mini)
+                Text(localization.L(L10n.Keybinds.scanning))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if let report = service.report, report.scannedMods > 0 {
+            bar {
+                Text(String(format: localization.L(L10n.Keybinds.counters),
+                            report.scannedMods, report.keybindCount))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
     }
 
+    private func bar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: AppDesign.Spacing.sm) {
+                content()
+                Spacer()
+            }
+            .padding(.horizontal, AppDesign.Spacing.xl)
+            .padding(.vertical, AppDesign.Spacing.xs)
+        }
+        .background(.bar)
+    }
+}
+
+extension KeybindReportSection {
     private var navigation: NavigationStore { vm.navigationStore }
     var planFocusPending: Bool { navigation.pendingKeybindPlanFocus }
 
@@ -27,21 +90,5 @@ extension KeybindReportSection {
         guard planFocusPending else { return }
         navigation.pendingKeybindPlanFocus = false
         if service.report != nil { showsPlan = true }
-    }
-
-    /// Posée à la racine de `body`, jamais sur une branche conditionnelle :
-    /// le rescan qui suit l'application bascule `isScanning`, qui démonte le
-    /// verdict et les sections — une feuille attachée là se fermerait seule.
-    var planSheet: some View {
-        KeybindPlanSheet(viewModel: vm, localization: localization)
-    }
-
-    /// L'en-tête d'un groupe : glyphe de gravité, couleur du sens, titre.
-    func groupLabel(_ format: String, _ count: Int, icon: String, tint: Color) -> some View {
-        HStack(spacing: AppDesign.Spacing.sm) {
-            Image(systemName: icon).foregroundColor(tint)
-            Text(String(format: localization.L(format), count))
-                .font(AppDesign.Font.body(.semibold))
-        }
     }
 }

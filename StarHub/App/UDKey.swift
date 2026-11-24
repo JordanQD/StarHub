@@ -109,6 +109,7 @@ public enum UDKey {
     /// Paires de mods de performance écartées (A5-T7), une clé
     /// `PerformanceOverlap.key` par ligne — distinctes des verdicts de conflits.
     public static let dismissedPerformanceOverlaps = "starhubFR.dismissedPerformanceOverlaps"
+    public static let dismissedTranslationLinkProposals = "starhubFR.dismissedTranslationLinkProposals"
 
     // MARK: - Rangées ici depuis l'audit transverse (2026-10-09)
 

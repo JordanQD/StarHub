@@ -146,11 +146,11 @@ private struct SaveHeroBand: View {
                     // glyphe secondaire se perdait.
                     .foregroundColor(.white.opacity(0.9))
                     .shadow(color: .black.opacity(0.6), radius: 2)
+                    .frame(width: AppDesign.Metrics.compactControlTarget,
+                           height: AppDesign.Metrics.compactControlTarget)
+                    .contentShape(.circle)
             }
-            .buttonStyle(.plain).focusRing()
-            // Cible 18×18 : le glyphe nu rendrait `.help` muet (a11y §7).
-            .frame(width: 18, height: 18)
-            .contentShape(.rect)
+            .buttonStyle(.plain).focusRing(cornerRadius: FocusRing.capsule)
             .iconHelp(closeHelp)
         }
     }
@@ -257,39 +257,38 @@ struct SaveEditorView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            SaveHeroBand(title: save.playerName,
-                         dayLine: heroDayLine,
-                         farmName: heroFarmName,
-                         closeHelp: localization.L(L10n.Saves.cancel),
-                         onClose: { vm.navigationStore.setEditingSave(nil) },
-                         whichFarm: save.whichFarm,
-                         iconPath: iconPath,
-                         isFemale: save.isFemale,
-                         hairStyle: save.hairStyle,
-                         hairColor: SaveFarmerPalette.hairColor(from: save.hairColor),
-                         skinIndex: save.skinIndex,
-                         farmHelp: farmHelp)
-
-            // Ce qui décide avant d'ouvrir le formulaire : où l'on en est,
-            // ce que l'on a. Tout se sert dans la sauvegarde elle-même.
-            StatStrip(items: [
-                .init(label: localization.L(L10n.Saves.colDay),
-                      value: String(format: localization.L(L10n.Saves.yearDayFormat),
-                                    save.year, localization.L(save.seasonName), save.day)),
-                .init(label: localization.L(L10n.Saves.money),
-                      value: SaveRow.moneyText(save.money)),
-                .init(label: localization.L(L10n.Saves.totalMoneyEarned),
-                      value: SaveRow.moneyText(save.totalMoneyEarned)),
-            ])
-            .padding(.horizontal, 24)
-            .frame(maxWidth: 700, alignment: .leading)
-            .frame(maxWidth: .infinity)
-            // L'historique n'a plus de lien ici : c'est un segment de la page (R6).
-
-            Divider()
-
-            // Form
+            // Form (Hero + StatStrip défilent avec le formulaire pour libérer
+            // la hauteur utile en fenêtre compacte)
             Form {
+                Section {
+                    VStack(spacing: 0) {
+                        SaveHeroBand(title: save.playerName,
+                                     dayLine: heroDayLine,
+                                     farmName: heroFarmName,
+                                     closeHelp: localization.L(L10n.Saves.cancel),
+                                     onClose: { vm.navigationStore.setEditingSave(nil) },
+                                     whichFarm: save.whichFarm,
+                                     iconPath: iconPath,
+                                     isFemale: save.isFemale,
+                                     hairStyle: save.hairStyle,
+                                     hairColor: SaveFarmerPalette.hairColor(from: save.hairColor),
+                                     skinIndex: save.skinIndex,
+                                     farmHelp: farmHelp)
+
+                        StatStrip(items: [
+                            .init(label: localization.L(L10n.Saves.colDay),
+                                  value: String(format: localization.L(L10n.Saves.yearDayFormat),
+                                                save.year, localization.L(save.seasonName), save.day)),
+                            .init(label: localization.L(L10n.Saves.money),
+                                  value: SaveRow.moneyText(save.money)),
+                            .init(label: localization.L(L10n.Saves.totalMoneyEarned),
+                                  value: SaveRow.moneyText(save.totalMoneyEarned)),
+                        ])
+                        .padding(.horizontal, 16)
+                    }
+                    .listRowInsets(EdgeInsets())
+                }
+
                 // MARK: Avatar Section
                 Section(localization.L(L10n.Saves.avatarSection)) {
                     VStack(alignment: .leading, spacing: 12) {

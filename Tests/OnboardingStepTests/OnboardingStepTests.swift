@@ -32,4 +32,11 @@ struct OnboardingStepTests {
         #expect(OnboardingStep.apiKey.next == .localAI)
         #expect(OnboardingStep.done.next == nil)
     }
+
+    @Test func précédentSarrêteAuDébut() {
+        #expect(OnboardingStep.welcome.previous == nil)
+        #expect(OnboardingStep.gameDir.previous == .welcome)
+        #expect(OnboardingStep.localAI.previous == .apiKey)
+        #expect(OnboardingStep.done.previous == .extensions)
+    }
 }

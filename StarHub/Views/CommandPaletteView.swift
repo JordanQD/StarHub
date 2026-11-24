@@ -91,9 +91,8 @@ struct CommandPaletteView: View {
 
             panel
                 .frame(width: 560)
-                .background(.regularMaterial,
-                            in: RoundedRectangle(cornerRadius: 12))
-                .shadow(radius: 24)
+                .floatingGlassSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                      shadowRadius: 24, shadowY: 8)
                 .padding(.top, 90)
         }
         .onAppear { entries = buildEntries(); fieldFocused = true }

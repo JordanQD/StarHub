@@ -12,6 +12,7 @@ import SwiftUI
 /// d'installation. La saisie manuelle reste toujours possible — le champ
 /// n'est jamais verrouillé sur ce que le sondage a vu.
 struct LocalAISettingsSection: View {
+    @Environment(\.usesGroupedSettingsForm) private var usesGroupedSettingsForm
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
 
@@ -48,7 +49,35 @@ struct LocalAISettingsSection: View {
     @State private var isDeepLAppInstalled = DeepLDesktop.isInstalled()
 
     var body: some View {
-        VStack(spacing: 32) {
+        Group {
+            if usesGroupedSettingsForm {
+                sectionsBody
+            } else {
+                VStack(spacing: 32) {
+                    sectionsBody
+                }
+            }
+        }
+        .task {
+            let session = LocalLLMEndpoint.makeSession(timeout: 2)
+            probes = await LocalLLMClient.probeBricks(session: session)
+            session.finishTasksAndInvalidate()
+            isProbing = false
+            if baseURL.isEmpty, let first = probes.first {
+                baseURL = first.baseURL.absoluteString
+            }
+            if let current = probeMatching(baseURL) {
+                models = current.models
+                if model.isEmpty { model = current.models.first ?? "" }
+            }
+            await refreshModelSuitability()
+            glossaryCount = vm.currentGlossary(language: "fr")?.entries.count
+            glossaryDate = vm.glossaryBuiltDate(language: "fr")
+        }
+    }
+
+    @ViewBuilder
+    private var sectionsBody: some View {
             StandardSection(
                 title: localization.L(L10n.Settings.localAITitle), icon: ("sparkles", .purple),
                 // « Rien n'est envoyé ailleurs que sur votre serveur local »
@@ -186,28 +215,6 @@ struct LocalAISettingsSection: View {
                     }
                 }
             }
-        }
-        .task {
-            // Sondage parallèle des deux briques, timeout 2 s (spec §6).
-            let session = LocalLLMEndpoint.makeSession(timeout: 2)
-            probes = await LocalLLMClient.probeBricks(session: session)
-            session.finishTasksAndInvalidate()
-            isProbing = false
-            if baseURL.isEmpty, let first = probes.first {
-                baseURL = first.baseURL.absoluteString
-            }
-            // Les modèles proposés — et le modèle par défaut — viennent du
-            // serveur que **l'URL désigne**, jamais du premier sondé : une URL
-            // déjà réglée sur Ollama recevait sinon un modèle de LM Studio, et
-            // chaque requête postait un nom que le serveur ne connaît pas.
-            if let current = probeMatching(baseURL) {
-                models = current.models
-                if model.isEmpty { model = current.models.first ?? "" }
-            }
-            await refreshModelSuitability()
-            glossaryCount = vm.currentGlossary(language: "fr")?.entries.count
-            glossaryDate = vm.glossaryBuiltDate(language: "fr")
-        }
     }
 
     // MARK: - Secours en ligne

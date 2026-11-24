@@ -23,38 +23,56 @@ struct SettingsView: View {
     @State private var alerts = AlertStore()
 
     var body: some View {
-        TabView(selection: $group) {
-            settingsPane(.game)
-                .tabItem { Label(tabTitle(.game), systemImage: "gamecontroller") }
-                .tag(SettingsGroup.game)
-            settingsPane(.content)
-                .tabItem { Label(tabTitle(.content), systemImage: "puzzlepiece.extension") }
-                .tag(SettingsGroup.content)
-            settingsPane(.about)
-                .tabItem { Label(tabTitle(.about), systemImage: "info.circle") }
-                .tag(SettingsGroup.about)
-        }
-        .navigationTitle(tabTitle(group))
-        .frame(width: 640, height: 520)
-        .alert(localization.L(L10n.Main.alert), isPresented: Bindable(alerts).shown) {
-            Button(localization.L(L10n.Main.ok), role: .cancel) {}
-        } message: { Text(alerts.message) }
-        .onChange(of: vm.navigationStore.pendingSettingsSection, initial: true) { _, section in
-            if let section { group = SettingsSectionOrder.group(of: section) }
+        settingsTabs
+            .navigationTitle(tabTitle(group))
+            .frame(minWidth: 560, idealWidth: 660, minHeight: 460, idealHeight: 540)
+            .alert(localization.L(L10n.Main.alert), isPresented: Bindable(alerts).shown) {
+                Button(localization.L(L10n.Main.ok), role: .cancel) {}
+            } message: { Text(alerts.message) }
+            .onChange(of: vm.navigationStore.pendingSettingsSection, initial: true) { _, section in
+                if let section { group = SettingsSectionOrder.group(of: section) }
+            }
+    }
+
+    @ViewBuilder
+    private var settingsTabs: some View {
+        if #available(macOS 15.0, *) {
+            TabView(selection: $group) {
+                Tab(tabTitle(.game), systemImage: "gamecontroller", value: SettingsGroup.game) {
+                    settingsPane(.game)
+                }
+                Tab(tabTitle(.content), systemImage: "puzzlepiece.extension", value: SettingsGroup.content) {
+                    settingsPane(.content)
+                }
+                Tab(tabTitle(.about), systemImage: "info.circle", value: SettingsGroup.about) {
+                    settingsPane(.about)
+                }
+            }
+        } else {
+            TabView(selection: $group) {
+                settingsPane(.game)
+                    .tabItem { Label(tabTitle(.game), systemImage: "gamecontroller") }
+                    .tag(SettingsGroup.game)
+                settingsPane(.content)
+                    .tabItem { Label(tabTitle(.content), systemImage: "puzzlepiece.extension") }
+                    .tag(SettingsGroup.content)
+                settingsPane(.about)
+                    .tabItem { Label(tabTitle(.about), systemImage: "info.circle") }
+                    .tag(SettingsGroup.about)
+            }
         }
     }
 
     private func settingsPane(_ pane: SettingsGroup) -> some View {
         let pendingSection = group == pane ? vm.navigationStore.pendingSettingsSection : nil
         return ScrollViewReader { proxy in
-            BackToTopScrollView(localization) {
-                VStack(alignment: .leading, spacing: AppDesign.Spacing.xl) {
-                    ForEach(SettingsSectionOrder.sections(in: pane), id: \.self) { section in
-                        sectionView(section).id(section)
-                    }
+            Form {
+                ForEach(SettingsSectionOrder.sections(in: pane), id: \.self) { section in
+                    sectionView(section).id(section)
                 }
-                .padding(AppDesign.Spacing.xl)
             }
+            .formStyle(.grouped)
+            .environment(\.usesGroupedSettingsForm, true)
             .task(id: pendingSection) {
                 guard let pendingSection, SettingsSectionOrder.group(of: pendingSection) == pane else { return }
                 await Task.yield()

@@ -350,8 +350,8 @@ struct DiscoveryDetailSheet: View {
             }
             Spacer(minLength: 0)
         }
-        .frame(width: AppDesign.Metrics.sheetDetailSize.width,
-               height: AppDesign.Metrics.sheetDetailSize.height)
+        .frame(minWidth: 500, idealWidth: AppDesign.Metrics.sheetDetailSize.width,
+               minHeight: 520, idealHeight: AppDesign.Metrics.sheetDetailSize.height)
         .onAppear { vm.loadDiscoveryDetail(modId: row.hit.modId) }
         .onDisappear { vm.closeDiscoveryDetail() }
     }

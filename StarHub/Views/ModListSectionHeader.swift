@@ -20,7 +20,8 @@ struct ModListSectionHeader: View {
             if let onToggleCollapse {
                 Button(action: onToggleCollapse) {
                     Image(systemName: section.collapsed ? "chevron.right" : "chevron.down")
-                        .frame(width: 18, height: 18).contentShape(Rectangle())
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).focusRing()
                 .accessibilityLabel(title)

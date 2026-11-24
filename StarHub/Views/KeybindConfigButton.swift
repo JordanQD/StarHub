@@ -23,7 +23,7 @@ struct KeybindConfigButton: View {
             Image(systemName: "gearshape")
                 .font(AppDesign.Font.footnote)
                 .foregroundColor(.secondary)
-                .frame(width: 18, height: 18)
+                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                 .contentShape(.rect)
         }
         .buttonStyle(PlainButtonStyle()).focusRing()

@@ -76,7 +76,7 @@ struct ModKeybindField: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
-                        .frame(width: 18, height: 18)
+                        .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain).focusRing()

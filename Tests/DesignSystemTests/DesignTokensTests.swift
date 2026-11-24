@@ -148,4 +148,39 @@ struct DesignTokensTests {
         #expect(AppDesignCore.Icon.sm < AppDesignCore.Icon.md,
                 "Icon tokens must form an increasing scale")
     }
+
+    // MARK: - HIG Accessibility & High Contrast
+
+    @Test func controlHitTargetsMeetMacOSHIGFloor() {
+        #expect(AppDesignCore.Metrics.minControlTarget >= 20,
+                "macOS HIG minimum control size is 20×20pt")
+        #expect(AppDesignCore.Metrics.compactControlTarget >= AppDesignCore.Metrics.minControlTarget,
+                "compactControlTarget must be at least minControlTarget")
+    }
+
+    @Test func dynamicRGBColorResolvesHighContrastAndFallsBackCleanly() {
+        let withHC = AppDesignCore.StatusPalette.installed
+        #expect(withHC.resolved(dark: false, highContrast: false) == withHC.light)
+        #expect(withHC.resolved(dark: true, highContrast: false) == withHC.dark)
+        #expect(withHC.resolved(dark: false, highContrast: true) == withHC.highContrastLight)
+        #expect(withHC.resolved(dark: true, highContrast: true) == withHC.highContrastDark)
+
+        let light = RGBColor(red: 0.1, green: 0.2, blue: 0.3)
+        let dark = RGBColor(red: 0.7, green: 0.8, blue: 0.9)
+        let withoutHC = DynamicRGBColor(light: light, dark: dark)
+        #expect(withoutHC.resolved(dark: false, highContrast: true) == light)
+        #expect(withoutHC.resolved(dark: true, highContrast: true) == dark)
+    }
+
+    @Test func highContrastPalettesProvideDistinctHigherContrastBorders() {
+        let lightBorder = AppDesignCore.SurfacePalette.surfaceBorder.resolved(dark: false, highContrast: false)
+        let hcLightBorder = AppDesignCore.SurfacePalette.surfaceBorder.resolved(dark: false, highContrast: true)
+        #expect(hcLightBorder.red < lightBorder.red,
+                "High-contrast light border must be darker than default light border")
+
+        let darkBorder = AppDesignCore.SurfacePalette.surfaceBorder.resolved(dark: true, highContrast: false)
+        let hcDarkBorder = AppDesignCore.SurfacePalette.surfaceBorder.resolved(dark: true, highContrast: true)
+        #expect(hcDarkBorder.red > darkBorder.red,
+                "High-contrast dark border must be lighter than default dark border")
+    }
 }

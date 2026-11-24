@@ -59,16 +59,39 @@ public enum AppDesignCore {
     // MARK: - Surfaces
     /// Fonds quasi neutres de l'interface. La légère composante froide évite
     /// la dominante olive de `.background.secondary` sans colorer les cartes.
+    /// Inclut des variantes contraste élevé (HIG macOS Increase Contrast).
     public enum SurfacePalette {
         public static let surface = DynamicRGBColor(
             light: RGBColor(red: 245.0 / 255.0, green: 245.0 / 255.0, blue: 247.0 / 255.0),
-            dark: RGBColor(red: 37.0 / 255.0, green: 37.0 / 255.0, blue: 39.0 / 255.0))
+            dark: RGBColor(red: 37.0 / 255.0, green: 37.0 / 255.0, blue: 39.0 / 255.0),
+            highContrastLight: RGBColor(red: 250.0 / 255.0, green: 250.0 / 255.0, blue: 252.0 / 255.0),
+            highContrastDark: RGBColor(red: 28.0 / 255.0, green: 28.0 / 255.0, blue: 30.0 / 255.0))
         public static let surfaceRaised = DynamicRGBColor(
             light: RGBColor(red: 1, green: 1, blue: 1),
-            dark: RGBColor(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0))
+            dark: RGBColor(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0),
+            highContrastLight: RGBColor(red: 1, green: 1, blue: 1),
+            highContrastDark: RGBColor(red: 36.0 / 255.0, green: 36.0 / 255.0, blue: 38.0 / 255.0))
         public static let surfaceBorder = DynamicRGBColor(
             light: RGBColor(red: 217.0 / 255.0, green: 217.0 / 255.0, blue: 222.0 / 255.0),
-            dark: RGBColor(red: 71.0 / 255.0, green: 71.0 / 255.0, blue: 75.0 / 255.0))
+            dark: RGBColor(red: 71.0 / 255.0, green: 71.0 / 255.0, blue: 75.0 / 255.0),
+            highContrastLight: RGBColor(red: 120.0 / 255.0, green: 120.0 / 255.0, blue: 125.0 / 255.0),
+            highContrastDark: RGBColor(red: 142.0 / 255.0, green: 142.0 / 255.0, blue: 147.0 / 255.0))
+    }
+
+    // MARK: - Status custom colors (avec variantes sombre et contraste élevé)
+    public enum StatusPalette {
+        /// Vert « installé / actif » — lisible sur fond clair, sombre et contraste élevé.
+        public static let installed = DynamicRGBColor(
+            light: RGBColor(red: 0.20, green: 0.65, blue: 0.35),
+            dark: RGBColor(red: 0.25, green: 0.76, blue: 0.42),
+            highContrastLight: RGBColor(red: 0.11, green: 0.48, blue: 0.23),
+            highContrastDark: RGBColor(red: 0.32, green: 0.86, blue: 0.50))
+        /// Gris « en pause » opaque pour pastilles sur vignette (texte blanc dessus).
+        public static let paused = DynamicRGBColor(
+            light: RGBColor(red: 0.38, green: 0.38, blue: 0.38),
+            dark: RGBColor(red: 0.32, green: 0.32, blue: 0.34),
+            highContrastLight: RGBColor(red: 0.24, green: 0.24, blue: 0.26),
+            highContrastDark: RGBColor(red: 0.20, green: 0.20, blue: 0.22))
     }
 
     // MARK: - Grid (LazyVGrid adaptative)
@@ -100,6 +123,10 @@ public enum AppDesignCore {
         public static let chartTall: CGFloat = 120
         /// 80 — une jauge d'une seule barre, son axe compris.
         public static let chartShort: CGFloat = 80
+        /// 20 — cible tactile/clic minimale macOS (Apple HIG Accessibility).
+        public static let minControlTarget: CGFloat = 20
+        /// 24 — cible compacte pour boutons d'icône en chrome/en-tête.
+        public static let compactControlTarget: CGFloat = 24
     }
 
     // MARK: - Shadow
@@ -143,13 +170,27 @@ public struct RGBColor: Equatable, Hashable, Sendable {
     }
 }
 
-/// Paire sRGB résolue par la couche UI selon l'apparence macOS effective.
+/// Paire sRGB résolue par la couche UI selon l'apparence macOS effective
+/// (clair, sombre, et variantes contraste élevé).
 public struct DynamicRGBColor: Equatable, Hashable, Sendable {
     public let light: RGBColor
     public let dark: RGBColor
+    public let highContrastLight: RGBColor?
+    public let highContrastDark: RGBColor?
 
-    public init(light: RGBColor, dark: RGBColor) {
+    public init(light: RGBColor, dark: RGBColor,
+                highContrastLight: RGBColor? = nil,
+                highContrastDark: RGBColor? = nil) {
         self.light = light
         self.dark = dark
+        self.highContrastLight = highContrastLight
+        self.highContrastDark = highContrastDark
+    }
+
+    public func resolved(dark isDark: Bool, highContrast: Bool) -> RGBColor {
+        if isDark {
+            return highContrast ? (highContrastDark ?? dark) : dark
+        }
+        return highContrast ? (highContrastLight ?? light) : light
     }
 }

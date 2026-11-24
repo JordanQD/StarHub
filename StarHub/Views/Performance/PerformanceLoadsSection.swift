@@ -18,6 +18,7 @@ struct PerformanceLoadsSection: View {
     /// La feuille du benchmark vit dans `PerformanceView` (une seule, partagée
     /// avec l'analyse) : dossier à mettre en pause, ou `nil`.
     let openBenchmark: (String?) -> Void
+    var showsHeader = true
     @State private var qualityExpanded = false
     @AppStorage(UDKey.performanceLoadsDetail) private var detailKind = ProbeLoadRecord.Kind.launch.rawValue
 
@@ -36,12 +37,13 @@ struct PerformanceLoadsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            HStack {
-                header
-                Spacer()
-                Button(localization.L(L10n.Benchmark.open)) { openBenchmark(nil) }
-                    .clickableCursor()
-                    .disabled(viewModel.benchmark.isActive || probeAbsent)
+            if showsHeader {
+                HStack {
+                    header
+                    Spacer()
+                    Button(localization.L(L10n.Benchmark.open)) { openBenchmark(nil) }
+                        .disabled(viewModel.benchmark.isActive || probeAbsent)
+                }
             }
             note(localization.L(L10n.Performance.loadsSubtitle))
             PerformanceBenchmarkStatus(runner: viewModel.benchmark, localization: localization)

@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// D4-T4 §3a — l'onglet « Santé » de « Diagnostic & Performances » : la carte
-/// Santé SMAPI en pleine hauteur, puis la recherche guidée du mod responsable.
-/// Autrefois empilées au-dessus du journal, dont elles partageaient la hauteur.
+/// « 运行状况 » tab inside `DiagnosticsView`.
+/// Uses Apple's official `Form().formStyle(.grouped)` so every section and box
+/// matches macOS System Settings natively across macOS 14–27.
 struct DiagnosticsHealthView: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -13,77 +13,181 @@ struct DiagnosticsHealthView: View {
         let id = UUID()
     }
 
-    private static let padding: CGFloat = 12
     private static let bisectionAnchor = "bisection"
 
+    private var diagnostics: SmapiDiagnostics? {
+        guard let diag = viewModel.smapiDiagnostics, !diag.isEmpty else { return nil }
+        return diag
+    }
+
+    private var advisoryCount: Int {
+        guard let d = diagnostics else { return 0 }
+        return d.saveSerializerMods.count + d.patchedMods.count + d.consoleMods.count
+    }
+
     var body: some View {
-        // Un seul ascenseur pour tout l'onglet : la Santé et la bissection
-        // restent dans le même parcours, y compris quand leurs listes grandissent.
-        BackToTopScrollView(localization) { ScrollViewReader { proxy in
-            VStack(spacing: 0) {
-                alertsLink
-                if let diag = viewModel.smapiDiagnostics, !diag.isEmpty {
+        ScrollViewReader { proxy in
+            Form {
+                if let diag = diagnostics {
+                    statusSection(diag)
                     SmapiHealthCard(vm: viewModel, localization: localization,
                                     showBlock: requestScroll,
                                     showBisection: { requestScroll(Self.bisectionAnchor) })
-                        .padding(Self.padding)
                 } else {
-                    StateCard(icon: "stethoscope", text: localization.L(L10n.Logs.healthEmpty),
-                              actionTitle: nil) {}
-                        .padding(AppDesignCore.Spacing.lg)
-                }
-                if let last = viewModel.modImpactStore.lastInGame {
-                    Divider()
-                    SplitRow {
-                        Text(String(format: localization.L(L10n.Performance.healthLastMeasure),
-                                    last.formatted(date: .abbreviated, time: .shortened)))
-                            .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
-                    } trailing: {
-                        Button(localization.L(L10n.Performance.healthOpen)) {
-                            viewModel.navigationStore.openPerformance()
-                        }.buttonStyle(.link).clickableCursor().focusRing(cornerRadius: 4).font(AppDesign.Font.footnote)
+                    if viewModel.systemAlertCount > 0 {
+                        Section {
+                            alertsRow
+                        }
                     }
-                    .padding(.horizontal, Self.padding).padding(.vertical, AppDesign.Spacing.sm)
+                    Section {
+                        ContentUnavailableView {
+                            Label(localization.L(L10n.Logs.segmentHealth), systemImage: "stethoscope")
+                        } description: {
+                            Text(localization.L(L10n.Logs.healthEmpty))
+                        } actions: {
+                            Button {
+                                viewModel.refreshSmapiLog()
+                            } label: {
+                                Label(localization.L(L10n.Updates.recheckLog), systemImage: "arrow.clockwise")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding(.vertical, AppDesign.Spacing.md)
+                        .frame(maxWidth: .infinity)
+                    }
                 }
-                Divider()
+
                 BisectionCard(vm: viewModel, localization: localization)
-                    .padding(Self.padding).id(Self.bisectionAnchor)
+                    .id(Self.bisectionAnchor)
             }
-            .frame(maxWidth: .infinity, alignment: .top)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(AppDesign.Color.windowBg)
             .task(id: scrollRequest?.id) {
                 guard let request = scrollRequest else { return }
-                // L'ouverture de la carte et la création de son ancre doivent
-                // précéder le saut demandé par son compteur.
                 await Task.yield()
                 withAnimation { proxy.scrollTo(request.anchor, anchor: .top) }
             }
-        } }
-        .background(AppDesign.Color.windowBg)
+        }
     }
 
     private func requestScroll(_ anchor: String) {
         scrollRequest = ScrollRequest(anchor: anchor)
     }
 
-    /// R2 — l'aller vers les Alertes, même compte que la pastille. Hors de la
-    /// carte, qui exige un journal lu : les collisions de raccourcis n'en
-    /// ont pas besoin pour exister.
+    // MARK: - Top Status Section
+
     @ViewBuilder
-    private var alertsLink: some View {
-        let count = viewModel.systemAlertCount
-        if count > 0 {
-            SplitRow {
-                Text(localization.plural(L10n.Health.openAlerts, count))
-                    .font(AppDesign.Font.footnote(.medium)).foregroundColor(AppDesign.Color.warning)
-            } trailing: {
-                Button(localization.L(L10n.Health.openAlertsAction)) {
-                    // Le segment d'abord : il survit au changement d'onglet.
-                    viewModel.navigationStore.alertsSegment = .alerts
-                    viewModel.navigationStore.requestTab(.systemAlerts)
-                }.buttonStyle(.link).clickableCursor().focusRing(cornerRadius: 4).font(AppDesign.Font.footnote)
+    private func statusSection(_ diag: SmapiDiagnostics) -> some View {
+        let isHealthy = diag.problemCount == 0
+        let alertCount = viewModel.systemAlertCount
+        let lastMeasure = viewModel.modImpactStore.lastInGame
+
+        Section {
+            HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
+                Image(systemName: isHealthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(isHealthy ? AppDesign.Color.success : AppDesign.Color.warning)
+                    .frame(width: 32, alignment: .center)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(isHealthy ? localization.L(L10n.Logs.healthHealthy) : localization.L(L10n.Logs.healthTitle))
+                        .font(AppDesign.Font.headline(.semibold))
+                    let summaryLine = versionLine(for: diag)
+                    if !summaryLine.isEmpty {
+                        Text(summaryLine)
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Spacer(minLength: AppDesign.Spacing.sm)
+
+                if viewModel.smapiLogStale {
+                    staleBadge
+                }
             }
-            .padding(.horizontal, Self.padding).padding(.vertical, AppDesign.Spacing.sm)
-            Divider()
+            .padding(.vertical, 2)
+
+            if alertCount > 0 {
+                alertsRow
+            }
+
+            if let lastMeasure {
+                HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
+                    Image(systemName: "speedometer")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppDesign.Color.info)
+                        .frame(width: 32, alignment: .center)
+
+                    Text(String(format: localization.L(L10n.Performance.healthLastMeasure),
+                                lastMeasure.formatted(date: .abbreviated, time: .shortened)))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: AppDesign.Spacing.sm)
+
+                    Button(localization.L(L10n.Performance.healthOpen)) {
+                        viewModel.navigationStore.openPerformance()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
+    }
+
+    private var alertsRow: some View {
+        HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(AppDesign.Color.warning)
+                .frame(width: 32, alignment: .center)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(localization.plural(L10n.Health.openAlerts, viewModel.systemAlertCount))
+                    .font(AppDesign.Font.body(.semibold))
+                if advisoryCount > 0 {
+                    Text("\(advisoryCount) \(localization.L(L10n.Logs.healthCountAdvisory))")
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: AppDesign.Spacing.sm)
+
+            Button(localization.L(L10n.Health.openAlertsAction)) {
+                viewModel.navigationStore.alertsSegment = .alerts
+                viewModel.navigationStore.requestTab(.systemAlerts)
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var staleBadge: some View {
+        HStack(spacing: AppDesignCore.Spacing.xs) {
+            Image(systemName: "clock.badge.exclamationmark")
+                .font(AppDesign.Font.iconXS)
+            Text(localization.L(L10n.Logs.healthStale))
+                .font(AppDesign.Font.iconXS(.medium))
+            if let age = SmapiLogSource(logDate: viewModel.smapiLogDate, isStale: true,
+                                        locale: Locale.autoupdatingCurrent)?.staleAge {
+                Text(age).font(AppDesign.Font.iconXS)
+            }
+        }
+        .padding(.horizontal, AppDesignCore.Spacing.sm)
+        .padding(.vertical, 3)
+        .background(AppDesign.Color.warning.opacity(AppDesignCore.Opacity.medium),
+                    in: RoundedRectangle(cornerRadius: AppDesignCore.Radius.sm))
+        .foregroundStyle(AppDesign.Color.warning)
+    }
+
+    private func versionLine(for d: SmapiDiagnostics) -> String {
+        var parts: [String] = []
+        if let v = d.smapiVersion { parts.append("SMAPI \(v)") }
+        if let g = d.gameVersion { parts.append("Stardew Valley \(g)") }
+        if let m = d.modsLoaded { parts.append(String(format: localization.L(L10n.Logs.healthModsCount), Int64(m))) }
+        if let c = d.contentPacksLoaded { parts.append(String(format: localization.L(L10n.Logs.healthPacksCount), Int64(c))) }
+        return parts.joined(separator: "  ·  ")
     }
 }

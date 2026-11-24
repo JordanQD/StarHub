@@ -59,7 +59,7 @@ struct KeybindDeviceSurface: View {
                     KeybindSurfaceButton(name: spot.name, index: index, localization: localization,
                                   openConfig: openConfig,
                                   shape: spot.round ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: 5))) {
-                        Text(spot.label).font(.system(size: 9, weight: .semibold))
+                        Text(spot.label).font(.system(size: 10, weight: .semibold))
                             .frame(width: spot.rect.width, height: spot.rect.height)
                     }
                     .frame(width: spot.rect.width, height: spot.rect.height)

@@ -6,10 +6,13 @@ struct PerformanceSummarySection: View {
     var single: ProbePerformanceSummary?
     /// Sans sonde, l'état vide dit d'installer, pas de lancer le jeu (lot B, G1).
     var probeInstalled = true
+    var showsTitle = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-            Text(localization.L(L10n.PerformanceEvidence.summary)).font(AppDesign.Font.headline(.semibold))
+            if showsTitle {
+                Text(localization.L(L10n.PerformanceEvidence.summary)).font(AppDesign.Font.headline(.semibold))
+            }
             if let report {
                 source(report.before, key: L10n.Performance.before)
                 source(report.after, key: L10n.Performance.after)

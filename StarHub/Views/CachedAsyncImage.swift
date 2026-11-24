@@ -33,7 +33,36 @@ struct CachedAsyncImage: View {
     @State private var image: Image?
     @State private var loadError: Error?
 
+    /// Shared URLSession with persistent disk + memory URLCache for macOS 27+
+    /// native `AsyncImage(request:)` + `.asyncImageURLSession(_:)`.
+    private static let cachedSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.urlCache = URLCache(memoryCapacity: 64 * 1024 * 1024,
+                                   diskCapacity: 256 * 1024 * 1024)
+        return URLSession(configuration: config)
+    }()
+
     var body: some View {
+        if #available(macOS 27.0, *), let url {
+            AsyncImage(request: URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)) { phase in
+                switch phase {
+                case .success(let loaded):
+                    loaded.resizable().scaledToFill()
+                case .failure:
+                    Color.clear.frame(height: 0)
+                case .empty:
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 90)
+                @unknown default:
+                    Color.clear.frame(height: 0)
+                }
+            }
+            .asyncImageURLSession(Self.cachedSession)
+        } else {
+            legacyBody
+        }
+    }
+
+    private var legacyBody: some View {
         Group {
             if let image = image {
                 image.resizable().scaledToFill()

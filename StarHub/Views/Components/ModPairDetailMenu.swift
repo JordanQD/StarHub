@@ -15,17 +15,19 @@ struct ModPairDetailMenu: View {
     var body: some View {
         if folders.count == 1, let folder = folders.first {
             Button(localization.L(L10n.Health.actionOpenMod)) { open(folder) }
-                .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                .font(AppDesign.Font.footnote)
-                .pointingHandCursor()
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .lineLimit(1)
+                .fixedSize()
         } else if !folders.isEmpty {
             Menu(localization.L(L10n.Health.actionOpenMod)) {
                 ForEach(folders, id: \.self) { folder in
                     Button(name(folder)) { open(folder) }
                 }
             }
-            .menuStyle(.borderlessButton).focusRing(cornerRadius: 4)
-            .fixedSize().controlSize(.small)
+            .menuStyle(.borderedButton)
+            .controlSize(.small)
+            .fixedSize()
         }
     }
 

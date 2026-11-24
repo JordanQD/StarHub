@@ -23,6 +23,13 @@ public enum OnboardingStep: String, CaseIterable, Sendable {
         }
     }
 
+    /// L'étape précédente, `nil` sur la première.
+    public var previous: OnboardingStep? {
+        let all = Self.allCases
+        guard let index = all.firstIndex(of: self), index > 0 else { return nil }
+        return all[index - 1]
+    }
+
     /// L'étape suivante, `nil` sur la dernière.
     public var next: OnboardingStep? {
         let all = Self.allCases

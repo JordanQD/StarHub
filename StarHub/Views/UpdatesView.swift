@@ -33,6 +33,7 @@ struct UpdatesView: View {
                     .padding(AppDesign.Spacing.xl)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .optionalSwipeActionsContainer()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

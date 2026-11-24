@@ -38,9 +38,7 @@ struct ModlistReportMenu: View {
             Label(localization.L(L10n.Logs.modlistReportMenu),
                   systemImage: "doc.text")
         }
-        .menuStyle(.borderlessButton).focusRing(cornerRadius: 4)
-        .menuIndicator(.visible)
-        .fixedSize()
+        .help(localization.L(L10n.Logs.modlistReportMenu))
     }
 
     private func copyReport() {

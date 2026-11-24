@@ -18,51 +18,80 @@ private func effectivePerformanceCatalog() -> [PerformanceOverlap] {
 struct PerformanceOverlapSection: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    var searchQuery: String = ""
     @AppStorage(UDKey.dismissedPerformanceOverlaps) private var dismissedRaw = ""
+    @State private var isExpanded = true
 
-    var body: some View {
-        let matches = PerformanceOverlapResolver.matches(in: viewModel.scanStore.mods.flattenedMods,
-                                                         catalog: effectivePerformanceCatalog())
+    private var isSearching: Bool { !searchQuery.isEmpty }
+
+    static func activeMatches(in mods: [ModItem], dismissedRaw: String) -> [PerformanceOverlapMatch] {
+        let matches = PerformanceOverlapResolver.matches(in: mods, catalog: effectivePerformanceCatalog())
             .filter(\.bothEnabled)
         let dismissed = PerformanceOverlapDismissals.decode(dismissedRaw)
-        let shown = matches.filter { !dismissed.contains($0.overlap.key) }
-        let hidden = matches.count - shown.count
+        return matches.filter { !dismissed.contains($0.overlap.key) }
+    }
 
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-            HStack {
-                Image(systemName: "speedometer")
-                Text(localization.L(L10n.PerformanceOverlaps.title))
-                    .font(AppDesign.Font.rowTitle(.bold))
-                    .lineLimit(1)
-            }
-            Text(localization.L(L10n.PerformanceOverlaps.intro))
-                .font(AppDesign.Font.footnote)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            if shown.isEmpty {
-                Label(localization.L(L10n.PerformanceOverlaps.none), systemImage: AppDesign.Status.ok.symbol)
-                    .foregroundColor(.green)
-            }
-            ForEach(shown, id: \.overlap.key) { match in
-                row(match)
-            }
-            if hidden > 0 {
-                HStack(spacing: AppDesign.Spacing.sm) {
-                    Text(String(format: localization.L(L10n.Conflicts.dismissedCount), hidden))
-                    Button(localization.L(L10n.PerformanceOverlaps.restore)) { dismissedRaw = "" }
-                        .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                        .pointingHandCursor()
+    var body: some View {
+        let allMatches = PerformanceOverlapResolver.matches(in: viewModel.scanStore.mods.flattenedMods,
+                                                            catalog: effectivePerformanceCatalog())
+            .filter(\.bothEnabled)
+        let dismissed = PerformanceOverlapDismissals.decode(dismissedRaw)
+        let visible = allMatches.filter { !dismissed.contains($0.overlap.key) }
+        let shown = isSearching ? visible.filter { match in
+            match.firstMod.name.localizedCaseInsensitiveContains(searchQuery)
+                || match.secondMod.name.localizedCaseInsensitiveContains(searchQuery)
+                || match.firstMod.folderName.localizedCaseInsensitiveContains(searchQuery)
+                || match.secondMod.folderName.localizedCaseInsensitiveContains(searchQuery)
+        } : visible
+        let hidden = allMatches.count - visible.count
+
+        if !shown.isEmpty || (!isSearching && hidden > 0) {
+            let title = shown.isEmpty
+                ? localization.L(L10n.PerformanceOverlaps.title)
+                : "\(localization.L(L10n.PerformanceOverlaps.title)) (\(shown.count))"
+            UpdateSectionDisclosure(title: title,
+                                    icon: "speedometer",
+                                    iconTint: AppDesign.Color.info,
+                                    isExpanded: isSearching ? .constant(true) : $isExpanded) {
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                    Text(localization.L(L10n.PerformanceOverlaps.intro))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if shown.isEmpty {
+                        Label(localization.L(L10n.PerformanceOverlaps.none), systemImage: AppDesign.Status.ok.symbol)
+                            .foregroundStyle(AppDesign.Status.ok.tint)
+                    } else {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(shown, id: \.overlap.key) { match in
+                                row(match)
+                                    .padding(.vertical, AppDesign.Spacing.xs)
+                                    .overlay(alignment: .bottom) { Divider() }
+                            }
+                        }
+                    }
+                    if !isSearching && hidden > 0 {
+                        HStack(spacing: AppDesign.Spacing.sm) {
+                            Text(String(format: localization.L(L10n.Conflicts.dismissedCount), hidden))
+                                .font(AppDesign.Font.footnote)
+                                .foregroundStyle(.secondary)
+                            Button(localization.L(L10n.PerformanceOverlaps.restore)) { dismissedRaw = "" }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                    }
                 }
-                .font(AppDesign.Font.footnote)
-                .foregroundColor(.secondary)
+                .padding(.top, AppDesign.Spacing.xs)
             }
         }
-        .cardSurface(padding: AppDesign.Spacing.lg)
     }
 
     private func row(_ match: PerformanceOverlapMatch) -> some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
-            HStack(spacing: AppDesign.Spacing.xs) {
+        let dismiss: () -> Void = {
+            dismissedRaw = PerformanceOverlapDismissals.dismissing(match.overlap.key, in: dismissedRaw)
+        }
+        return VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
+            HStack(spacing: AppDesign.Spacing.sm) {
                 Text("\(match.firstMod.name) × \(match.secondMod.name)")
                     .font(AppDesign.Font.body(.medium))
                     .lineLimit(1).truncationMode(.middle)
@@ -70,15 +99,27 @@ struct PerformanceOverlapSection: View {
                 ModPairDetailMenu(folders: [match.firstMod.folderName, match.secondMod.folderName],
                                   name: { $0 == match.firstMod.folderName ? match.firstMod.name : match.secondMod.name },
                                   navigation: viewModel.navigationStore, localization: localization)
-                Button(localization.L(L10n.Conflicts.dismissButton)) {
-                    dismissedRaw = PerformanceOverlapDismissals.dismissing(match.overlap.key, in: dismissedRaw)
-                }
-                .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                .font(AppDesign.Font.footnote)
-                .foregroundColor(.secondary)
-                .pointingHandCursor()
+                Button(localization.L(L10n.Conflicts.dismissButton), action: dismiss)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .lineLimit(1)
+                    .fixedSize()
             }
             PerformanceOverlapDetails(match: match, localization: localization)
+        }
+        .contextMenu {
+            Button(match.firstMod.name) {
+                viewModel.navigationStore.openModDetail(folderName: match.firstMod.folderName, door: .alert(dependency: false))
+            }
+            Button(match.secondMod.name) {
+                viewModel.navigationStore.openModDetail(folderName: match.secondMod.folderName, door: .alert(dependency: false))
+            }
+            Divider()
+            Button(localization.L(L10n.Conflicts.dismissButton), action: dismiss)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(localization.L(L10n.Conflicts.dismissButton), action: dismiss)
+                .tint(.secondary)
         }
     }
 }
@@ -183,10 +224,10 @@ struct PerformanceOverlapDetailRows: View {
                             Button(localization.L(L10n.Conflicts.dismissButton)) {
                                 dismissedRaw = PerformanceOverlapDismissals.dismissing(match.overlap.key, in: dismissedRaw)
                             }
-                            .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                            .font(AppDesign.Font.footnote)
-                            .foregroundColor(.secondary)
-                            .pointingHandCursor()
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .lineLimit(1)
+                            .fixedSize()
                         }
                         PerformanceOverlapDetails(match: match, localization: localization)
                     }

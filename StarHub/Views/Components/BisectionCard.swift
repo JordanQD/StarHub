@@ -15,47 +15,78 @@ struct BisectionCard: View {
         self.runner = vm.bisection
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(localization.L(L10n.Bisect.title)).font(.headline)
+    private var showsActiveRestoreFooter: Bool {
+        guard !runner.noCandidates else { return false }
+        switch runner.state {
+        case .reproducing, .trial, .confirming: return !runner.isApplying
+        default: return false
+        }
+    }
 
-            if let snapshot = runner.interruptedSnapshot, runner.state == nil, !runner.noCandidates {
-                interrupted(snapshot)
-            } else if runner.noCandidates {
-                noCandidatesView
-            } else {
-                switch runner.state {
-                case nil:
-                    idle
-                case .reproducing:
-                    step(title: L10n.Bisect.reproduceTitle, body: L10n.Bisect.reproduceBody)
-                case .trial(let n, let total):
-                    trial(n, total)
-                case .confirming(let folder):
-                    confirming(folder)
-                case .concluded(let folder):
-                    concluded(folder)
-                case .inconclusive(let remaining):
-                    inconclusive(remaining)
-                case .notReproducible:
-                    finished(L10n.Bisect.notReproducibleTitle, localization.L(L10n.Bisect.notReproducibleBody))
+    var body: some View {
+        Section(localization.L(L10n.Bisect.title)) {
+            HStack(alignment: .top, spacing: AppDesign.Spacing.md) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, alignment: .center)
+                    .padding(.top, 1)
+
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
+                    if let snapshot = runner.interruptedSnapshot, runner.state == nil, !runner.noCandidates {
+                        interrupted(snapshot)
+                    } else if runner.noCandidates {
+                        noCandidatesView
+                    } else {
+                        switch runner.state {
+                        case nil:
+                            idle
+                        case .reproducing:
+                            step(title: L10n.Bisect.reproduceTitle, body: L10n.Bisect.reproduceBody)
+                        case .trial(let n, let total):
+                            trial(n, total)
+                        case .confirming(let folder):
+                            confirming(folder)
+                        case .concluded(let folder):
+                            concluded(folder)
+                        case .inconclusive(let remaining):
+                            inconclusive(remaining)
+                        case .notReproducible:
+                            finished(L10n.Bisect.notReproducibleTitle, localization.L(L10n.Bisect.notReproducibleBody))
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 2)
+
+            if showsActiveRestoreFooter {
+                HStack {
+                    Spacer()
+                    Button(localization.L(L10n.Bisect.restore)) { runner.restoreAndStop() }
+                        .buttonStyle(.bordered)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(padding: 14)
     }
 
     private var idle: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        Group {
             if runner.isApplying {
-                // Préparation de la recherche (détection des candidats) ou
-                // lancement du jeu : rien à proposer tant que ça tourne.
-                Text(localization.L(L10n.Bisect.launching)).font(AppDesign.Font.caption).foregroundColor(.secondary)
+                Text(localization.L(L10n.Bisect.launching))
+                    .font(AppDesign.Font.caption)
+                    .foregroundStyle(.secondary)
             } else {
-                Text(localization.L(L10n.Bisect.intro)).font(AppDesign.Font.caption).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true) // tronqué en fenêtre étroite sinon
-                Button(localization.L(L10n.Bisect.start)) { runner.start() }.buttonStyle(.borderedProminent).focusRing()
+                HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
+                    Text(localization.L(L10n.Bisect.intro))
+                        .font(AppDesign.Font.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: AppDesign.Spacing.sm)
+                    Button(localization.L(L10n.Bisect.start)) { runner.start() }
+                        .buttonStyle(.borderedProminent)
+                        .fixedSize()
+                }
             }
         }
     }
@@ -98,7 +129,8 @@ struct BisectionCard: View {
                     NSPasteboard.general.setString(items.sorted().joined(separator: "\n"),
                                                    forType: .string)
                 }
-                .buttonStyle(.borderless).focusRing(cornerRadius: 4).controlSize(.small)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         } label: {
             Text("\(localization.L(title)) (\(items.count))").font(AppDesign.Font.caption)
@@ -154,12 +186,11 @@ struct BisectionCard: View {
                         .foregroundColor(.orange)
                 }
                 Text(localization.L(L10n.Bisect.question)).font(AppDesign.Font.caption(.medium))
-                SplitRow { // ~523 pt en FR : repli sur deux lignes à la fenêtre minimale
+                HStack(spacing: AppDesign.Spacing.sm) {
                     Button(localization.L(L10n.Bisect.answerYes)) { runner.answer(.stillBroken) }
+                        .buttonStyle(.bordered)
                     Button(localization.L(L10n.Bisect.answerNo)) { runner.answer(.fixed) }
-                } trailing: {
-                    Button(localization.L(L10n.Bisect.restore)) { runner.restoreAndStop() }
-                        .buttonStyle(.borderless).focusRing(cornerRadius: 4).foregroundColor(.secondary)
+                        .buttonStyle(.bordered)
                 }
             }
         }
@@ -277,21 +308,20 @@ struct BisectionCard: View {
                         .disabled(runner.isApplying)
                 }
             }
-            HStack(spacing: 12) {
+            HStack(spacing: AppDesign.Spacing.sm) {
                 Button(localization.L(L10n.Bisect.showMod)) {
                     NotificationCenter.default.post(name: .jumpToMod, object: folder)
                 }
-                .buttonStyle(.link).focusRing(cornerRadius: 4)
-                // Masqué plutôt que grisé quand le mod n'a pas de lien : rien à
-                // faire de l'information « ce mod n'est pas sur Nexus » ici.
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 if !nexus.isEmpty {
                     Button(localization.L(L10n.Bisect.openNexus)) {
                         if let url = URL(string: nexus) { NSWorkspace.shared.open(url) }
                     }
-                    .buttonStyle(.link).focusRing(cornerRadius: 4)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
-            .font(AppDesign.Font.caption)
         }
     }
 
@@ -333,7 +363,8 @@ struct BisectionCard: View {
                         } label: {
                             Image(systemName: "arrow.right.circle")
                         }
-                        .buttonStyle(.plain).focusRing()
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                         .iconHelp(localization.L(L10n.Bisect.showMod))
                     }
                     if let sample = suspect.sample {

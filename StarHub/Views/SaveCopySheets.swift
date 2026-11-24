@@ -54,7 +54,7 @@ struct DuplicateSaveSheet: View {
             }
         }
         .padding()
-        .frame(width: 350, height: 220)
+        .frame(minWidth: 340, idealWidth: 380, minHeight: 210, idealHeight: 240)
     }
 }
 
@@ -128,6 +128,6 @@ struct BranchBackupSheet: View {
             }
         }
         .padding()
-        .frame(width: 350, height: 220)
+        .frame(minWidth: 340, idealWidth: 380, minHeight: 210, idealHeight: 240)
     }
 }

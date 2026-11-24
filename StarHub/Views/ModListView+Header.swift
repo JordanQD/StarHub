@@ -14,44 +14,69 @@ extension ModListView {
                         showsFilters: Binding<Bool>, showsLabels: Bool) -> some ToolbarContent {
         presentationItems(showsLabels: showsLabels)
         if listLayout == .grid { ToolbarItem { sortPicker } }
-        ToolbarItem {
-            Button {
-                showsFilters.wrappedValue.toggle()
-            } label: {
-                Label(localization.L(L10n.Mods.filtersTitle),
-                      systemImage: hasActiveFilters || showsFilters.wrappedValue
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle")
+        if #available(macOS 26.1, *) {
+            ToolbarItem { filterToggleButton(showsFilters: showsFilters) }
+                .visibilityPriority(.high)
+            ToolbarItem { bulkToggleMenu(display: display, selected: selected) }
+                .visibilityPriority(.low)
+            if !vm.missingDependenciesPlan.isEmpty {
+                ToolbarItem { missingDepsButton }
             }
-            .help(localization.L(L10n.Mods.filtersTitle))
-            .accessibilityAddTraits(showsFilters.wrappedValue ? .isSelected : [])
-        }
-        ToolbarItem {
-            ModBulkToggleMenu(scoped: display, selected: selected, viewModel: vm,
-                              localization: localization, target: $bulkToggleTarget)
-                .disabled(vm.scanStore.mods.isEmpty || vm.bulkToggleProgress != nil)
-        }
-        if !vm.missingDependenciesPlan.isEmpty {
+            ToolbarItem { installModButton }
+                .visibilityPriority(.high)
             ToolbarItem {
-                Button {
-                    showMissingDependencies = true
-                } label: {
-                    Label(String(format: localization.L(L10n.Mods.missingDepsButton),
-                                 Int64(vm.missingDependenciesPlan.count)),
-                          systemImage: "shippingbox.and.arrow.backward")
-                }
-                .help(localization.L(L10n.Mods.depsSheetTitle))
+                ModListShareButton(selected: selectedEntries, viewModel: vm, localization: localization)
             }
-        }
-        ToolbarItem {
-            Button {
-                navigation.showsInstallSheet = true
-            } label: {
-                Label(localization.L(L10n.ModInstall.installButton), systemImage: "plus.circle")
+            .visibilityPriority(.low)
+            DefaultToolbarItem(kind: .search, placement: .automatic)
+        } else {
+            ToolbarItem { filterToggleButton(showsFilters: showsFilters) }
+            ToolbarItem { bulkToggleMenu(display: display, selected: selected) }
+            if !vm.missingDependenciesPlan.isEmpty {
+                ToolbarItem { missingDepsButton }
             }
-            .help(localization.L(L10n.ModInstall.installButton))
+            ToolbarItem { installModButton }
+            sharingAndSearchItems(selected: selectedEntries)
         }
-        sharingAndSearchItems(selected: selectedEntries)
+    }
+
+    private func filterToggleButton(showsFilters: Binding<Bool>) -> some View {
+        Button {
+            showsFilters.wrappedValue.toggle()
+        } label: {
+            Label(localization.L(L10n.Mods.filtersTitle),
+                  systemImage: hasActiveFilters || showsFilters.wrappedValue
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle")
+        }
+        .help(localization.L(L10n.Mods.filtersTitle))
+        .accessibilityAddTraits(showsFilters.wrappedValue ? .isSelected : [])
+    }
+
+    private func bulkToggleMenu(display: [ModItem], selected: [ModItem]) -> some View {
+        ModBulkToggleMenu(scoped: display, selected: selected, viewModel: vm,
+                          localization: localization, target: $bulkToggleTarget)
+            .disabled(vm.scanStore.mods.isEmpty || vm.bulkToggleProgress != nil)
+    }
+
+    private var missingDepsButton: some View {
+        Button {
+            showMissingDependencies = true
+        } label: {
+            Label(String(format: localization.L(L10n.Mods.missingDepsButton),
+                         Int64(vm.missingDependenciesPlan.count)),
+                  systemImage: "shippingbox.and.arrow.backward")
+        }
+        .help(localization.L(L10n.Mods.depsSheetTitle))
+    }
+
+    private var installModButton: some View {
+        Button {
+            navigation.showsInstallSheet = true
+        } label: {
+            Label(localization.L(L10n.ModInstall.installButton), systemImage: "plus.circle")
+        }
+        .help(localization.L(L10n.ModInstall.installButton))
     }
 
     @ToolbarContentBuilder

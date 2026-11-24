@@ -799,9 +799,8 @@ struct ModConfigEditorView: View {
                         Image(systemName: "arrow.uturn.backward")
                             .font(AppDesign.Font.footnote)
                             .foregroundColor(.secondary)
-                            // 18×18 : un `.help` posé sur un glyphe plus petit
-                            // reste muet, la cible ne recevant pas le survol.
-                            .frame(width: 18, height: 18)
+                            .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
+                            .contentShape(.rect)
                     }
                     .buttonStyle(PlainButtonStyle()).focusRing()
                     .help(String(format: localization.L(L10n.Settings.configResetToDefault),
@@ -812,7 +811,7 @@ struct ModConfigEditorView: View {
                     Color.clear
                 }
             }
-            .frame(width: 18, height: 18)
+            .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
         }
         .padding(.vertical, 8)
     }

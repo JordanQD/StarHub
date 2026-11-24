@@ -37,10 +37,7 @@ struct OnboardingView: View {
             Divider()
             footer
         }
-        // Largeur fixe : les libellés FR les plus longs (« Passer cette
-        // étape », « Revoir le guide de premier lancement ») y tiennent en
-        // une ligne — vérifié au pire cas.
-        .frame(width: 560, height: 520)
+        .frame(minWidth: 500, idealWidth: 580, minHeight: 460, idealHeight: 540)
         .background(AppDesign.Color.windowBg)
     }
 
@@ -62,17 +59,26 @@ struct OnboardingView: View {
     }
 
     private var footer: some View {
-        HStack {
-            // Bienvenue : sortie complète. Étapes 3-7 : sortie d'étape (spec —
-            // l'étape dossier du jeu et la finale ne sont pas passables).
+        HStack(spacing: AppDesign.Spacing.sm) {
+            if let prev = step.previous {
+                Button {
+                    step = prev
+                } label: {
+                    Label(localization.L(L10n.Main.navBack), systemImage: "chevron.backward")
+                }
+            }
             if step == .welcome {
                 Button(localization.L(L10n.Onboarding.skipAll), action: onFinish)
-            } else if step != .gameDir, step != .done {
+            } else if step != .done {
+                Button(localization.L(L10n.Onboarding.skipAll), action: onFinish)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if step != .welcome, step != .gameDir, step != .done {
                 Button(localization.L(L10n.Onboarding.skipStep)) {
                     advance()
                 }
             }
-            Spacer()
             if step == .welcome {
                 Button(localization.L(L10n.Onboarding.start)) { advance() }
                     .buttonStyle(.borderedProminent).focusRing()

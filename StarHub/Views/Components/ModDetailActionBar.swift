@@ -115,7 +115,7 @@ struct ModDetailActionBar: View {
             .menuStyle(.borderlessButton).focusRing(cornerRadius: 4)
             .menuIndicator(.hidden)
             .fixedSize()
-            .frame(minWidth: 18, minHeight: 18)
+            .frame(minWidth: AppDesign.Metrics.minControlTarget, minHeight: AppDesign.Metrics.minControlTarget)
             .contentShape(.rect)
             .help(localization.L(L10n.Mods.moreActions))
             .accessibilityLabel(localization.L(L10n.Mods.moreActions))
@@ -189,7 +189,7 @@ struct ModDetailActionBar: View {
         Button(action: action) {
             Image(systemName: isOn ? on : off)
                 .foregroundColor(isOn ? tint : .secondary)
-                .frame(width: 18, height: 18)
+                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
                 .contentShape(.rect)
         }
         .buttonStyle(.borderless).focusRing(cornerRadius: 4)

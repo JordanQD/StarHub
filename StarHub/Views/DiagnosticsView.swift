@@ -1,39 +1,29 @@
 import SwiftUI
 
-/// La page « Diagnostic & Performances » (D4-T4 §3a) : Santé · Journal ·
-/// Performances (plan 4),
-/// ouverte sur Santé. Le segment vit dans `NavigationStore` pour survivre au
-/// changement de page, comme dans `BackupsView` (I-T8).
-///
-/// **À la différence de `BackupsView`, les onglets restent montés** : un
-/// `switch` détruirait à chaque changement d'onglet les filtres, la recherche
-/// et le défilement du journal, la carte repliée, les listes de la bissection
-/// — tout ce que la page gardait tant qu'on y restait (consigne de l'auteur,
-/// 2026-09-28 : ne perdre aucune fonctionnalité).
-///
-/// ⌘F : sur Journal, le champ de recherche porte son propre raccourci
-/// (`searchFieldShortcut`) ; sur Santé, le champ est caché et désactivé, donc
-/// cet hôte lie ⌘F — **seulement hors de Journal**, pour qu'un seul liage
-/// soit actif à la fois (piège ⌘K du 2026-09-09) — et bascule sur Journal.
+/// « Diagnostic & Performances » : Santé · Journal · Performances.
+/// Segmented control and per-tab actions live in the native window `.toolbar`;
+/// secondary tabs stay mounted after first visit so filters, scroll position,
+/// and performance comparison selections survive tab switches.
 struct DiagnosticsView: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
-    /// L'onglet Performances (D4-T4 plan 4) : possédé ici, jamais par le
-    /// ViewModel ; l'onglet reste monté, la paire choisie survit.
     @State private var performance = ProbePerformanceStore()
-    /// D2-T3 — l'état environnement de la session (carte « Environnement »),
-    /// même possession que la sonde.
     @State private var environment = SessionEnvironmentStore()
-    /// D2-T4 — transaction durable séparée des comparaisons habituelles.
     @State private var sloDiagnostic: SloDiagnosticSessionStore
     @State private var stardropiumDiagnostic: SloDiagnosticSessionStore
-    /// Rapidité d'affichage : les onglets secondaires ne se construisent qu'au
-    /// premier affichage, puis restent montés — l'état (filtres du journal,
-    /// paire choisie) ne se perd jamais (consigne du 2026-09-28). Entrer sur
-    /// la page ne construit plus les ~8 graphiques de l'onglet Performances ni
-    /// le journal invisibles : `opacity(0)` se rend quand même, un onglet non
-    /// visité, non.
     @State private var mounted: Set<DiagnosticsSegment>
+
+    // Journal toolbar state
+    @State private var logSearchText = ""
+    @State private var logSearchPresented = false
+    @State private var logAutoScroll = true
+    @State private var logGroupByMod = false
+    @State private var logShowClearConfirm = false
+    @State private var logCopyTrigger = 0
+
+    // Performance toolbar state
+    @State private var perfComparing = false
+    @State private var perfShowBenchmark = false
 
     init(viewModel: StarHubTHViewModel, localization: LocalizationStore) {
         self.viewModel = viewModel
@@ -44,8 +34,6 @@ struct DiagnosticsView: View {
         _stardropiumDiagnostic = State(initialValue: SloDiagnosticSessionStore(
             applicationSupport: AppSupport.directory,
             logURL: URL(fileURLWithPath: viewModel.smapiLogPath), probeFiles: ProbeFiles(), kind: .stardropium))
-        // Le segment survit à la navigation : entrer directement sur
-        // Performances ou Journal doit trouver son onglet monté.
         var initiallyMounted = Set([viewModel.navigationStore.diagnosticsSegment])
         if SloDiagnosticExclusion.blocksOtherPerformanceWork(snapshotDirectory: AppSupport.directory) {
             initiallyMounted.insert(.performance)
@@ -59,66 +47,177 @@ struct DiagnosticsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // En-tête commun des pages (audit UX 2026-10-02) : la version de
-            // SMAPI et l'âge du journal que les trois onglets lisent. Sur
-            // Santé, le slot trailing porte le menu du rapport de la liste de
-            // mods — en haut, toujours à l'écran (la carte pleine hauteur
-            // repoussait la section du bas sous le pli, 2026-10-04).
-            PageHeader(icon: "terminal.fill", title: localization.L(L10n.Logs.logs),
-                       subtitle: headerSummary) {
-                if viewModel.navigationStore.diagnosticsSegment == .health {
-                    ModlistReportMenu(vm: viewModel, localization: localization)
-                }
+        let activeSegment = viewModel.navigationStore.diagnosticsSegment
+        ZStack {
+            tab(.health) {
+                DiagnosticsHealthView(viewModel: viewModel, localization: localization)
             }
-                .padding(.horizontal, AppDesign.Spacing.xl)
-                .padding(.top, AppDesign.Spacing.md)
-            Picker(localization.L(L10n.A11y.diagnosticsSegment), selection: segment) {
-                ForEach(DiagnosticsSegment.allCases, id: \.self) { value in
-                    Text(label(value)).tag(value)
-                }
+            tab(.journal) {
+                LogsView(viewModel: viewModel,
+                         localization: localization,
+                         searchText: $logSearchText,
+                         searchPresented: $logSearchPresented,
+                         autoScroll: $logAutoScroll,
+                         groupByMod: $logGroupByMod,
+                         showClearConfirm: $logShowClearConfirm,
+                         copyTrigger: logCopyTrigger)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, AppDesign.Spacing.xl)
-            .padding(.vertical, AppDesign.Spacing.sm)
-            .background(searchShortcutOutsideJournal)
-
-            Divider()
-
-            ZStack {
-                tab(.health) {
-                    DiagnosticsHealthView(viewModel: viewModel, localization: localization)
-                }
-                tab(.journal) {
-                    VStack(spacing: 0) {
-                        DiagnosticsHealthStrip(viewModel: viewModel, localization: localization)
-                        Divider()
-                        LogsView(viewModel: viewModel, localization: localization)
-                    }
-                }
-                tab(.performance) {
-                    PerformanceView(viewModel: viewModel, localization: localization,
-                                    store: performance, environment: environment,
-                                    sloDiagnostic: sloDiagnostic, stardropiumDiagnostic: stardropiumDiagnostic)
-                }
+            tab(.performance) {
+                PerformanceView(viewModel: viewModel,
+                                localization: localization,
+                                store: performance,
+                                environment: environment,
+                                sloDiagnostic: sloDiagnostic,
+                                stardropiumDiagnostic: stardropiumDiagnostic,
+                                comparing: $perfComparing,
+                                showBenchmark: $perfShowBenchmark)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppDesign.Color.windowBg)
-        // Tout chemin qui affiche un onglet le fait monter — le Picker via le
-        // binding, mais aussi `focusLogSearch()` (⌘F), qui pose le segment
-        // directement sur le store sans passer par lui.
+        .navigationSubtitle(headerSummary)
+        .searchable(text: $logSearchText,
+                    isPresented: $logSearchPresented,
+                    placement: .toolbar,
+                    prompt: localization.L(L10n.Logs.searchPlaceholder))
+        .background {
+            if activeSegment != .performance {
+                Button(localization.L(L10n.Logs.searchPlaceholder)) {
+                    if activeSegment == .health {
+                        viewModel.navigationStore.diagnosticsSegment = .journal
+                    }
+                    logSearchPresented = true
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .accessibilityHidden(true)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker(localization.L(L10n.A11y.diagnosticsSegment), selection: segment) {
+                    ForEach(DiagnosticsSegment.allCases, id: \.self) { value in
+                        Text(label(value)).tag(value)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+
+            switch activeSegment {
+            case .health:
+                ToolbarItemGroup {
+                    healthToolbarItems
+                }
+            case .journal:
+                ToolbarItemGroup {
+                    journalToolbarItems
+                }
+            case .performance:
+                ToolbarItemGroup {
+                    performanceToolbarItems
+                }
+            }
+
+            if #available(macOS 26.0, *) {
+                DefaultToolbarItem(kind: .search, placement: .automatic)
+            }
+        }
         .onChange(of: viewModel.navigationStore.diagnosticsSegment) { _, newValue in
             mounted.insert(newValue)
         }
+        .onChange(of: logSearchText) { _, newValue in
+            if !newValue.isEmpty, viewModel.navigationStore.diagnosticsSegment == .health {
+                viewModel.navigationStore.diagnosticsSegment = .journal
+            }
+        }
     }
 
-    /// « SMAPI 4.1.10 · journal du 02/10 15:20 » : ce que les onglets lisent.
+    // MARK: - Toolbar Actions
+
+    @ViewBuilder
+    private var healthToolbarItems: some View {
+        Button {
+            viewModel.refreshSmapiLog()
+        } label: {
+            if viewModel.isRefreshingSmapiLog {
+                ProgressView().controlSize(.small)
+            } else {
+                Label(localization.L(L10n.Updates.recheckLog), systemImage: "arrow.clockwise")
+            }
+        }
+        .disabled(viewModel.isRefreshingSmapiLog)
+        .help(localization.L(L10n.Updates.recheckLog))
+
+        Button {
+            viewModel.revealSmapiLogInFinder()
+        } label: {
+            Label(localization.L(L10n.Logs.healthReveal), systemImage: "folder")
+        }
+        .help(localization.L(L10n.Logs.healthReveal))
+
+        ModlistReportMenu(vm: viewModel, localization: localization)
+    }
+
+    @ViewBuilder
+    private var journalToolbarItems: some View {
+        Toggle(isOn: $logGroupByMod) {
+            Label(localization.L(L10n.Logs.groupByMod),
+                  systemImage: logGroupByMod ? "rectangle.grid.1x2.fill" : "rectangle.grid.1x2")
+        }
+        .help(localization.L(L10n.Logs.groupByMod))
+
+        Toggle(isOn: $logAutoScroll) {
+            Label(localization.L(L10n.Logs.autoScrollHint),
+                  systemImage: logAutoScroll ? "arrow.down.to.line" : "arrow.down.to.line.compact")
+        }
+        .help(localization.L(L10n.Logs.autoScrollHint))
+
+        Button {
+            logCopyTrigger += 1
+        } label: {
+            Label(localization.L(L10n.Logs.copyAll), systemImage: "doc.on.clipboard")
+        }
+        .help(localization.L(L10n.Logs.copyAll))
+
+        Button {
+            viewModel.loadSmapiLog()
+        } label: {
+            Label(localization.L(L10n.Logs.refreshHint), systemImage: "arrow.clockwise")
+        }
+        .help(localization.L(L10n.Logs.refreshHint))
+
+        Button(role: .destructive) {
+            logShowClearConfirm = true
+        } label: {
+            Label(localization.L(L10n.Logs.clearLogs), systemImage: "trash")
+        }
+        .help(localization.L(L10n.Logs.clearLogs))
+    }
+
+    @ViewBuilder
+    private var performanceToolbarItems: some View {
+        Picker(localization.L(L10n.Performance.inGameTitle), selection: $perfComparing) {
+            Text(localization.L(L10n.PerformanceEvidence.lastSession)).tag(false)
+            Text(localization.L(L10n.PerformanceEvidence.compare)).tag(true)
+        }
+        .pickerStyle(.menu)
+        .fixedSize()
+
+        Button {
+            perfShowBenchmark = true
+        } label: {
+            Label(localization.L(L10n.Benchmark.title), systemImage: "gauge.with.dots.needle.67percent")
+        }
+        .help(localization.L(L10n.Benchmark.title))
+    }
+
+    // MARK: - Helpers
+
     private var headerSummary: String {
         let smapi = viewModel.smapiInstalledVersion.map { "SMAPI \($0)" }
             ?? localization.L(L10n.Logs.headerNoSmapi)
-        // Même date que la ligne de source des Alertes (R2), dans la langue de l'app.
         guard let source = SmapiLogSource(logDate: viewModel.smapiLogDate, isStale: false,
                                           locale: Locale.autoupdatingCurrent) else {
             return "\(smapi) · \(localization.L(L10n.Logs.headerNoLog))"
@@ -126,17 +225,10 @@ struct DiagnosticsView: View {
         return "\(smapi) · " + String(format: localization.L(L10n.Logs.headerLogDate), source.date)
     }
 
-    /// Un onglet non affiché : invisible, sans clic ni raccourci (un bouton
-    /// désactivé ne déclenche pas son `keyboardShortcut` — ⌘F n'a donc
-    /// qu'un liage actif), hors de VoiceOver. Son état survit. L'onglet
-    /// affiché passe **au-dessus** (`zIndex`) : les vues AppKit du journal
-    /// caché (défilement, texte sélectionnable qui impose le curseur I-beam)
-    /// ne doivent pas s'interposer devant Santé.
     @ViewBuilder
     private func tab<Content: View>(_ value: DiagnosticsSegment,
                                     @ViewBuilder content: () -> Content) -> some View {
         if !mounted.contains(value) {
-            // Jamais visité : rien à construire, rien à conserver.
             EmptyView()
         } else {
             let shown = viewModel.navigationStore.diagnosticsSegment == value
@@ -149,22 +241,10 @@ struct DiagnosticsView: View {
         }
     }
 
-    @ViewBuilder
-    private var searchShortcutOutsideJournal: some View {
-        // Depuis Santé seulement : sur Performances, ⌘F ne change pas d'onglet
-        // (lot D de l'audit Performances, F11).
-        if viewModel.navigationStore.diagnosticsSegment == .health {
-            Button("") { viewModel.navigationStore.focusLogSearch() }
-                .keyboardShortcut("f", modifiers: .command)
-                .opacity(0)
-                .accessibilityHidden(true)
-        }
-    }
-
     private func label(_ value: DiagnosticsSegment) -> String {
         switch value {
-        case .health:  return localization.L(L10n.Logs.segmentHealth)
-        case .journal: return localization.L(L10n.Logs.segmentJournal)
+        case .health:      return localization.L(L10n.Logs.segmentHealth)
+        case .journal:     return localization.L(L10n.Logs.segmentJournal)
         case .performance: return localization.L(L10n.Logs.segmentPerformance)
         }
     }

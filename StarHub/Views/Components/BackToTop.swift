@@ -172,25 +172,44 @@ struct BackToTopScrollView<Content: View>: View {
 
     var body: some View {
         ScrollViewReader { proxy in
+            scrollContainer
+                .contentMargins(.bottom, bottomContentMargin, for: .scrollContent)
+                .softTopScrollEdgeEffect()
+                .overlay(alignment: .bottomTrailing) {
+                    if scrolledPast {
+                        BackToTopButton(title: localization.L(L10n.Main.backToTop)) {
+                            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                                proxy.scrollTo(BackToTop.anchor, anchor: .top)
+                            }
+                            recheck += 1
+                        }
+                        .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.8)))
+                    }
+                }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: scrolledPast)
+        }
+    }
+
+    @ViewBuilder
+    private var scrollContainer: some View {
+        if #available(macOS 15.0, *) {
+            ScrollView(.vertical, showsIndicators: showsIndicators) {
+                content.overlay(alignment: .top) {
+                    Color.clear.frame(height: 1).allowsHitTesting(false).id(BackToTop.anchor)
+                }
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                (geometry.contentOffset.y + geometry.contentInsets.top) > threshold
+            } action: { _, past in
+                if past != scrolledPast { scrolledPast = past }
+            }
+        } else {
             ScrollView(.vertical, showsIndicators: showsIndicators) {
                 content.overlay(alignment: .top) {
                     Color.clear.frame(height: threshold).allowsHitTesting(false)
                         .backToTopMarker(scrolledPast: $scrolledPast, recheck: recheck)
                 }
             }
-            .contentMargins(.bottom, bottomContentMargin, for: .scrollContent)
-            .overlay(alignment: .bottomTrailing) {
-                if scrolledPast {
-                    BackToTopButton(title: localization.L(L10n.Main.backToTop)) {
-                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                            proxy.scrollTo(BackToTop.anchor, anchor: .top)
-                        }
-                        recheck += 1
-                    }
-                    .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.8)))
-                }
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: scrolledPast)
         }
     }
 
@@ -220,10 +239,8 @@ struct BackToTopButton: View {
                 .frame(width: 32, height: 32)
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain).focusRing()
-        .background(.regularMaterial, in: Circle())
-        .overlay(Circle().stroke(Color.primary.opacity(AppDesign.Opacity.light), lineWidth: 1))
-        .shadow(color: .black.opacity(AppDesign.Opacity.medium), radius: 3, y: 1)
+        .buttonStyle(.plain).focusRing(cornerRadius: FocusRing.capsule)
+        .floatingInteractiveGlass(in: Circle())
         .help(title)
         .accessibilityLabel(title)
         .clickableCursor()

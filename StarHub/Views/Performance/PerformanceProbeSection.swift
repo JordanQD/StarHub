@@ -21,6 +21,8 @@ struct PerformanceProbeSection: View {
     /// La bannière « sonde en premier » est déjà en tête de page
     /// (`PerformanceMeasurementStatus.hoistsLoadOrderBanner`) : ne pas la répéter.
     var loadOrderBannerHoisted = false
+    /// Embedded inside a grouped `Form` disclosure row: omits the outer card and duplicate title.
+    var embedded = false
 
     private var bundledFolder: URL? { ProbeBundle.bundledFolder(resourcesURL: Bundle.main.resourceURL) }
     private var action: ProbeBundle.Action {
@@ -31,48 +33,18 @@ struct PerformanceProbeSection: View {
     private var profiler: ModPresence { ModPresence.resolve(uniqueId: ModPresence.profilerId, in: viewModel.mods) }
 
     var body: some View {
-        PerformanceCard {
-            Text(localization.L(L10n.Performance.probeTitle))
-                .font(AppDesign.Font.headline(.semibold))
-            switch probe {
-            case .absent:
-                StateCard(icon: "gauge.with.dots.needle.bottom.0percent",
-                          text: localization.L(L10n.Performance.probeAbsent),
-                          actionTitle: nil) {}
-            case .paused(let folderName, _):
-                note(String(format: localization.L(L10n.Performance.probePaused), folderName))
-                Button(localization.L(L10n.Performance.probeEnable)) {
-                    if let mod = mod(named: folderName) { viewModel.toggleMod(mod) }
+        Group {
+            if embedded {
+                VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+                    probeBody
                 }
-                .buttonStyle(.bordered).focusRing().pointingHandCursor()
-            case .enabled(_, let version):
-                Label(String(format: localization.L(L10n.Performance.probeEnabled), version),
-                      systemImage: AppDesign.Status.ok.symbol)
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(AppDesign.Color.success)
-            }
-            installButton
-            if let installedNote { note(installedNote) }
-            if case .enabled = probe, !loadOrderBannerHoisted {
-                PerformanceLoadsProbeFirst(viewModel: viewModel, localization: localization, store: store,
-                                           consent: $loadEarlyConsent)
-            }
-            if let failure {
-                Label(failure, systemImage: "exclamationmark.triangle.fill")
-                    .font(AppDesign.Font.footnote).foregroundColor(AppDesign.Color.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            switch profiler {
-            case .enabled(let folderName, _):
-                Label(String(format: localization.L(L10n.Performance.profilerActive), folderName),
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(AppDesign.Color.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            case .paused(let folderName, _):
-                note(String(format: localization.L(L10n.Performance.profilerInstalled), folderName))
-            case .absent:
-                EmptyView()
+                .padding(.top, AppDesign.Spacing.xs)
+            } else {
+                PerformanceCard {
+                    Text(localization.L(L10n.Performance.probeTitle))
+                        .font(AppDesign.Font.headline(.semibold))
+                    probeBody
+                }
             }
         }
         .confirmationDialog(localization.L(L10n.Performance.probeInstallConfirmTitle),
@@ -84,11 +56,61 @@ struct PerformanceProbeSection: View {
         }
     }
 
+    @ViewBuilder
+    private var probeBody: some View {
+        HStack(alignment: .center, spacing: AppDesign.Spacing.sm) {
+            switch probe {
+            case .absent:
+                Label(localization.L(L10n.Performance.probeAbsent),
+                      systemImage: "gauge.with.dots.needle.bottom.0percent")
+                    .font(AppDesign.Font.footnote)
+                    .foregroundStyle(.secondary)
+            case .paused(let folderName, _):
+                Label(String(format: localization.L(L10n.Performance.probePaused), folderName),
+                      systemImage: "pause.circle")
+                    .font(AppDesign.Font.footnote)
+                    .foregroundStyle(.secondary)
+            case .enabled(_, let version):
+                Label(String(format: localization.L(L10n.Performance.probeEnabled), version),
+                      systemImage: AppDesign.Status.ok.symbol)
+                    .font(AppDesign.Font.footnote)
+                    .foregroundStyle(AppDesign.Color.success)
+            }
+            Spacer(minLength: AppDesign.Spacing.sm)
+            if case .paused(let folderName, _) = probe {
+                Button(localization.L(L10n.Performance.probeEnable)) {
+                    if let mod = mod(named: folderName) { viewModel.toggleMod(mod) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            installButton
+        }
+        if let installedNote { note(installedNote) }
+        if case .enabled = probe, !loadOrderBannerHoisted {
+            PerformanceLoadsProbeFirst(viewModel: viewModel, localization: localization, store: store,
+                                       consent: $loadEarlyConsent)
+        }
+        if let failure {
+            Label(failure, systemImage: "exclamationmark.triangle.fill")
+                .font(AppDesign.Font.footnote).foregroundStyle(AppDesign.Color.warning)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if case .enabled(let folderName, _) = profiler {
+            Label(String(format: localization.L(L10n.Performance.profilerActive), folderName),
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(AppDesign.Font.footnote)
+                .foregroundStyle(AppDesign.Color.warning)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// Installer ou mettre à jour : jamais sans confirmation (D4-T3).
     @ViewBuilder private var installButton: some View {
         if let title = title(action) {
             Button(title) { failure = nil; pending = action }
-                .buttonStyle(.borderedProminent).focusRing().pointingHandCursor()
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
         } else if action == .unavailable, probe == .absent {
             note(localization.L(L10n.Performance.probeUnavailable))
         }
