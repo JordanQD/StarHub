@@ -2894,3 +2894,13 @@
 "updates_more_notes" = "更多";
 "updates_no_release_notes" = "暂无更新说明";
 "updates_update_options" = "更新选项";
+
+"home_last_played" = "上次游戏时间：%@";
+"home_achievements_title" = "成就";
+"home_achievements_progress" = "已完成 %1$lld/%2$lld";
+"home_achievements_filter_all" = "全部";
+"home_achievements_filter_unlocked" = "已解锁";
+"home_achievements_filter_locked" = "未解锁";
+"home_launch_smapi" = "启动 SMAPI";
+"home_launch_vanilla" = "启动原版游戏";
+"home_launch_smapi_profile" = "启动 SMAPI（%@）";

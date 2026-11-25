@@ -2894,3 +2894,13 @@
 "updates_more_notes" = "More";
 "updates_no_release_notes" = "Release notes unavailable";
 "updates_update_options" = "Update options";
+
+"home_last_played" = "Last Played: %@";
+"home_achievements_title" = "Achievements";
+"home_achievements_progress" = "Completed %1$lld/%2$lld";
+"home_achievements_filter_all" = "All";
+"home_achievements_filter_unlocked" = "Unlocked";
+"home_achievements_filter_locked" = "Locked";
+"home_launch_smapi" = "Launch SMAPI";
+"home_launch_vanilla" = "Launch Vanilla";
+"home_launch_smapi_profile" = "Launch SMAPI (%@)";

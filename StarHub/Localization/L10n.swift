@@ -85,6 +85,15 @@ enum L10n {
         static let notInstalledOrDisabled = "home_not_installed_or_disabled"
         static let installedButDisabled = "home_installed_but_disabled"
         static let smapiNotInstalled    = "home_smapi_not_installed"
+        static let lastPlayed           = "home_last_played"
+        static let achievementsTitle    = "home_achievements_title"
+        static let achievementsProgress = "home_achievements_progress"
+        static let achievementsFilterAll      = "home_achievements_filter_all"
+        static let achievementsFilterUnlocked = "home_achievements_filter_unlocked"
+        static let achievementsFilterLocked   = "home_achievements_filter_locked"
+        static let launchSmapi                = "home_launch_smapi"
+        static let launchSmapiProfile         = "home_launch_smapi_profile"
+        static let launchVanilla              = "home_launch_vanilla"
     }
 
     // MARK: - Keybinds

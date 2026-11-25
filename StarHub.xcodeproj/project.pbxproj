@@ -26,6 +26,9 @@
 		A00000000000000000000031 /* assets/custom_ui/nexus_banner_final.png in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* assets/custom_ui/nexus_banner_final.png */; };
 		A00000000000000000000032 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* Localizable.strings */; };
 		A00000000000000000000033 /* Guide.md in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* Guide.md */; };
+		A00000000000000000000041 /* assets/custom_ui/home_backdrop.png in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000040 /* assets/custom_ui/home_backdrop.png */; };
+		A00000000000000000000043 /* assets/custom_ui/launch_icon_smapi.png in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000042 /* assets/custom_ui/launch_icon_smapi.png */; };
+		A00000000000000000000045 /* assets/custom_ui/launch_icon_vanilla.png in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000044 /* assets/custom_ui/launch_icon_vanilla.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +57,9 @@
 		A00000000000000000000019 /* fr */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = fr; path = assets/fr.lproj/Guide.md; sourceTree = SOURCE_ROOT; };
 		A0000000000000000000001A /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = "zh-Hans"; path = "assets/zh-Hans.lproj/Guide.md"; sourceTree = SOURCE_ROOT; };
 		A0000000000000000000001E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+		A00000000000000000000040 /* assets/custom_ui/home_backdrop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = assets/custom_ui/home_backdrop.png; sourceTree = SOURCE_ROOT; };
+		A00000000000000000000042 /* assets/custom_ui/launch_icon_smapi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = assets/custom_ui/launch_icon_smapi.png; sourceTree = SOURCE_ROOT; };
+		A00000000000000000000044 /* assets/custom_ui/launch_icon_vanilla.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = assets/custom_ui/launch_icon_vanilla.png; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +91,9 @@
 				A00000000000000000000011 /* assets/custom_ui/farmer_face_female.png */,
 				A00000000000000000000012 /* assets/custom_ui/farmer_face_male.png */,
 				A00000000000000000000013 /* assets/custom_ui/nexus_banner_final.png */,
+				A00000000000000000000040 /* assets/custom_ui/home_backdrop.png */,
+				A00000000000000000000042 /* assets/custom_ui/launch_icon_smapi.png */,
+				A00000000000000000000044 /* assets/custom_ui/launch_icon_vanilla.png */,
 				A00000000000000000000017 /* Localizable.strings */,
 				A0000000000000000000001B /* Guide.md */,
 			);
@@ -181,6 +190,9 @@
 				A0000000000000000000002F /* assets/custom_ui/farmer_face_female.png in Resources */,
 				A00000000000000000000030 /* assets/custom_ui/farmer_face_male.png in Resources */,
 				A00000000000000000000031 /* assets/custom_ui/nexus_banner_final.png in Resources */,
+				A00000000000000000000041 /* assets/custom_ui/home_backdrop.png in Resources */,
+				A00000000000000000000043 /* assets/custom_ui/launch_icon_smapi.png in Resources */,
+				A00000000000000000000045 /* assets/custom_ui/launch_icon_vanilla.png in Resources */,
 				A00000000000000000000032 /* Localizable.strings in Resources */,
 				A00000000000000000000033 /* Guide.md in Resources */,
 			);

@@ -243,14 +243,6 @@ struct MainView: View {
                         .padding(.horizontal, AppDesign.Spacing.sm)
 
                     SidebarNavGroups(vm: vm, localization: localization, currentTab: $currentTab)
-
-                    ModsWeightFooter(vm: vm, localization: localization)
-                        .padding(.horizontal, AppDesign.Spacing.sm)
-
-                    Divider()
-
-                    SidebarAccountBar(vm: vm, localization: localization,
-                                      onTap: { currentTab = .home })
                 }
     }
 
