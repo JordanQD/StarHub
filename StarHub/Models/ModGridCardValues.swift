@@ -37,12 +37,13 @@ public enum ModGridCardValues {
             return version
         })
         let version = versions.count == 1 ? versions.first : nil
+        let targetLang = TranslationTargetLanguage.currentResolved()
         return Card(title: mod.name,
                     version: version,
                     thumbnailURL: pictureURL.flatMap {
                         $0.isEmpty ? nil : URL(string: $0)
                     },
-                    neutralBadge: mod.languages.contains("fr") ? "FR" : nil)
+                    neutralBadge: targetLang.matchesModLanguages(mod.languages) ? targetLang.badgeLabel : nil)
     }
 
     /// L'identifiant Nexus qui donne droit à une image — `nil` quand aucun ne

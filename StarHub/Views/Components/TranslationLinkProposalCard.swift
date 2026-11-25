@@ -1,19 +1,12 @@
 import SwiftUI
 
-/// C7-T1 — la carte « semble traduire… » sur la fiche d'un pack-traduction
-/// posé comme un mod. Proposition seulement : `[Rattacher]` crée la
-/// déclaration (**aucune écriture disque**), `[Ignorer]` mémorise le refus
-/// par `folderName|mtime`. Un ex-æquo non tranché par le nom offre le choix
-/// d'hôte (`alternates`) ; un pack sans identité Nexus rattache **sans
-/// suivi de version** — dit avant le clic ; un hôte déjà suivi par l'app
-/// est annoncé (terrain C7-T2).
+/// C7-T1 translation pack → host link proposal row, styled natively for
+/// `Form().formStyle(.grouped)` as well as standalone detail cards.
 struct TranslationLinkProposalCard: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
     let proposal: TranslationLinkProposal
 
-    /// L'hôte choisi dans le menu quand un ex-æquo subsiste — vide tant que
-    /// l'utilisateur n'a pas touché, l'hôte du calcul fait foi.
     @State private var alternateHost: String = ""
 
     private var currentHost: String {
@@ -25,68 +18,82 @@ struct TranslationLinkProposalCard: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
             Image(systemName: "link")
-                .foregroundColor(.accentColor)
-                .font(AppDesign.Font.caption)
-                .padding(.top, 2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(localization.L(L10n.Mods.translationLinkCardTitle))
-                    .font(AppDesign.Font.caption(.medium))
-                if proposal.alternates.isEmpty {
-                    Text(currentHost)
+                .foregroundStyle(.tint)
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 20, alignment: .center)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: AppDesign.Spacing.xs) {
+                    Text(proposal.packName)
+                        .font(AppDesign.Font.body(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text("→")
                         .font(AppDesign.Font.footnote)
-                } else {
-                    Picker(localization.L(L10n.Mods.translationLinkCardTitle),
-                           selection: Binding(
-                               get: { currentHost },
-                               set: { alternateHost = $0 })) {
-                        ForEach([proposal.hostFolderName] + proposal.alternates, id: \.self) {
-                            Text($0).tag($0)
+                        .foregroundStyle(.secondary)
+                    if proposal.alternates.isEmpty {
+                        Text(currentHost)
+                            .font(AppDesign.Font.body(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    } else {
+                        Picker(localization.L(L10n.Mods.translationLinkCardTitle),
+                               selection: Binding(
+                                   get: { currentHost },
+                                   set: { alternateHost = $0 })) {
+                            ForEach([proposal.hostFolderName] + proposal.alternates, id: \.self) {
+                                Text($0).tag($0)
+                            }
                         }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .fixedSize()
                     }
-                    .pickerStyle(.menu)
-                    .controlSize(.small)
                 }
-                Text(String(format: localization.L(L10n.Mods.translationLinkCoverage),
-                            coveragePercent))
-                    .font(AppDesign.Font.iconXS)
-                    .foregroundColor(.secondary)
-                if proposal.nexusId == nil {
-                    Text(localization.L(L10n.Mods.translationLinkNoTracking))
-                        .font(AppDesign.Font.iconXS)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: AppDesign.Spacing.sm) {
+                    Text(String(format: localization.L(L10n.Mods.translationLinkCoverage), coveragePercent))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                    if proposal.nexusId == nil {
+                        Text(localization.L(L10n.Mods.translationLinkNoTracking))
+                            .font(AppDesign.Font.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
+
                 if hostTracked {
                     Text(localization.L(L10n.Mods.translationLinkHostTracked))
-                        .font(AppDesign.Font.iconXS)
-                        .foregroundColor(.orange)
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(AppDesign.Color.warning)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                HStack(spacing: 6) {
-                    Button(localization.L(L10n.Mods.translationLinkAttach)) {
-                        vm.confirmTranslationLink(retargeted())
-                    }
-                    .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-                    .controlSize(.small)
-                    .pointingHandCursor()
-                    Button(localization.L(L10n.Mods.translationLinkDismiss)) {
-                        vm.dismissTranslationLink(proposal)
-                    }
-                    .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                    .controlSize(.small)
-                    .pointingHandCursor()
-                }
             }
+
+            Spacer(minLength: AppDesign.Spacing.sm)
+
+            HStack(spacing: AppDesign.Spacing.xs) {
+                Button(localization.L(L10n.Mods.translationLinkAttach)) {
+                    vm.confirmTranslationLink(retargeted())
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button(localization.L(L10n.Mods.translationLinkDismiss)) {
+                    vm.dismissTranslationLink(proposal)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .fixedSize()
         }
-        .padding(8)
-        .background(Color.accentColor.opacity(0.08))
-        .cornerRadius(AppDesignCore.Radius.sm)
+        .padding(.vertical, 2)
     }
 
-    /// La proposition retargetée vers l'hôte choisi — même dossier de pack,
-    /// même preuve ; seul le destinataire suit le menu.
     private func retargeted() -> TranslationLinkProposal {
         TranslationLinkProposal(
             packFolderName: proposal.packFolderName,

@@ -177,13 +177,14 @@ struct ModDetailView: View {
             }
             if vm.navigationStore.pendingTranslationFocus == mod.folderName {
                 vm.navigationStore.pendingTranslationFocus = nil
-                if mod.languages.contains("fr") || mod.languages.contains("en") {
+                let lang = vm.activeTranslationLanguage
+                if lang.matchesModLanguages(mod.languages) || mod.languages.contains("en") {
                     selectedTab = .translation
                 }
             }
             unloadableLocaleFiles = await vm.unloadableLocaleFiles(for: mod)
             // Seulement si rien de FR : sinon inutile de fouiller.
-            guard !mod.languages.contains("fr") else { return }
+            guard !vm.activeTranslationLanguage.matchesModLanguages(mod.languages) else { return }
             backupTranslation = await vm.backupTranslation(for: mod)
         }
     }
@@ -294,7 +295,8 @@ struct ModDetailView: View {
                     .buttonStyle(.plain).focusRing().pointingHandCursor().help(title) }
                 }
                 categoryTag
-                if mod.languages.contains("fr") { FrenchCoverageBadge(percent: vm.frenchCoverage(for: mod), unmeasuredLabel: "FR", percentFormat: localization.L(L10n.Mods.frCoveragePercent)) }
+                let targetLang = vm.activeTranslationLanguage
+                if targetLang.matchesModLanguages(mod.languages) { FrenchCoverageBadge(percent: vm.frenchCoverage(for: mod), unmeasuredLabel: targetLang.badgeLabel, percentFormat: localization.L(L10n.Mods.frCoveragePercent)) }
                 let link = vm.nexusLink(for: mod)
                 if !link.isEmpty {
                     AdaptiveLabels {
@@ -831,7 +833,7 @@ struct ModDetailView: View {
     private var translationSection: some View {
         // Aussi sans français si une sauvegarde en contient un ou qu'un fichier
         // ne sera jamais lu.
-        if mod.languages.contains("fr") || backupTranslation != nil
+        if vm.activeTranslationLanguage.matchesModLanguages(mod.languages) || backupTranslation != nil
             || !unloadableLocaleFiles.isEmpty {
             VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
                 Text(localization.L(L10n.Mods.translationSection))
@@ -871,7 +873,7 @@ struct ModDetailView: View {
                                     color: DiffStateStyle.tint(.outdated))
                 }
 
-                if mod.languages.contains("fr"), let coverage = vm.frenchCoverageDetail(for: mod) {
+                if vm.activeTranslationLanguage.matchesModLanguages(mod.languages), let coverage = vm.frenchCoverageDetail(for: mod) {
                     TranslationProgressBar(percent: coverage.displayPercent)
                     Text(String(format: localization.L(L10n.Mods.translationCounts),
                                 coverage.translated, coverage.total))
@@ -904,7 +906,7 @@ struct ModDetailView: View {
                                                coverage.orphan.count),
                                         icon: "questionmark.circle", color: .secondary)
                     }
-                } else if mod.languages.contains("fr") {
+                } else if vm.activeTranslationLanguage.matchesModLanguages(mod.languages) {
                     // Calcul en cours : le dire.
                     Text(localization.L(L10n.Mods.translationPending))
                         .font(AppDesign.Font.footnote)

@@ -100,9 +100,10 @@ struct SettingsView: View {
         case .gameFolder:     gameFolderSection
         case .smapi:          SettingsSmapiSection(vm: vm, localization: localization, alerts: alerts)
         case .launch:         launchSection
-        case .coreExtensions: coreExtensionsSection
-        case .nexus:          nexusSection
-        case .translationAI:  translationAISection
+        case .coreExtensions:      coreExtensionsSection
+        case .nexus:               nexusSection
+        case .translationLanguage: translationLanguageSection
+        case .translationAI:       translationAISection
         case .modBehavior:    modBehaviorSection
         case .developer:      developerSection
         case .appInfo:        SettingsAppInfoSection(vm: vm, localization: localization)
@@ -206,6 +207,38 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .labelsHidden()
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var translationLanguageSection: some View {
+        let resolved = vm.activeTranslationLanguage
+        StandardSection(
+            title: localization.L(L10n.Settings.translationSection),
+            icon: ("character.book.closed", .indigo),
+            footer: String(format: localization.L(L10n.Settings.translationActiveFileHint),
+                           resolved.nativeName, resolved.primaryFileName)
+        ) {
+            SettingsRow(
+                title: localization.L(L10n.Settings.translationTargetLanguage),
+                hint: localization.L(L10n.Settings.translationTargetLanguageHint)
+            ) {
+                Picker(localization.L(L10n.Settings.translationTargetLanguage), selection: Binding(
+                    get: { vm.translationTargetPreference },
+                    set: { vm.setTranslationTargetPreference($0) }
+                )) {
+                    Text(localization.L(L10n.Settings.translationAuto))
+                        .tag(TranslationTargetLanguage.auto)
+                    Divider()
+                    ForEach(TranslationTargetLanguage.selectableLanguages) { lang in
+                        Text("\(lang.nativeName) (\(lang.smapiCode))")
+                            .tag(TranslationTargetLanguage(rawValue: lang.rawValue) ?? .zh)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
             }
         }
     }

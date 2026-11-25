@@ -49,9 +49,10 @@ public enum TranslationPresence {
     /// - Parameter modDirectory: le dossier **physique** du mod — un mod en
     ///   pause vit dans `Mods/.X`.
     public static func hasFrench(inModDirectory modDirectory: URL,
+                                 locale: String = "fr",
                                  fileManager: FileManager = .default) -> Bool {
         let i18n = modDirectory.appendingPathComponent("i18n", isDirectory: true)
-        return !I18nLocaleResolver.files(in: i18n, locale: "fr",
+        return !I18nLocaleResolver.files(in: i18n, locale: locale,
                                          fileManager: fileManager).isEmpty
     }
 }

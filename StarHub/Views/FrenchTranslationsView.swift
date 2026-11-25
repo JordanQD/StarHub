@@ -1,18 +1,8 @@
 import SwiftUI
 
-/// C5-T1 — « Traductions FR » : les traductions françaises disponibles sur
-/// Nexus pour tous les mods installés (en pause compris), et les mises à jour
-/// de celles déjà posées. Remplace l'entrée du hub thaï.
-///
-/// La page ne cherche rien d'office : un bouton lance la recherche
-/// (`FrenchTranslationSweepStore`, qui vit sur le ViewModel et survit au
-/// changement d'onglet). Le statut de chaque mod se **dérive** à l'affichage
-/// (`FrenchTranslationSweep.status`) : poser une traduction d'ici la fait
-/// passer dans « Posées » sans nouvelle recherche.
-///
-/// Les gestes sont ceux de la fiche (A3-T3) : `installTranslation` dépose dans
-/// le mod de premier niveau, dossier physique compris — un mod en pause vit
-/// dans `Mods/.X`.
+/// Mod Translations hub: Worklist + Nexus sweep, following Apple HIG with
+/// native `Form().formStyle(.grouped)`, `.toolbar(placement: .principal)`
+/// segmented control, toolbar search, and unified `.bar` bottom status bar.
 struct FrenchTranslationsView: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -20,107 +10,135 @@ struct FrenchTranslationsView: View {
 
     private var store: FrenchTranslationSweepStore { viewModel.translationSweep }
 
-    /// C3-T5 — la session de fusion des lots humains, portée par la vue :
-    /// elle ne survit pas au changement d'onglet, comme les autres états de
-    /// détail (`MainView` remet ses états à `nil`).
     @State private var mergeStore = TranslationLotMergeStore()
     @State private var showArbitration = false
-    /// Section demandée par la légende de l'anneau : ouverte puis atteinte.
-    @State private var revealKey: String?
-    /// R3 — fixé une fois à l'apparition (« À finir », sauf liste vide et
-    /// mesure finie) : la page ne bascule pas sous les yeux.
     @State private var segment: Segment?
+    @State private var searchText = ""
+    @State private var searchPresented = false
+    @AppStorage("frtrWorklistOrder") private var worklistOrder: TranslationWorklist.Order = .remainingKeys
 
     private enum Segment: Hashable { case worklist, nexus }
 
-    /// Les mêmes magasins que le filtre « Trad. FR » de la liste.
+    private var trimmedQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearching: Bool { !trimmedQuery.isEmpty }
+
     private var worklistState: ModListScoping.TranslationState {
         let model = viewModel
         return .init(coverage: model.frenchCoverageByMod, stale: model.staleTranslationMods,
                      outdatedKeys: model.outdatedKeysByMod)
     }
 
-    /// Les lignes vivent sur le ViewModel : le badge de la barre (P5-10) lit
-    /// les mêmes.
     private typealias Row = FrenchTranslationLine
     private var rows: [Row] { viewModel.frenchTranslationLines }
+
+    private var linkProposals: [TranslationLinkProposal] {
+        let all = viewModel.translationHub.proposedLinks.values
+            .sorted { $0.packFolderName < $1.packFolderName }
+        guard isSearching else { return all }
+        return all.filter {
+            $0.packName.localizedCaseInsensitiveContains(trimmedQuery)
+                || $0.packFolderName.localizedCaseInsensitiveContains(trimmedQuery)
+                || $0.hostFolderName.localizedCaseInsensitiveContains(trimmedQuery)
+        }
+    }
 
     var body: some View {
         let all = rows
         let mods = viewModel.mods, state = worklistState
         let work = TranslationWorklist.items(in: mods, state: state)
+        let untranslated = TranslationWorklist.untranslatedCount(in: mods, state: state)
         let unmeasured = TranslationWorklist.unmeasuredCount(in: mods, pass: viewModel.frenchCoverage)
         let shown = segment ?? (work.isEmpty && unmeasured == 0 ? .nexus : .worklist)
-        VStack(alignment: .leading, spacing: 0) {
-            header(all, shown: shown, workCount: work.count)
-                .padding(AppDesign.Spacing.lg)
-            if !linkProposals.isEmpty {
-                linkProposalsSection
-                    .padding(.horizontal, AppDesign.Spacing.lg)
-                    .padding(.bottom, AppDesign.Spacing.sm)
-            }
-            Divider()
+
+        Group {
             if shown == .worklist {
-                BackToTopScrollView(localization) {
-                    FrenchTranslationsWorklist(localization: localization, items: work,
-                                               untranslated: TranslationWorklist.untranslatedCount(in: mods, state: state),
-                                               unmeasured: unmeasured,
-                                               open: { folder in openMod(folder) },
-                                               showNexus: { segment = .nexus })
-                }
+                worklistContent(items: work, untranslated: untranslated, unmeasured: unmeasured)
             } else {
-            ScrollViewReader { proxy in
-                BackToTopScrollView(localization) {
-                    let groups = self.groups(all)
-                    LazyVStack(alignment: .leading, spacing: AppDesign.Spacing.md) {
-                        if !all.isEmpty {
-                            FrenchTranslationsOverview(
-                                slices: groups.map { .init(key: $0.key, count: $0.rows.count) },
-                                L: localization.L,
-                                select: { key in
-                                    revealKey = key
-                                    withMotion { proxy.scrollTo(key, anchor: .top) }
-                                })
-                        }
-                        ForEach(groups, id: \.key) { group in
-                            section(group.key, group.rows, open: group.open)
-                        }
-                        DismissedTranslationHits(viewModel: viewModel, localization: localization)
-                    }
-                    .padding(AppDesign.Spacing.lg)
-                }
-            }
+                nexusContent(all, untranslated: untranslated)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            statusBar(all: all, shown: shown, unmeasured: unmeasured)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppDesign.Color.windowBg)
         .onAppear { if segment == nil { segment = shown } }
+        .navigationSubtitle("\(viewModel.activeTranslationLanguage.nativeName) (\(viewModel.activeTranslationLanguage.smapiCode))")
+        .searchable(text: $searchText, isPresented: $searchPresented,
+                    placement: .toolbar, prompt: localization.L(L10n.Mods.searchMods))
+        .background {
+            Button(localization.L(L10n.Mods.searchMods)) { searchPresented = true }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .accessibilityHidden(true)
+        }
         .toolbar {
-            if shown == .nexus {
-                if store.isRunning {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(localization.L(L10n.FrTranslations.cancel)) { store.cancel() }
+            ToolbarItem(placement: .principal) {
+                Picker(localization.L(L10n.A11y.frTranslationsList), selection: Binding(
+                    get: { shown },
+                    set: { segment = $0 }
+                )) {
+                    Text(String(format: localization.L(L10n.FrTranslations.segmentWorklist), work.count))
+                        .tag(Segment.worklist)
+                    Text(String(format: localization.L(L10n.FrTranslations.segmentNexus), all.count))
+                        .tag(Segment.nexus)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+
+            if shown == .worklist {
+                ToolbarItemGroup {
+                    Menu {
+                        Picker(localization.L(L10n.FrTranslations.sortLabel), selection: $worklistOrder) {
+                            Text(localization.L(L10n.FrTranslations.sortKeys)).tag(TranslationWorklist.Order.remainingKeys)
+                            Text(localization.L(L10n.FrTranslations.sortPercent)).tag(TranslationWorklist.Order.remainingPercent)
+                            Text(localization.L(L10n.FrTranslations.sortName)).tag(TranslationWorklist.Order.name)
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Label(localization.L(L10n.FrTranslations.sortLabel), systemImage: "arrow.up.arrow.down")
                     }
-                } else {
-                    ToolbarItemGroup(placement: .primaryAction) {
+                    .help(localization.L(L10n.FrTranslations.sortLabel))
+                    .disabled(work.isEmpty)
+
+                    TranslationLotShuttleView(viewModel: viewModel, localization: localization,
+                                              mergeStore: $mergeStore,
+                                              onMergeReady: { showArbitration = $0 })
+                }
+            } else {
+                ToolbarItemGroup {
+                    if store.isRunning {
+                        Button(localization.L(L10n.FrTranslations.cancel)) { store.cancel() }
+                    } else {
                         Button {
                             store.run(all.map(\.candidate)) { viewModel.log($0) }
                         } label: {
-                            Label(localization.L(L10n.FrTranslations.rescan), systemImage: "magnifyingglass")
+                            Label(localization.L(L10n.FrTranslations.rescan), systemImage: "arrow.clockwise")
                         }
-                        .prominentToolbarAction()
                         .disabled(all.isEmpty)
                         .help(localization.L(L10n.FrTranslations.rescanHint))
-
-                        Menu {
-                            Button(localization.L(L10n.FrTranslations.rescanAll)) {
-                                store.run(all.map(\.candidate), forceAll: true) { viewModel.log($0) }
-                            }
-                        } label: {
-                            Label(localization.L(L10n.FrTranslations.rescanAll), systemImage: "ellipsis.circle")
-                        }
-                        .disabled(all.isEmpty)
-                        .help(localization.L(L10n.FrTranslations.rescanAll))
                     }
+
+                    TranslationLotShuttleView(
+                        viewModel: viewModel,
+                        localization: localization,
+                        mergeStore: $mergeStore,
+                        onMergeReady: { showArbitration = $0 },
+                        onForceRescan: {
+                            store.run(all.map(\.candidate), forceAll: true) { viewModel.log($0) }
+                        },
+                        forceRescanDisabled: all.isEmpty || store.isRunning
+                    )
                 }
+            }
+
+            if #available(macOS 26.0, *) {
+                DefaultToolbarItem(kind: .search, placement: .automatic)
             }
         }
         .sheet(isPresented: $showArbitration) {
@@ -137,20 +155,152 @@ struct FrenchTranslationsView: View {
         }
     }
 
-    // MARK: - C7-T1 — la section des propositions de lien
-
-    private var linkProposals: [TranslationLinkProposal] {
-        viewModel.translationHub.proposedLinks.values
-            .sorted { $0.packFolderName < $1.packFolderName }
-    }
+    // MARK: - Worklist Tab
 
     @ViewBuilder
+    private func worklistContent(items: [TranslationWorkItem],
+                                 untranslated: Int,
+                                 unmeasured: Int) -> some View {
+        let filtered = isSearching
+            ? items.filter {
+                $0.name.localizedCaseInsensitiveContains(trimmedQuery)
+                    || $0.folderName.localizedCaseInsensitiveContains(trimmedQuery)
+            }
+            : items
+
+        if isSearching && filtered.isEmpty && linkProposals.isEmpty {
+            searchEmptyState
+        } else if !isSearching && items.isEmpty && unmeasured == 0 && linkProposals.isEmpty {
+            ContentUnavailableView {
+                Label(localization.L(L10n.FrTranslations.worklistEmpty), systemImage: "checkmark.circle")
+            } description: {
+                if untranslated > 0 {
+                    Text(String(format: localization.L(L10n.FrTranslations.worklistUntranslated),
+                                untranslated, viewModel.activeTranslationLanguage.nativeName))
+                }
+            } actions: {
+                if untranslated > 0 {
+                    Button {
+                        segment = .nexus
+                    } label: {
+                        Label(localization.L(L10n.FrTranslations.worklistSearchNexus), systemImage: "globe")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Form {
+                if !linkProposals.isEmpty {
+                    linkProposalsSection
+                }
+                FrenchTranslationsWorklist(localization: localization,
+                                           items: filtered,
+                                           order: worklistOrder,
+                                           untranslated: isSearching ? 0 : untranslated,
+                                           unmeasured: isSearching ? 0 : unmeasured,
+                                           targetLanguageName: viewModel.activeTranslationLanguage.nativeName,
+                                           open: { openMod($0) },
+                                           showNexus: { segment = .nexus })
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    // MARK: - Nexus Tab
+
+    @ViewBuilder
+    private func nexusContent(_ all: [Row], untranslated: Int) -> some View {
+        let filtered = isSearching
+            ? all.filter {
+                $0.candidate.name.localizedCaseInsensitiveContains(trimmedQuery)
+                    || $0.mod.folderName.localizedCaseInsensitiveContains(trimmedQuery)
+            }
+            : all
+        let groups = self.groups(filtered)
+        let hasRows = groups.contains { !$0.rows.isEmpty }
+        let hasDismissed = !isSearching && !viewModel.translationSweep.verdicts.dismissals.isEmpty
+        let isNeverSearched = !all.isEmpty && all.allSatisfy { $0.status == .notSearched }
+
+        if isSearching && !hasRows && linkProposals.isEmpty {
+            searchEmptyState
+        } else if !isSearching && all.isEmpty && linkProposals.isEmpty {
+            ContentUnavailableView {
+                Label(localization.L(L10n.FrTranslations.title), systemImage: "character.book.closed")
+            } description: {
+                Text(localization.L(L10n.FrTranslations.subtitle))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if !isSearching && isNeverSearched && !store.isRunning
+                    && store.stopReason == nil && linkProposals.isEmpty && !hasDismissed {
+            ContentUnavailableView {
+                Label(localization.L(L10n.FrTranslations.worklistSearchNexus), systemImage: "globe")
+            } description: {
+                VStack(spacing: AppDesign.Spacing.xs) {
+                    if untranslated > 0 {
+                        Text(String(format: localization.L(L10n.FrTranslations.worklistUntranslated),
+                                    untranslated, viewModel.activeTranslationLanguage.nativeName))
+                    }
+                    Text(String(format: localization.L(L10n.FrTranslations.never), all.count))
+                }
+            } actions: {
+                Button {
+                    store.run(all.map(\.candidate)) { viewModel.log($0) }
+                } label: {
+                    Label(localization.L(L10n.FrTranslations.worklistSearchNexus), systemImage: "globe")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Form {
+                if let reason = store.stopReason {
+                    Section {
+                        if reason == .noApiKey {
+                            NexusAccessNote(message: stopText(reason), navigation: viewModel.navigationStore,
+                                            localization: localization)
+                        } else {
+                            Label(stopText(reason), systemImage: "exclamationmark.triangle.fill")
+                                .font(AppDesign.Font.footnote)
+                                .foregroundStyle(reason == .cancelled ? Color.secondary : AppDesign.Color.warning)
+                        }
+                    }
+                }
+
+                if !linkProposals.isEmpty {
+                    linkProposalsSection
+                }
+
+                ForEach(groups, id: \.key) { group in
+                    if !group.rows.isEmpty {
+                        FrenchTranslationSection(title: String(format: localization.L(group.key), group.rows.count),
+                                                 style: FrenchTranslationsOverview.style(for: group.key),
+                                                 startsOpen: isSearching ? true : group.open) {
+                            ForEach(group.rows) { row in
+                                FrenchTranslationRow(viewModel: viewModel, localization: localization, mod: row.mod,
+                                                     candidate: row.candidate, status: row.status,
+                                                     entry: store.entry(for: row.candidate.folderName),
+                                                     openMod: { openMod(row.mod.folderName) })
+                            }
+                        }
+                        .id(group.key)
+                    }
+                }
+
+                if hasDismissed {
+                    DismissedTranslationHits(viewModel: viewModel, localization: localization)
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    // MARK: - Shared Sections & Status Bar
+
     private var linkProposalsSection: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            Label(String(format: localization.L(L10n.Mods.translationLinkCounter),
-                         linkProposals.count),
-                  systemImage: "link")
-                .font(AppDesign.Font.caption(.medium))
+        Section(String(format: localization.L(L10n.Mods.translationLinkCounter), linkProposals.count)) {
             ForEach(linkProposals, id: \.packFolderName) { proposal in
                 TranslationLinkProposalCard(vm: viewModel,
                                             localization: localization,
@@ -159,71 +309,78 @@ struct FrenchTranslationsView: View {
         }
     }
 
-    // MARK: - En-tête
+    private var searchEmptyState: some View {
+        ContentUnavailableView {
+            Label(localization.L(L10n.Discovery.noMatch), systemImage: "magnifyingglass")
+        } actions: {
+            Button(localization.L(L10n.Discovery.clearSearch)) {
+                withMotion(.snappy) { searchText = "" }
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
     @ViewBuilder
-    private func header(_ all: [Row], shown: Segment, workCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            Text(localization.L(L10n.FrTranslations.subtitle))
-                .font(AppDesign.Font.caption).foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: AppDesign.Spacing.md) {
-                Picker(localization.L(L10n.A11y.frTranslationsList), selection: Binding(get: { shown }, set: { segment = $0 })) {
-                    Text(String(format: localization.L(L10n.FrTranslations.segmentWorklist), workCount))
-                        .tag(Segment.worklist)
-                    Text(String(format: localization.L(L10n.FrTranslations.segmentNexus), all.count))
-                        .tag(Segment.nexus)
+    private func statusBar(all: [Row], shown: Segment, unmeasured: Int) -> some View {
+        if shown == .worklist {
+            if unmeasured > 0 {
+                VStack(spacing: 0) {
+                    Divider()
+                    HStack(spacing: AppDesign.Spacing.sm) {
+                        ProgressView().controlSize(.mini)
+                        Text(String(format: localization.L(L10n.FrTranslations.worklistMeasuring), unmeasured))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, AppDesign.Spacing.xl)
+                    .padding(.vertical, AppDesign.Spacing.xs)
                 }
-                .pickerStyle(.segmented).labelsHidden().fixedSize()
-                Spacer(minLength: 0)
-                TranslationLotShuttleView(viewModel: viewModel, localization: localization,
-                                          mergeStore: $mergeStore,
-                                          onMergeReady: { showArbitration = $0 })
+                .background(.bar)
             }
-            if shown == .worklist {
-                EmptyView()
-            } else if store.isRunning {
+        } else if store.isRunning {
+            VStack(spacing: 0) {
+                Divider()
                 HStack(spacing: AppDesign.Spacing.sm) {
                     ProgressView(value: Double(store.done), total: Double(max(store.total, 1)))
-                        .frame(maxWidth: 220)
+                        .frame(maxWidth: 160)
                     let progress = String(format: localization.L(L10n.FrTranslations.progress),
                                           store.done, store.total, store.currentNames.joined(separator: " · "))
                     Text(progress)
-                        .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-                        .truncatedHelp(progress, mode: .middle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
                 }
-            } else if let oldest = store.oldestSearch(among: all.map(\.candidate)) {
-                // Un « à jour au » global mentirait dès qu'un passage
-                // incrémental ne re-cherche qu'une partie : compter ce que le
-                // cache couvre encore.
-                let fresh = store.freshCount(among: all.map(\.candidate))
-                Text(summary(all) + " · "
-                     + String(format: localization.L(L10n.FrTranslations.checkedAt),
-                              fresh, all.count,
-                              oldest.formatted(date: .abbreviated, time: .shortened)))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-            } else {
-                Text(String(format: localization.L(L10n.FrTranslations.never), all.count))
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
+                .padding(.horizontal, AppDesign.Spacing.xl)
+                .padding(.vertical, AppDesign.Spacing.xs)
             }
-            // R7 — la clé absente a son remède commun ; un quota épuisé ou un
-            // arrêt demandé gardent leur constat (ils ne se règlent pas aux
-            // Réglages).
-            if shown == .nexus, let reason = store.stopReason {
-                if reason == .noApiKey {
-                    NexusAccessNote(message: stopText(reason), navigation: viewModel.navigationStore,
-                                    localization: localization)
-                } else {
-                    Label(stopText(reason), systemImage: "exclamationmark.triangle.fill")
-                        .font(AppDesign.Font.footnote)
-                        .foregroundColor(reason == .cancelled ? .secondary : AppDesign.Color.warning)
+            .background(.bar)
+        } else if let oldest = store.oldestSearch(among: all.map(\.candidate)) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: AppDesign.Spacing.sm) {
+                    Text(summary(all))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer()
+                    Text(oldest.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(.horizontal, AppDesign.Spacing.xl)
+                .padding(.vertical, AppDesign.Spacing.xs)
             }
+            .background(.bar)
         }
     }
 
-    /// « N cherchés, M sans résultat » : un zéro doit se voir comme un zéro,
-    /// pas comme une page vide.
+    // MARK: - Helpers
+
     private func summary(_ all: [Row]) -> String {
         let available = all.filter { if case .available = $0.status { return true }; return false }.count
         let none = all.filter { $0.status == .nothingFound }.count
@@ -238,10 +395,6 @@ struct FrenchTranslationsView: View {
         }
     }
 
-    // MARK: - Sections
-
-    /// Les statuts dans l'ordre de gravité puis d'action : ce qui demande
-    /// un geste d'abord, ce qui est réglé ensuite.
     private func groups(_ all: [Row]) -> [(key: String, rows: [Row], open: Bool)] {
         [
             (L10n.FrTranslations.sectionUpdates, all.filter { if case .updateAvailable = $0.status { return true }; return false }, true),
@@ -254,25 +407,6 @@ struct FrenchTranslationsView: View {
         ]
     }
 
-    @ViewBuilder
-    private func section(_ key: String, _ rows: [Row], open: Bool) -> some View {
-        if !rows.isEmpty {
-            FrenchTranslationSection(title: String(format: localization.L(key), rows.count),
-                                     style: FrenchTranslationsOverview.style(for: key),
-                                     startsOpen: open, reveal: revealKey == key) {
-                ForEach(rows) { row in
-                    FrenchTranslationRow(viewModel: viewModel, localization: localization, mod: row.mod,
-                                         candidate: row.candidate, status: row.status,
-                                         entry: store.entry(for: row.candidate.folderName),
-                                         openMod: { openMod(row.mod.folderName) })
-                }
-            }
-            .id(key)
-        }
-    }
-
-    /// La fiche, onglet Traduction — là où vivent le retrait et le
-    /// rattachement. L'intention traverse le changement d'onglet (patron B3-T4).
     private func openMod(_ folderName: String) {
         viewModel.navigationStore.openModDetail(folderName: folderName, door: .frenchTranslations)
     }

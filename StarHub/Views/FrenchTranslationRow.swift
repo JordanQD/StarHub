@@ -1,37 +1,42 @@
 import SwiftUI
 
-// Sortis de `FrenchTranslationsView` (R3, 2026-10-16) : la page gagne un
-// second segment, « À finir ».
-
-/// Un groupe repliable ; son état vit ici, pas dans la page, pour que chaque
-/// section garde le sien.
+/// Native grouped `Form` collapsible section for a Nexus translation status bucket.
 struct FrenchTranslationSection<Content: View>: View {
     let title: String
     let style: (color: Color, icon: String)
     let startsOpen: Bool
-    /// Vrai quand la légende de l'anneau désigne cette section : elle s'ouvre.
-    let reveal: Bool
     @ViewBuilder let content: () -> Content
     @State private var isOpen: Bool?
 
+    private var expanded: Bool { isOpen ?? startsOpen }
+
     var body: some View {
-        DisclosureGroup(isExpanded: Binding(get: { isOpen ?? startsOpen }, set: { isOpen = $0 })) {
-            VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) { content() }
-                .padding(.top, AppDesign.Spacing.xs)
-        } label: {
-            Label {
-                Text(title).font(AppDesign.Font.body(.semibold))
-            } icon: {
-                Image(systemName: style.icon).foregroundStyle(style.color)
+        Section {
+            if expanded {
+                content()
             }
-        }
-        .onChange(of: reveal) { _, now in
-            if now { withMotion { isOpen = true } }
+        } header: {
+            Button {
+                withMotion(.snappy) { isOpen = !expanded }
+            } label: {
+                HStack(spacing: AppDesign.Spacing.xs) {
+                    Image(systemName: style.icon)
+                        .foregroundStyle(style.color)
+                    Text(title)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 }
 
-/// Un mod et ce que Nexus propose pour lui.
+/// Native grouped `Form` row for one mod and its Nexus translation hits.
 struct FrenchTranslationRow: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -40,44 +45,85 @@ struct FrenchTranslationRow: View {
     let status: FrenchTranslationSweep.Status
     let entry: FrenchTranslationSweep.Entry?
     let openMod: () -> Void
+    @State private var showLowConfidence = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
-            SplitRow(spacing: AppDesign.Spacing.sm) {
-                HStack(spacing: AppDesign.Spacing.sm) {
-                    Text(candidate.name).font(AppDesign.Font.body(.medium))
-                        .truncatedHelp(candidate.name, mode: .middle)
-                    if !candidate.isActive {
-                        Text(localization.L(L10n.FrTranslations.paused))
-                            .font(AppDesign.Font.iconXS).foregroundColor(.secondary)
-                            // Littéraux gardés : les jetons voisins valent 4 et 6,
-                            // les substituer changerait la pastille.
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.secondary.opacity(AppDesign.Opacity.medium)).cornerRadius(4)
-                    }
-                    if viewModel.translationHub.isBusy(mod.folderName) { ProgressView().controlSize(.small) }
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+            HStack(alignment: .center, spacing: AppDesign.Spacing.sm) {
+                Text(candidate.name)
+                    .font(AppDesign.Font.body(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if !candidate.isActive {
+                    Text(localization.L(L10n.FrTranslations.paused))
+                        .font(AppDesign.Font.iconXS(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.secondary.opacity(AppDesign.Opacity.medium),
+                                    in: RoundedRectangle(cornerRadius: 4))
                 }
-            } trailing: {
-                let openTitle = localization.L(L10n.FrTranslations.openMod)
-                Button(action: openMod) {
-                    Label(openTitle, systemImage: "arrow.forward")
+                if viewModel.translationHub.isBusy(mod.folderName) {
+                    ProgressView().controlSize(.small)
                 }
-                .buttonStyle(.link).clickableCursor().focusRing(cornerRadius: 4)
-                .controlSize(.small).pointingHandCursor().help(openTitle)
+                Spacer(minLength: AppDesign.Spacing.sm)
+                Button(localization.L(L10n.FrTranslations.openMod), action: openMod)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .fixedSize()
             }
+
             switch status {
             case .available(let hits):
-                // Le plus sûr d'abord : confirmée, liée, puis par nom.
-                ForEach(hits.sorted { rank($0) < rank($1) }) {
-                    hitLine($0, action: L10n.FrTranslations.install, dismissable: confidence($0) != .confirmed)
-                }
+                availableHitsList(hits)
             case .updateAvailable(let newer):
                 hitLine(newer, action: L10n.FrTranslations.update, dismissable: false)
             case .installed, .installedUnverified, .failed, .nothingFound, .notSearched:
                 EmptyView()
             }
         }
-        .cardSurface(padding: AppDesign.Spacing.sm)
+        .padding(.vertical, 2)
+        .contextMenu {
+            Button(localization.L(L10n.FrTranslations.openMod), action: openMod)
+        }
+    }
+
+    @ViewBuilder
+    private func availableHitsList(_ hits: [NexusModSearch.Hit]) -> some View {
+        let sorted = hits.sorted { rank($0) < rank($1) }
+        let confirmed = sorted.filter { confidence($0) == .confirmed }
+        let primary = confirmed.isEmpty ? Array(sorted.prefix(2)) : confirmed
+        let primaryIds = Set(primary.map(\.id))
+        let secondary = sorted.filter { !primaryIds.contains($0.id) }
+
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
+            ForEach(Array(primary.enumerated()), id: \.element.id) { index, hit in
+                if index > 0 {
+                    Divider().padding(.leading, AppDesign.Spacing.md)
+                }
+                hitLine(hit, action: L10n.FrTranslations.install, dismissable: confidence(hit) != .confirmed)
+            }
+
+            if !secondary.isEmpty {
+                Divider().padding(.leading, AppDesign.Spacing.md)
+                DisclosureGroup(isExpanded: $showLowConfidence) {
+                    VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
+                        ForEach(Array(secondary.enumerated()), id: \.element.id) { index, hit in
+                            if index > 0 {
+                                Divider().padding(.leading, AppDesign.Spacing.md)
+                            }
+                            hitLine(hit, action: L10n.FrTranslations.install, dismissable: true)
+                        }
+                    }
+                    .padding(.top, AppDesign.Spacing.xs)
+                } label: {
+                    Text(String(format: localization.L(L10n.Quarantine.andNMore), Int64(secondary.count)))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.leading, AppDesign.Spacing.md)
+            }
+        }
     }
 
     private func confidence(_ hit: NexusModSearch.Hit) -> FrenchTranslationSweep.Confidence {
@@ -92,129 +138,157 @@ struct FrenchTranslationRow: View {
         }
     }
 
-    /// La marque d'un résultat qui demande à être vérifié ; rien quand le lien
-    /// et le titre concordent.
     @ViewBuilder private func caution(_ hit: NexusModSearch.Hit) -> some View {
         switch confidence(hit) {
         case .confirmed:
             EmptyView()
         case .linkedOnly:
-            Text(localization.L(L10n.FrTranslations.linkedOnly))
-                .font(AppDesign.Font.iconXS).foregroundColor(AppDesign.Color.warning)
-                .help(localization.L(L10n.FrTranslations.linkedOnlyHelp))
+            cautionBadge(localization.L(L10n.FrTranslations.linkedOnly),
+                         help: localization.L(L10n.FrTranslations.linkedOnlyHelp))
         case .nameOnly:
-            Text(localization.L(L10n.FrTranslations.byName))
-                .font(AppDesign.Font.iconXS).foregroundColor(AppDesign.Color.warning)
-                .help(localization.L(L10n.FrTranslations.byNameHelp))
+            cautionBadge(localization.L(L10n.FrTranslations.byName),
+                         help: localization.L(L10n.FrTranslations.byNameHelp))
         }
     }
 
-    /// `dismissable` : un résultat à vérifier (par le nom, ou lié sans que
-    /// le titre nomme le mod) peut s'écarter (P5-4) ; une traduction confirmée
-    /// ou la mise à jour d'une traduction posée, non.
+    private func cautionBadge(_ text: String, help: String) -> some View {
+        Text(text)
+            .font(AppDesign.Font.iconXS(.medium))
+            .foregroundStyle(AppDesign.Color.warning)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(AppDesign.Color.warning.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+            .fixedSize()
+            .help(help)
+    }
+
     private func hitLine(_ hit: NexusModSearch.Hit, action: String, dismissable: Bool) -> some View {
         let actionTitle = localization.L(action)
         let nexusTitle = localization.L(L10n.Mods.translationOpenNexus)
-        return SplitRow(spacing: AppDesign.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    // E12 : fin coupée, sur deux lignes — au milieu, « NE » et
-                    // « NW » de deux résultats voisins disparaissaient.
-                    Text(hit.name).font(AppDesign.Font.footnote(.medium))
-                        .truncatedHelp(hit.name, lines: 2)
+        let premiumOnly = viewModel.nexusDirectDownloadUnavailable
+        return HStack(alignment: .center, spacing: AppDesign.Spacing.sm) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: AppDesign.Spacing.xs) {
+                    Text(hit.name)
+                        .font(AppDesign.Font.footnote(.medium))
+                        .lineLimit(2)
+                        .truncationMode(.tail)
                     caution(hit)
                 }
                 Text(String(format: localization.L(L10n.Mods.translationFromNexus), hit.uploader,
                             hit.updatedAt.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "—"))
-                    .font(AppDesign.Font.iconXS).foregroundColor(.secondary)
+                    .font(AppDesign.Font.iconXS)
+                    .foregroundStyle(.secondary)
             }
-        } trailing: {
-            // R7 — même garde que la fiche : sans Premium, lien direct refusé,
-            // le bouton Nexus à côté relaie (avant : actif, puis modale d'erreur).
-            let premiumOnly = viewModel.nexusDirectDownloadUnavailable
-            AdaptiveLabels {
-                HStack(spacing: AppDesign.Spacing.sm) {
+
+            Spacer(minLength: AppDesign.Spacing.sm)
+
+            HStack(spacing: AppDesign.Spacing.xs) {
+                if !premiumOnly {
                     Button { viewModel.installTranslation(hit, into: mod) } label: {
                         Label(actionTitle, systemImage: "square.and.arrow.down")
                     }
-                    .buttonStyle(.bordered).controlSize(.small).focusRing(cornerRadius: 5)
-                    .disabled(viewModel.translationHub.isBusy(mod.folderName) || premiumOnly)
-                    .help(premiumOnly ? localization.L(L10n.Mods.premiumOnlyHint) : actionTitle)
-                    .pointingHandCursor()
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(viewModel.translationHub.isBusy(mod.folderName))
+                    .help(actionTitle)
+
+                    Button {
+                        if let url = URL(string: "https://www.nexusmods.com/stardewvalley/mods/\(hit.modId)?tab=files") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .iconHelp(nexusTitle)
+                } else {
                     Button {
                         if let url = URL(string: "https://www.nexusmods.com/stardewvalley/mods/\(hit.modId)?tab=files") {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
                         Label(nexusTitle, systemImage: "arrow.up.right.square")
-                            .font(AppDesign.Font.footnote)
                     }
-                    .buttonStyle(.bordered).controlSize(.small).pointingHandCursor()
-                    .focusRing(cornerRadius: 5).help(nexusTitle)
-                    if dismissable {
-                        Button {
-                            if !viewModel.translationSweep.dismiss(hit, for: candidate) {
-                                viewModel.log("Traductions FR : l'écart de « \(hit.name) » n'a pas pu s'écrire", level: .warning)
-                            }
-                        } label: {
-                            // Cible portée à 18×18 : sur un glyphe nu, l'infobulle ne
-                            // s'affiche jamais.
-                            Image(systemName: "hand.thumbsdown")
-                                .frame(width: AppDesign.Metrics.minControlTarget, height: AppDesign.Metrics.minControlTarget)
-                                .contentShape(.rect)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help(localization.L(L10n.Mods.premiumOnlyHint))
+                }
+
+                if dismissable {
+                    Button {
+                        if !viewModel.translationSweep.dismiss(hit, for: candidate) {
+                            viewModel.log("Translation dismiss failed for « \(hit.name) »", level: .warning)
                         }
-                        .buttonStyle(.borderless).pointingHandCursor().focusRing(cornerRadius: 4)
-                        .help(localization.L(L10n.FrTranslations.notThisOne))
-                        .accessibilityLabel(localization.L(L10n.FrTranslations.notThisOne))
+                    } label: {
+                        Image(systemName: "hand.thumbsdown")
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .iconHelp(localization.L(L10n.FrTranslations.notThisOne))
                 }
             }
+            .fixedSize()
         }
         .padding(.leading, AppDesign.Spacing.md)
     }
 }
 
-/// P5-4 — les résultats écartés, en bas de la page, chacun rétablissable.
-/// Replié : la liste sert à rattraper un clic, pas à être lue.
+/// Dismissed Nexus translation hits, collapsible inside `Form().formStyle(.grouped)`.
 struct DismissedTranslationHits: View {
     var viewModel: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    @State private var isOpen = false
 
     var body: some View {
         let dismissals = viewModel.translationSweep.verdicts.dismissals
         if !dismissals.isEmpty {
-            DisclosureGroup {
-                VStack(alignment: .leading, spacing: AppDesign.Spacing.xs) {
-                    Text(localization.L(L10n.FrTranslations.dismissedExplanation))
-                        .font(AppDesign.Font.footnote).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            Section {
+                if isOpen {
                     ForEach(dismissals) { dismissal in
                         let rowTitle = String(format: localization.L(L10n.FrTranslations.dismissedRow),
                                               dismissal.hitName, dismissal.modName)
-                        SplitRow(spacing: AppDesign.Spacing.sm) {
+                        let restoreTitle = localization.L(L10n.FrTranslations.dismissedRestore)
+                        HStack(spacing: AppDesign.Spacing.sm) {
                             Text(rowTitle)
-                                .font(AppDesign.Font.footnote).truncatedHelp(rowTitle, mode: .middle)
-                        } trailing: {
-                            let restore = localization.L(L10n.FrTranslations.dismissedRestore)
-                            Button {
+                                .font(AppDesign.Font.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: AppDesign.Spacing.sm)
+                            Button(restoreTitle) {
                                 if !viewModel.translationSweep.restore(dismissal) {
-                                    viewModel.log("Traductions FR : le rétablissement de « \(dismissal.hitName) » "
-                                                  + "n'a pas pu s'écrire", level: .warning)
+                                    viewModel.log("Translation restore failed for « \(dismissal.hitName) »", level: .warning)
                                 }
-                            } label: {
-                                Label(restore, systemImage: "arrow.uturn.backward")
                             }
-                            .buttonStyle(.borderless).focusRing(cornerRadius: 4)
-                            .controlSize(.small).pointingHandCursor().help(restore)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .fixedSize()
                         }
                     }
                 }
-                .padding(.top, AppDesign.Spacing.xs)
-            } label: {
-                Label(String(format: localization.L(L10n.FrTranslations.dismissedTitle), Int64(dismissals.count)),
-                      systemImage: "hand.thumbsdown")
-                    .font(AppDesign.Font.body(.semibold))
-                    .foregroundColor(.secondary)
+            } header: {
+                Button {
+                    withMotion(.snappy) { isOpen.toggle() }
+                } label: {
+                    HStack(spacing: AppDesign.Spacing.xs) {
+                        Image(systemName: "hand.thumbsdown")
+                            .foregroundStyle(.secondary)
+                        Text(String(format: localization.L(L10n.FrTranslations.dismissedTitle), Int64(dismissals.count)))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } footer: {
+                if isOpen {
+                    Text(localization.L(L10n.FrTranslations.dismissedExplanation))
+                }
             }
         }
     }

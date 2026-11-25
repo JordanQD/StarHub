@@ -80,7 +80,8 @@ public struct UpdateKeySnapshot: Equatable, Sendable {
                 ?? languageValues(at: i18n, file: "en.json") {
                 english[name] = values
             }
-            if let values = languageValues(at: i18n, file: "fr.json") {
+            let targetFile = TranslationTargetLanguage.currentResolved().primaryFileName
+            if let values = languageValues(at: i18n, file: targetFile) ?? languageValues(at: i18n, file: "fr.json") {
                 french[name] = values
             }
         }

@@ -16,52 +16,58 @@ struct TranslationLotShuttleView: View {
     @Binding var mergeStore: TranslationLotMergeStore
     /// Appelé quand une session de fusion est prête : `true` ouvre la feuille.
     let onMergeReady: (Bool) -> Void
+    /// Optional Nexus-tab "Force rescan all" action merged into the same toolbar More menu.
+    var onForceRescan: (() -> Void)? = nil
+    var forceRescanDisabled: Bool = false
     @State private var showingPicker = false
     @State private var building = false
     @State private var message: String?
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            shuttleRow
-            footer.frame(maxWidth: 280, alignment: .trailing)
-        }
+        shuttleRow
+            .onChange(of: message) { _, newValue in
+                if let newValue, !newValue.isEmpty {
+                    viewModel.showToast(message: newValue)
+                    message = nil
+                }
+            }
     }
 
-    /// R3 — un menu d'en-tête plutôt qu'une bande permanente : l'usage est
-    /// rare. La feuille reste attachée à la vue, pas au contenu du menu.
     private var shuttleRow: some View {
-        HStack(spacing: AppDesign.Spacing.sm) {
-            if building {
-                ProgressView().controlSize(.small)
-                    .help(localization.L(L10n.FrTranslations.shuttleBuilding))
+        Menu {
+            if let onForceRescan {
+                Button(action: onForceRescan) {
+                    Label(localization.L(L10n.FrTranslations.rescanAll),
+                          systemImage: "arrow.clockwise")
+                }
+                .disabled(forceRescanDisabled)
+                Divider()
             }
-            Menu {
-                Button {
-                    showingPicker = true
-                } label: {
-                    Label(localization.L(L10n.FrTranslations.shuttleExport),
-                          systemImage: "square.and.arrow.up")
-                }
-                .disabled(building)
-                .help(localization.L(L10n.FrTranslations.shuttleExportHint))
-                Button {
-                    importArchive()
-                } label: {
-                    Label(localization.L(L10n.FrTranslations.shuttleImport),
-                          systemImage: "square.and.arrow.down")
-                }
-                .disabled(building || mergeStore.busy)
-                .help(localization.L(L10n.FrTranslations.shuttleImportHint))
+            Button {
+                showingPicker = true
             } label: {
-                Label(localization.L(L10n.FrTranslations.shuttleTitle), systemImage: "shippingbox")
+                Label(localization.L(L10n.FrTranslations.shuttleExport),
+                      systemImage: "square.and.arrow.up")
             }
-            .controlSize(.small)
-            .fixedSize()
+            .disabled(building)
+            .help(localization.L(L10n.FrTranslations.shuttleExportHint))
+            Button {
+                importArchive()
+            } label: {
+                Label(localization.L(L10n.FrTranslations.shuttleImport),
+                      systemImage: "square.and.arrow.down")
+            }
+            .disabled(building || mergeStore.busy)
+            .help(localization.L(L10n.FrTranslations.shuttleImportHint))
+        } label: {
+            Label(localization.L(L10n.FrTranslations.shuttleTitle),
+                  systemImage: onForceRescan != nil ? "ellipsis.circle" : "shippingbox")
         }
+        .help(localization.L(L10n.FrTranslations.shuttleTitle))
         .sheet(isPresented: $showingPicker) {
-            LotPickerSheet(viewModel: viewModel, localization: localization, onDone: { message in
+            LotPickerSheet(viewModel: viewModel, localization: localization, onDone: { msg in
                 showingPicker = false
-                self.message = message
+                self.message = msg
             })
         }
     }
@@ -243,7 +249,7 @@ struct TranslationLotShuttleView: View {
                 for mod in selected {
                     let rows = await viewModel.translationDiff(for: mod)
                     guard case .data(let encoded) = await viewModel.exportTranslationLot(
-                        mod: mod, locale: "fr", rows: rows) else {
+                        mod: mod, locale: viewModel.activeTranslationLanguage.smapiCode, rows: rows) else {
                         skipped.append(mod.name)
                         continue
                     }

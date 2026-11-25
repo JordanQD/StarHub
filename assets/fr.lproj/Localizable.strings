@@ -1614,6 +1614,11 @@
 "settings_glossary_title" = "Glossaire du jeu";
 "settings_group_about" = "À propos";
 "settings_group_content" = "Mods & contenu";
+"settings_translation_section" = "Traductions de mods";
+"settings_translation_target_language" = "Langue cible";
+"settings_translation_target_language_hint" = "Langue utilisée pour l'analyse i18n, la couverture, la recherche Nexus et l'aide IA.";
+"settings_translation_auto" = "Suivre la langue de l'app / système";
+"settings_translation_active_file_hint" = "Langue active : %@ (i18n/%@).";
 "settings_group_game" = "Jeu";
 "settings_hint_compress_mods" = "Compresser le dossier des mods en Zip";
 "settings_hint_compress_saves" = "Compresser le dossier des parties en Zip";
@@ -1869,10 +1874,10 @@
 "frtr_by_name_help" = "Trouvée par le nom seulement : cette traduction ne déclare pas le mod comme prérequis sur Nexus. Vérifiez que c'est la bonne avant de l'installer.";
 "frtr_paused" = "en pause";
 "frtr_segment_worklist" = "À finir (%lld)";
-"frtr_segment_nexus" = "Sur Nexus (%lld)";
+"frtr_segment_nexus" = "Nexus (%lld)";
 "frtr_worklist_empty" = "Rien à finir : chaque traduction commencée est complète et à jour.";
 "frtr_worklist_measuring" = "Lecture des traductions en cours : %lld mod(s) pas encore lus.";
-"frtr_worklist_untranslated" = "%lld mod(s) traduisibles n'ont aucun français.";
+"frtr_worklist_untranslated" = "%1$lld mod(s) traduisibles n'ont pas encore de traduction (%2$@).";
 "frtr_worklist_search_nexus" = "Chercher sur Nexus";
 "frtr_sort_label" = "Trier par";
 "frtr_sort_keys" = "Clés restantes";

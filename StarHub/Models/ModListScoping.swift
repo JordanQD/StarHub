@@ -107,8 +107,8 @@ enum ModListScoping {
         case .off:
             return true
         case .available:
-            // Un pack correspond dès qu'un composant livre une traduction fr.
-            return matchesSelfOrAnyChild(mod) { $0.languages.contains("fr") }
+            let lang = TranslationTargetLanguage.currentResolved()
+            return matchesSelfOrAnyChild(mod) { lang.matchesModLanguages($0.languages) }
         case .partial:
             // Ne montre que les mods **déjà mesurés** : la couverture se calcule
             // en tâche de fond, et annoncer « complet » sur un mod qu'on n'a pas
@@ -121,18 +121,10 @@ enum ModListScoping {
                 return coverage < 100
             }
         case .missing:
-            // « Pas de français » ne veut rien dire d'un mod qui n'a aucun
-            // `i18n` : il n'a pas de texte à traduire, et l'y faire figurer
-            // noyait le filtre. Mesuré sur le parc : 397 mods sans français,
-            // dont **310 sans le moindre fichier de traduction**. Le filtre
-            // servait à trouver ce qu'on pourrait traduire ; il rendait 8 fois
-            // plus de bruit que de signal.
-            //
-            // `languages` porte `en` dès qu'un `default.json` existe : un mod
-            // traduisible en a donc au moins un.
+            let lang = TranslationTargetLanguage.currentResolved()
             let translatable = matchesSelfOrAnyChild(mod) { !$0.languages.isEmpty }
             return translatable
-                && !matchesSelfOrAnyChild(mod) { $0.languages.contains("fr") }
+                && !matchesSelfOrAnyChild(mod) { lang.matchesModLanguages($0.languages) }
         case .stale:
             // Les deux signaux réunis : la date, connue de tous les mods dès le
             // scan, et les clés, connues des seuls mods dont on a déjà ouvert

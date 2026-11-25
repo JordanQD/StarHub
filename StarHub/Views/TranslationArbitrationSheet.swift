@@ -121,7 +121,7 @@ struct TranslationArbitrationSheet: View {
                 let rows = await freshRows(review.mod)
                 let outcome = store.apply(modID: review.mod.folderName, freshRows: rows) {
                     mod, row, value in
-                    viewModel.saveTranslation(mod: mod, locale: "fr", row: row, value: value,
+                    viewModel.saveTranslation(mod: mod, locale: viewModel.activeTranslationLanguage.smapiCode, row: row, value: value,
                                        clearingReviewFlag: false)
                 }
                 written += outcome.written

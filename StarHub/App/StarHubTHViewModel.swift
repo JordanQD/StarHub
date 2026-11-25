@@ -505,9 +505,11 @@ final class StarHubTHViewModel {
         let root = gameDir
         guard !root.isEmpty else { return }
         // Lot figé avant la tâche détachée : relire `mods` déplacerait la course.
-        let snapshot = FrenchCoveragePass.targets(in: mods, known: Set(frenchCoverageByMod.keys).union(frenchCoverage.unmeasurable))
+        let lang = activeTranslationLanguage
+        let snapshot = FrenchCoveragePass.targets(in: mods, known: Set(frenchCoverageByMod.keys).union(frenchCoverage.unmeasurable), language: lang)
         guard !snapshot.isEmpty else { return }
         let stamp = frenchCoverage.tick()
+        let localeCode = lang.smapiCode
         frenchCoverageTask = Task.detached(priority: .utility) { [weak self] in
             let modsPath = (root as NSString).appendingPathComponent("Mods")
             var batch: [String: TranslationCoverage.Coverage] = [:]
@@ -516,10 +518,10 @@ final class StarHubTHViewModel {
                 if Task.isCancelled { return }
                 let directory = URL(fileURLWithPath: modsPath)
                     .appendingPathComponent(target.physicalFolder)
-                guard let coverage = TranslationCoverage.coverage(forModAt: directory, locale: "fr")
+                guard let coverage = TranslationCoverage.coverage(forModAt: directory, locale: localeCode)
                 else { emptyBatch.insert(target.key); continue }
                 batch[target.key] = coverage
-                if TranslationFreshness.staleness(forModAt: directory, locale: "fr") != nil {
+                if TranslationFreshness.staleness(forModAt: directory, locale: localeCode) != nil {
                     staleBatch.insert(target.key)
                 }
                 if batch.count >= FrenchCoveragePass.batchSize {
@@ -564,12 +566,9 @@ final class StarHubTHViewModel {
             .appendingPathComponent(mod.physicalFolderName)
         let folderName = mod.folderName
         let cache = translationDiffCache
+        let localeCode = activeTranslationLanguage.smapiCode
         let rows = await Task.detached(priority: .userInitiated) {
-            // Gardé tant que les fichiers `i18n` ne changent pas : le calcul
-            // coûte 1,2 à 2,6 s sur le parc réel, l'empreinte 0,3 ms (F7).
-            // **Seul `diffRows` est gardé** — ce qui suit adopte et réancre la
-            // référence et réécrit l'index, et doit rejouer à chaque appel.
-            let rows = TranslationCoverage.diffRows(forModAt: directory, locale: "fr",
+            let rows = TranslationCoverage.diffRows(forModAt: directory, locale: localeCode,
                                                     cache: cache)
             guard let store = TranslationBaseline.defaultDirectory() else { return rows }
 
@@ -610,8 +609,9 @@ final class StarHubTHViewModel {
         let directory = URL(fileURLWithPath: (gameDir as NSString)
             .appendingPathComponent("Mods"))
             .appendingPathComponent(mod.physicalFolderName)
+        let localeCode = activeTranslationLanguage.smapiCode
         return await Task.detached(priority: .utility) {
-            TranslationFreshness.staleness(forModAt: directory, locale: "fr")
+            TranslationFreshness.staleness(forModAt: directory, locale: localeCode)
         }.value
     }
 
@@ -1314,9 +1314,12 @@ final class StarHubTHViewModel {
             from: TranslationCoverageCache.defaultFileURL())
 
         let modsPath = URL(fileURLWithPath: (gameDir as NSString).appendingPathComponent("Mods"))
+        let lang = activeTranslationLanguage
+        let localeCode = lang.smapiCode
         let targets = ProfileCoveragePass.targets(
             profiles: profiles, installed: installed,
-            known: Set(profileTranslationStore.coverage.keys))
+            known: Set(profileTranslationStore.coverage.keys),
+            language: lang)
 
         guard !targets.isEmpty else {
             // Rien à mesurer : le verrou ne doit pas rester pris.
@@ -1348,7 +1351,7 @@ final class StarHubTHViewModel {
                 }
 
                 guard let coverage = TranslationCoverage.coverage(inDirectories: directories,
-                                                                  locale: "fr")
+                                                                  locale: localeCode)
                 else { continue }
                 measured[target.id] = coverage
                 if let stamp {
@@ -1484,6 +1487,21 @@ final class StarHubTHViewModel {
     func clearAppLog() { logStore.clearApp() }
     let alertStore = AlertStore()
     let toastStore = ToastStore()
+    var translationTargetPreference: TranslationTargetLanguage = TranslationTargetLanguage.currentPreference()
+
+    var activeTranslationLanguage: TranslationTargetLanguage.Resolved {
+        translationTargetPreference.resolve(appLanguage: localization.currentLanguage)
+    }
+
+    func setTranslationTargetPreference(_ newValue: TranslationTargetLanguage) {
+        guard translationTargetPreference != newValue else { return }
+        translationTargetPreference = newValue
+        UserDefaults.standard.set(newValue.rawValue, forKey: UDKey.translationTargetLanguage)
+        frenchCoverageTask?.cancel()
+        frenchCoverage = FrenchCoveragePass.State()
+        recomputeFrenchCoverage()
+        refreshTranslationLinkProposals()
+    }
 
     var saveToDuplicate: SaveGameInfo? = nil
     var backupToBranch: SaveBackup? = nil
@@ -4229,6 +4247,7 @@ final class StarHubTHViewModel {
         let packs = mods.flattenedMods
         let resolvedGameDir = gameDir
         let registry = installedTranslations
+        let targetLang = activeTranslationLanguage
         let dismissed = Set(UserDefaults.standard.string(
             forKey: UDKey.dismissedTranslationLinkProposals)?
             .split(separator: "\n").map(String.init) ?? [])
@@ -4236,7 +4255,8 @@ final class StarHubTHViewModel {
             guard let self else { return }
             let byPack = Self.computeLinkProposals(
                 packs: packs, gameDir: resolvedGameDir,
-                registry: registry, dismissed: dismissed)
+                registry: registry, dismissed: dismissed,
+                language: targetLang)
             DispatchQueue.main.async { MainActor.assumeIsolated {
                 self.translationHub.setProposedLinks(byPack)
             } }
@@ -4245,40 +4265,44 @@ final class StarHubTHViewModel {
 
     static func computeLinkProposals(packs: [ModItem], gameDir: String,
                                      registry: InstalledTranslationRegistry,
-                                     dismissed: Set<String>) -> [String: TranslationLinkProposal] {
+                                     dismissed: Set<String>,
+                                     language: TranslationTargetLanguage.Resolved = .fr) -> [String: TranslationLinkProposal] {
         var keySets: [String: Set<String>] = [:]
         var fingerprints: [String: String] = [:]
-        var frenchValues: [String: [String]] = [:], manifestPaths: [String: String] = [:]
+        var targetValues: [String: [String]] = [:], manifestPaths: [String: String] = [:]
+        let targetFileName = language.primaryFileName
         for mod in packs {
             let root = ((gameDir as NSString).appendingPathComponent("Mods") as NSString)
                 .appendingPathComponent(mod.physicalFolderName)
             manifestPaths[mod.folderName] = (root as NSString).appendingPathComponent("manifest.json")
             let i18nDir = (root as NSString).appendingPathComponent("i18n")
             let defaultPath = (i18nDir as NSString).appendingPathComponent("default.json")
-            let frenchPath = (i18nDir as NSString).appendingPathComponent("fr.json")
-            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: frenchPath)
+            let targetPath = (i18nDir as NSString).appendingPathComponent(targetFileName)
+            guard let keySet = linkKeySet(at: defaultPath) ?? linkKeySet(at: targetPath)
             else { continue }
             keySets[mod.folderName] = keySet
             let reference = FileManager.default.fileExists(atPath: defaultPath)
                 ? defaultPath
-                : (FileManager.default.fileExists(atPath: frenchPath) ? frenchPath : nil)
+                : (FileManager.default.fileExists(atPath: targetPath) ? targetPath : nil)
             if let reference,
                let attributes = try? FileManager.default.attributesOfItem(atPath: reference),
                let modified = attributes[.modificationDate] as? Date {
                 fingerprints[mod.folderName] = String(Int(modified.timeIntervalSince1970))
             }
-            if let frenchFileValues = linkValues(at: frenchPath) {
-                frenchValues[mod.folderName] = frenchFileValues
+            if let values = linkValues(at: targetPath) ?? linkValues(at: defaultPath) {
+                targetValues[mod.folderName] = values
             }
         }
         let built = packs.compactMap { mod -> TranslationLinkPack? in
             guard let keySet = keySets[mod.folderName] else { return nil }
-            let marked = TranslationLinkMatcher.isMarked(name: mod.name + " " + mod.folderName)
+            let fullName = mod.name + " " + mod.folderName
+            let marked = language == .fr
+                ? TranslationLinkMatcher.isMarked(name: fullName)
+                : language.matchesTitle(fullName)
             return TranslationLinkPack(
                 folderName: mod.folderName, physicalFolderName: mod.physicalFolderName,
                 name: mod.name, uniqueId: mod.uniqueId, isMarked: marked,
-                isFrench: TranslationLinkMatcher.isFrench(
-                    values: frenchValues[mod.folderName] ?? []),
+                isFrench: language.matchesSampleValues(targetValues[mod.folderName] ?? []),
                 keySet: keySet,
                 nexusId: TranslationLinkMatcher.nexusId(fromUpdateKeys: mod.updateKeys),
                 hasCode: marked && TranslationLinkManifest.hasCode(manifestAt: manifestPaths[mod.folderName] ?? ""))
@@ -4377,7 +4401,7 @@ final class StarHubTHViewModel {
         let i18nDir = (((gameDir as NSString).appendingPathComponent("Mods") as NSString)
             .appendingPathComponent(pack.physicalFolderName) as NSString)
             .appendingPathComponent("i18n")
-        let reference = ["default.json", "fr.json"]
+        let reference = ["default.json", TranslationTargetLanguage.currentResolved().primaryFileName, "fr.json"]
             .map { (i18nDir as NSString).appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0) }
         guard let reference,
@@ -5583,7 +5607,7 @@ final class StarHubTHViewModel {
                 .appendingPathComponent("i18n", isDirectory: true)
             // **Tous** les fichiers de la locale (layout B) : l'ancien
             // `i18n/fr.json` en dur abandonnait sans trace (5 mods).
-            let frFiles = I18nLocaleResolver.files(in: i18nDir, locale: "fr")
+            let frFiles = I18nLocaleResolver.files(in: i18nDir, locale: activeTranslationLanguage.smapiCode)
                 .compactMap { url -> RenameReport.FrenchFile? in
                     guard let data = try? Data(contentsOf: url),
                           let text = I18nFileDecoder.decode(data)?.text else { return nil }

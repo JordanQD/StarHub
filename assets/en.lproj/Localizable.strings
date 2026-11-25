@@ -1614,6 +1614,11 @@
 "settings_glossary_title" = "Game glossary";
 "settings_group_about" = "About";
 "settings_group_content" = "Mods & content";
+"settings_translation_section" = "Mod Translations";
+"settings_translation_target_language" = "Target language";
+"settings_translation_target_language_hint" = "Language used for i18n scanning, coverage, Nexus translation search, and AI assistance.";
+"settings_translation_auto" = "Follow System / App Language";
+"settings_translation_active_file_hint" = "Currently managing %@ (i18n/%@).";
 "settings_group_game" = "Game";
 "settings_hint_compress_mods" = "Compress Mods folder to Zip";
 "settings_hint_compress_saves" = "Compress Saves folder to Zip";
@@ -1852,7 +1857,7 @@
 "frtr_rescan_hint" = "Re-searches what changed or grew stale in the cache. First run covers the whole library (signatures are being set). The ⋯ button opens “Rescan everything”.";
 "frtr_cancel" = "Stop";
 "frtr_progress" = "Searching %1$lld / %2$lld — %3$@";
-"frtr_summary" = "%1$lld mods covered · %2$lld with a French translation to install · %3$lld without result";
+"frtr_summary" = "%1$lld mods covered · %2$lld available on Nexus · %3$lld without result";
 "frtr_chart_label" = "Translatable mods by translation status";
 "frtr_checked_at" = "%1$lld of %2$lld fresh · oldest result: %3$@";
 "frtr_never" = "The search covers %lld mods: 2 requests for most of them, around twenty for the biggest (SVE). It only runs when you click.";
@@ -1869,10 +1874,10 @@
 "frtr_by_name_help" = "Found by name only: this translation does not declare the mod as a requirement on Nexus. Check that it is the right one before installing.";
 "frtr_paused" = "paused";
 "frtr_segment_worklist" = "To finish (%lld)";
-"frtr_segment_nexus" = "On Nexus (%lld)";
+"frtr_segment_nexus" = "Nexus (%lld)";
 "frtr_worklist_empty" = "Nothing to finish: every translation you started is complete and up to date.";
 "frtr_worklist_measuring" = "Reading translations: %lld mod(s) not read yet.";
-"frtr_worklist_untranslated" = "%lld translatable mod(s) have no French at all.";
+"frtr_worklist_untranslated" = "%1$lld translatable mod(s) have no %2$@ translation yet.";
 "frtr_worklist_search_nexus" = "Search Nexus";
 "frtr_sort_label" = "Sort by";
 "frtr_sort_keys" = "Keys left";

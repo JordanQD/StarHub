@@ -15,7 +15,7 @@ public enum SettingsSection: String, CaseIterable, Sendable {
     // glossaire et le secours en ligne vivent **dedans** (`LocalAISettingsSection`),
     // pas à côté. Les hisser au premier niveau serait éclater une vue — la
     // refonte de parcours que la spec §9 exclut.
-    case nexus, translationAI, modBehavior, coreExtensions
+    case nexus, translationLanguage, translationAI, modBehavior, coreExtensions
     // Le dépannage. « Gestion » et « Sauvegarde » (actions ponctuelles, pas
     // des réglages) sont parties sur Entretien et Sauvegardes du jeu le
     // 2026-09-25 ; le groupe « Données & stockage » avec elles.
@@ -47,7 +47,7 @@ public enum SettingsSectionOrder {
     public static func sections(in group: SettingsGroup) -> [SettingsSection] {
         switch group {
         case .game:    return [.gameFolder, .smapi, .launch]
-        case .content: return [.nexus, .modBehavior, .coreExtensions, .translationAI]
+        case .content: return [.nexus, .modBehavior, .coreExtensions, .translationLanguage, .translationAI]
         case .about:   return [.appInfo, .support, .developer]
         }
     }

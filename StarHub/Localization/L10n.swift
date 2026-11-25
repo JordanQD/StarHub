@@ -1453,6 +1453,13 @@ enum L10n {
         static let configHeaderSubtitle = "settings_config_header_subtitle"
         static let groupGame            = "settings_group_game"
         static let groupContent         = "settings_group_content"
+
+        // MARK: Mod Translation Target Language
+        static let translationSection            = "settings_translation_section"
+        static let translationTargetLanguage     = "settings_translation_target_language"
+        static let translationTargetLanguageHint = "settings_translation_target_language_hint"
+        static let translationAuto               = "settings_translation_auto"
+        static let translationActiveFileHint     = "settings_translation_active_file_hint"
         static let groupAbout           = "settings_group_about"
         static let launchOptions        = "settings_launch_options"
         static let backup               = "settings_backup"

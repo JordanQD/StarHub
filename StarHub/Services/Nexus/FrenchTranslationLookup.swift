@@ -34,27 +34,23 @@ enum FrenchTranslationLookup {
         }
     }
 
-    /// Recherche par nom — la séquence d'A3-T3, inchangée.
-    static func byName(_ name: String, hostModId: Int?) async -> Result<[NexusModSearch.Hit], SearchError> {
-        switch await search(name: name, tag: NexusModSearch.frenchTag) {
+    static func byName(_ name: String,
+                       hostModId: Int?,
+                       language: TranslationTargetLanguage.Resolved = TranslationTargetLanguage.currentResolved()) async -> Result<[NexusModSearch.Hit], SearchError> {
+        switch await search(name: name, tag: language.nexusTag) {
         case .failure(let error):
             return .failure(error)
         case .success(let page) where !page.hits.isEmpty:
-            // **Le titre classe, il ne filtre pas** : le serveur a déjà trié
-            // sur le tag.
-            return .success(NexusModSearch.ranked(page.hits, excluding: hostModId))
+            return .success(NexusModSearch.ranked(page.hits, excluding: hostModId, language: language))
         case .success:
-            // Le filet : recherche large, où seul le titre distingue une
-            // traduction — le filtre est à sa place.
             return await search(name: name, tag: nil).map {
-                NexusModSearch.frenchTranslations(among: $0.hits, excluding: hostModId)
+                NexusModSearch.translations(among: $0.hits, excluding: hostModId, language: language)
             }
         }
     }
 
-    /// Les traductions françaises liées à un mod : les tranches de ses
-    /// requérants, chacune relue en un appel, jusqu'à `requiringScanLimit`.
-    static func linked(hostModId: Int) async -> Result<[NexusModSearch.Hit], SearchError> {
+    static func linked(hostModId: Int,
+                       language: TranslationTargetLanguage.Resolved = TranslationTargetLanguage.currentResolved()) async -> Result<[NexusModSearch.Hit], SearchError> {
         var offset = 0
         var found: [NexusModSearch.Hit] = []
         while offset < NexusModSearch.requiringScanLimit {
@@ -72,7 +68,7 @@ enum FrenchTranslationLookup {
             offset += NexusModSearch.requiringPageSize
             if page.modIds.isEmpty || offset >= page.totalCount { break }
         }
-        return .success(NexusModSearch.linkedFrenchTranslations(found, hostModId: hostModId))
+        return .success(NexusModSearch.linkedTranslations(found, hostModId: hostModId, language: language))
     }
 
     // MARK: - Ponts async

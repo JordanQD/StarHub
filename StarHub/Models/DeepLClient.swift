@@ -112,7 +112,7 @@ public enum DeepLClient {
                                  retryDelay: Duration = .seconds(2)) async -> Outcome {
         var payload: [String: Any] = [
             "text": [TokenShield.wrap(source)],
-            "target_lang": "FR",
+            "target_lang": TranslationTargetLanguage.currentResolved().deepLCode,
             "source_lang": "EN",
             "tag_handling": "xml",
             // Un **tableau**, jamais une chaîne : en JSON, DeepL refuse la

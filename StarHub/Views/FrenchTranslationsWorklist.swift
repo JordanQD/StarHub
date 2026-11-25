@@ -1,99 +1,90 @@
 import SwiftUI
 
-/// R3 (audit UX du 2026-10-16) — le segment « À finir » de la page
-/// Traductions FR : les traductions commencées et pas finies, ou à revoir,
-/// du plus gros reste au plus petit (`TranslationWorklist`). Avant, la seule
-/// liste triée par reste vivait dans le diagnostic d'un profil.
+/// Native grouped `Form` sections for the Worklist tab inside `FrenchTranslationsView`.
 struct FrenchTranslationsWorklist: View {
     @ObservedObject var localization: LocalizationStore
     let items: [TranslationWorkItem]
-    /// Mods traduisibles sans aucun français : comptés, pas listés.
+    let order: TranslationWorklist.Order
     let untranslated: Int
-    /// Mods que la passe de couverture n'a pas encore lus.
     let unmeasured: Int
+    let targetLanguageName: String
     let open: (String) -> Void
     let showNexus: () -> Void
-    /// Préférence de lecture seulement : perdue, la liste reprend l'ordre par clés.
-    @AppStorage("frtrWorklistOrder") private var order: TranslationWorklist.Order = .remainingKeys
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            if unmeasured > 0 {
-                Label(String(format: localization.L(L10n.FrTranslations.worklistMeasuring), unmeasured),
-                      systemImage: "hourglass")
-                    .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-            }
+        Group {
             if untranslated > 0 {
-                SplitRow(spacing: AppDesign.Spacing.sm) {
-                    Text(String(format: localization.L(L10n.FrTranslations.worklistUntranslated), untranslated))
-                        .foregroundColor(.secondary)
-                } trailing: {
-                    let search = localization.L(L10n.FrTranslations.worklistSearchNexus)
-                    Button(action: showNexus) {
-                        Label(search, systemImage: "magnifyingglass")
+                Section {
+                    HStack(spacing: AppDesign.Spacing.md) {
+                        Image(systemName: "globe")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20, alignment: .center)
+                        Text(String(format: localization.L(L10n.FrTranslations.worklistUntranslated),
+                                    untranslated, targetLanguageName))
+                            .font(AppDesign.Font.body)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: AppDesign.Spacing.sm)
+                        Button(localization.L(L10n.FrTranslations.worklistSearchNexus), action: showNexus)
+                            .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.link).focusRing(cornerRadius: 4).pointingHandCursor().help(search)
                 }
-                .font(AppDesign.Font.footnote)
             }
-            if items.isEmpty, unmeasured == 0 {
-                Text(localization.L(L10n.FrTranslations.worklistEmpty))
-                    .font(AppDesign.Font.body).foregroundColor(.secondary)
-                    .padding(.top, AppDesign.Spacing.md)
-            }
+
             if !items.isEmpty {
-                Picker(localization.L(L10n.FrTranslations.sortLabel), selection: $order) {
-                    Text(localization.L(L10n.FrTranslations.sortKeys)).tag(TranslationWorklist.Order.remainingKeys)
-                    Text(localization.L(L10n.FrTranslations.sortPercent)).tag(TranslationWorklist.Order.remainingPercent)
-                    Text(localization.L(L10n.FrTranslations.sortName)).tag(TranslationWorklist.Order.name)
+                Section {
+                    ForEach(items.sorted(by: order.precedes)) { item in
+                        row(item)
+                    }
                 }
-                .pickerStyle(.menu).fixedSize().font(AppDesign.Font.footnote)
             }
-            ForEach(items.sorted(by: order.precedes)) { row($0) }
         }
-        .padding(AppDesign.Spacing.lg)
     }
 
     private func row(_ item: TranslationWorkItem) -> some View {
         let openTitle = localization.L(L10n.Profiles.translationOpen)
-        return SplitRow(spacing: AppDesign.Spacing.md) {
+        return HStack(alignment: .center, spacing: AppDesign.Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: AppDesign.Spacing.sm) {
-                    Text(item.name).font(AppDesign.Font.body(.medium))
-                        .truncatedHelp(item.name, mode: .middle)
+                HStack(spacing: AppDesign.Spacing.xs) {
+                    Text(item.name)
+                        .font(AppDesign.Font.body(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     if !item.isEnabled { pill(localization.L(L10n.FrTranslations.paused), .secondary) }
                     if item.isStale { pill(localization.L(L10n.Mods.frTranslationStale), AppDesign.Color.warning) }
                 }
                 if let coverage = item.coverage {
                     Text(String(format: localization.L(L10n.Profiles.translationRowCounts),
                                 Int64(coverage.translated), Int64(coverage.total), Int64(item.missingCount)))
-                        .font(AppDesign.Font.iconXS).foregroundColor(.secondary)
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
-        } trailing: {
+
+            Spacer(minLength: AppDesign.Spacing.sm)
+
             if let coverage = item.coverage {
-                // Chasse fixe, comme la pastille de la liste des mods.
-                Text("\(coverage.displayPercent) %")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(AppDesign.Color.accent)
+                Text("\(coverage.displayPercent)%")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.tint)
             }
-            AdaptiveLabels {
-                Button { open(item.folderName) } label: {
-                    Label(openTitle, systemImage: "arrow.forward")
-                }
-                .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-                .controlSize(.small).pointingHandCursor().help(openTitle)
-            }
+
+            Button(openTitle) { open(item.folderName) }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .fixedSize()
         }
-        .cardSurface(padding: AppDesign.Spacing.sm)
+        .padding(.vertical, 2)
+        .contextMenu {
+            Button(openTitle) { open(item.folderName) }
+        }
     }
 
     private func pill(_ text: String, _ color: Color) -> some View {
         Text(text)
-            .font(AppDesign.Font.iconXS).foregroundColor(color)
-            // Littéraux gardés : les jetons voisins valent 4 et 6, les
-            // substituer changerait la pastille.
-            .padding(.horizontal, 5).padding(.vertical, 1)
-            .background(color.opacity(AppDesign.Opacity.medium)).cornerRadius(4)
+            .font(AppDesign.Font.iconXS(.medium))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color.opacity(AppDesign.Opacity.medium), in: RoundedRectangle(cornerRadius: 4))
     }
 }

@@ -109,11 +109,21 @@ extension NexusModSearch {
     /// **écrits** en français qui requièrent T's Core (Mini Obelisk, T's Dam…)
     /// passaient pour ses traductions. La plus récente en tête.
     public static func linkedFrenchTranslations(_ hits: [Hit], hostModId: Int) -> [Hit] {
-        hits.filter { hit in
-            hit.modId != hostModId
+        linkedTranslations(hits, hostModId: hostModId, language: .fr)
+    }
+
+    public static func linkedTranslations(_ hits: [Hit],
+                                          hostModId: Int,
+                                          language: TranslationTargetLanguage.Resolved) -> [Hit] {
+        let tag = language.nexusTag
+        return hits.filter { hit in
+            let titleMatch = language == .fr
+                ? announcesFrenchTranslation(hit.name)
+                : language.matchesTitle(hit.name)
+            return hit.modId != hostModId
                 && ((hit.isTranslation
-                     && hit.tags.contains { $0.caseInsensitiveCompare(frenchTag) == .orderedSame })
-                    || announcesFrenchTranslation(hit.name))
+                     && hit.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
+                    || titleMatch)
         }
         .sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
     }

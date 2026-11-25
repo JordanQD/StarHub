@@ -412,7 +412,8 @@ class ModZipInstaller {
                             dependencies = manifest.dependencies.map { $0.uniqueId }
                         }
                     }
-                } else if filename == "config.json" || filename == "fr.json" {
+                } else if filename == "config.json" || filename == "fr.json"
+                    || TranslationTargetLanguage.currentResolved().matchesFileName(filename) {
                     hasConfigFiles = true
                 }
             }
@@ -1076,7 +1077,13 @@ class ModZipInstaller {
             try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: destPath)
 
             // Configs/traductions remises (échec = perte : il remonte), puis le choix fr.json (2026-10-03).
-            let restoredFrench = preservedConfigs.keys.filter { $0.lowercased().hasSuffix("i18n/fr.json") }
+            let targetSuffixes = TranslationTargetLanguage.currentResolved().acceptedFileNames
+                .union(["fr.json"])
+                .map { "i18n/\($0)" }
+            let restoredFrench = preservedConfigs.keys.filter { key in
+                let lower = key.lowercased()
+                return targetSuffixes.contains { lower.hasSuffix($0) }
+            }
             try restoreUserConfigs(&preservedConfigs, into: destPath)
             try TranslationUpdate.apply(selection.translationChoice, relativePaths: restoredFrench, source: sourcePath, destination: URL(fileURLWithPath: destPath), discardedRoot: TranslationUpdate.discardedRoot(backupsDirectory: backupManager.backupsDirectory, folderName: detectedMod.folderName, stamp: timestampStamp))
             // A1-T7 — extras ensuite, **sans lancer** (la sauvegarde a tout) ;

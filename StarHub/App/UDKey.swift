@@ -110,6 +110,8 @@ public enum UDKey {
     /// `PerformanceOverlap.key` par ligne — distinctes des verdicts de conflits.
     public static let dismissedPerformanceOverlaps = "starhubFR.dismissedPerformanceOverlaps"
     public static let dismissedTranslationLinkProposals = "starhubFR.dismissedTranslationLinkProposals"
+    /// Target mod translation language (`"auto"` or SMAPI code such as `"zh"`, `"fr"`).
+    public static let translationTargetLanguage = "starhub.translationTargetLanguage"
 
     // MARK: - Rangées ici depuis l'audit transverse (2026-10-09)
 

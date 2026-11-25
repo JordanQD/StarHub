@@ -471,6 +471,27 @@ public enum NexusModSearch {
             }
     }
 
+    public static func translations(among hits: [Hit],
+                                    excluding hostModId: Int? = nil,
+                                    language: TranslationTargetLanguage.Resolved) -> [Hit] {
+        if language == .fr { return frenchTranslations(among: hits, excluding: hostModId) }
+        return hits.filter { $0.modId != hostModId && language.matchesTitle($0.name) }
+            .sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
+    }
+
+    public static func ranked(_ hits: [Hit],
+                              excluding hostModId: Int? = nil,
+                              language: TranslationTargetLanguage.Resolved) -> [Hit] {
+        if language == .fr { return ranked(hits, excluding: hostModId) }
+        return hits.filter { $0.modId != hostModId }
+            .sorted {
+                let left = language.matchesTitle($0.name)
+                let right = language.matchesTitle($1.name)
+                if left != right { return left }
+                return ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast)
+            }
+    }
+
     /// Vitrine francophone : non-traduction toujours, traduction seulement
     /// **française**. Coût : ~1 traduction FR sur 20 écartée à tort (tag
     /// 77/80) ; le compte « x sur y » le signale. Vitrine seulement.

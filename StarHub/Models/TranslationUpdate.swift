@@ -161,7 +161,8 @@ public enum TranslationUpdate {
             at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { return [] }
         let base = folder.resolvingSymlinksInPath().path
         var out: [String] = []
-        for case let url as URL in enumerator where url.lastPathComponent.lowercased() == "fr.json"
+        let targetNames = TranslationTargetLanguage.currentResolved().acceptedFileNames.union(["fr.json"])
+        for case let url as URL in enumerator where targetNames.contains(url.lastPathComponent.lowercased())
             && url.deletingLastPathComponent().lastPathComponent.lowercased() == "i18n" {
             let path = url.resolvingSymlinksInPath().path
             guard path.hasPrefix(base + "/") else { continue }

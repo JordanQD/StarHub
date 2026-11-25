@@ -219,7 +219,7 @@ struct TranslationDiffView: View {
                         TranslationBatchView(
                             vm: vm,
                             localization: localization,
-                            mod: mod, locale: "fr", rows: rows,
+                            mod: mod, locale: vm.activeTranslationLanguage.smapiCode, rows: rows,
                             onClose: {
                                 isShowingBatch = false
                                 // Recharger ce que le lot vient d'écrire, et
@@ -403,7 +403,7 @@ struct TranslationDiffView: View {
         // reste sur main (Task hérite de l'acteur de la vue).
         Task {
             let data: Data
-            switch await vm.exportTranslationLot(mod: mod, locale: "fr", rows: rows) {
+            switch await vm.exportTranslationLot(mod: mod, locale: vm.activeTranslationLanguage.smapiCode, rows: rows) {
             case .nothingToTranslate:
                 vm.showModal(message: localization.L(L10n.Mods.translationLotNothing))
                 return
@@ -548,7 +548,7 @@ struct TranslationDiffView: View {
                         TranslationEditorView(
                             viewModel: vm,
                             localization: localization,
-                            mod: mod, locale: "fr", row: row,
+                            mod: mod, locale: vm.activeTranslationLanguage.smapiCode, row: row,
                             previous: here.flatMap { $0 > 0 ? shown[$0 - 1] : nil },
                             next: here.flatMap { $0 + 1 < shown.count ? shown[$0 + 1] : nil },
                             onNavigate: { editing = $0 },

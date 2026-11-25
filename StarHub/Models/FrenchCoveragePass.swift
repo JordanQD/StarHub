@@ -50,8 +50,10 @@ enum FrenchCoveragePass {
     /// `profileTranslationSummaries`.
     ///
     /// - Parameter known: les dossiers déjà mesurés, par nom **logique**.
-    static func targets(in mods: [ModItem], known: Set<String>) -> [Target] {
-        mods.filter { !known.contains($0.folderName) && $0.languages.contains("fr") }
+    static func targets(in mods: [ModItem],
+                        known: Set<String>,
+                        language: TranslationTargetLanguage.Resolved = .fr) -> [Target] {
+        mods.filter { !known.contains($0.folderName) && language.matchesModLanguages($0.languages) }
             .map { Target(key: $0.folderName, physicalFolder: $0.physicalFolderName) }
     }
 
@@ -178,10 +180,8 @@ enum ProfileCoveragePass {
     ///   nomment — l'ordre de la mesure, donc celui où les résumés se
     ///   complètent.
     static func targets(profiles: [ModProfile], installed: [ModItem],
-                        known: Set<String>) -> [Target] {
-        // `uniquingKeysWith: first` : deux mods peuvent porter le même
-        // `UniqueID` — `X` actif et `.X` en pause sont deux dossiers distincts,
-        // cas réel sur le parc. Le premier vu l'emporte, comme partout ailleurs.
+                        known: Set<String>,
+                        language: TranslationTargetLanguage.Resolved = .fr) -> [Target] {
         let byId = Dictionary(installed.map { ($0.uniqueId.lowercased(), $0) },
                               uniquingKeysWith: { first, _ in first })
         var targets: [Target] = []
@@ -191,7 +191,7 @@ enum ProfileCoveragePass {
                 let key = uniqueId.lowercased()
                 guard !key.isEmpty, !known.contains(key),
                       queued.insert(key).inserted, let mod = byId[key],
-                      mod.languages.contains("en") || mod.languages.contains("fr")
+                      mod.languages.contains("en") || language.matchesModLanguages(mod.languages)
                 else { continue }
                 targets.append(Target(id: key, physicalFolder: mod.physicalFolderName))
             }
