@@ -1,65 +1,132 @@
 import SwiftUI
 
-/// Un **seul** `.alert` pour les trois confirmations (patron
-/// `SaveEditorConfirmation` : deux présentateurs ne se présentent pas tous
-/// les deux). Le compte rendu de restauration est un panneau, pas une alerte.
+/// Single `.alert` presenter for install-backup confirmations.
 private enum ModInstallBackupsConfirmation {
     case error(String)
     case restore(ModInstallBackup)
     case delete(ModInstallBackup, soleCopy: [MaintenanceInventory.UserFile])
 }
 
-/// View for managing mod installation backups (complete mod folders).
-struct ModInstallBackupsView: View {
-    /// ⌘F amène ici (voir `SearchFieldShortcut`).
-    @FocusState private var searchFocused: Bool
+/// Unified row model for Finder-style `Table` + `DisclosureTableRow`.
+private struct InstallBackupTableRow: Identifiable {
+    enum Kind {
+        case group(BackupBrowser.ModGroup)
+        case backup(ModInstallBackup)
+    }
 
+    let id: String
+    let kind: Kind
+    let sortName: String
+    let sortDate: Date
+    let sortCount: Int
+
+    static func group(_ group: BackupBrowser.ModGroup) -> Self {
+        Self(
+            id: "group:\(group.id)",
+            kind: .group(group),
+            sortName: group.displayName,
+            sortDate: group.latest,
+            sortCount: group.backups.count
+        )
+    }
+
+    static func backup(_ backup: ModInstallBackup) -> Self {
+        Self(
+            id: "backup:\(backup.id.uuidString)",
+            kind: .backup(backup),
+            sortName: backup.modMetadata.name,
+            sortDate: backup.timestamp,
+            sortCount: 1
+        )
+    }
+}
+
+/// Finder-style expandable table view for managing mod installation backups.
+struct ModInstallBackupsView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
+    @Binding var search: String
+
     @State private var backups: [ModInstallBackup] = []
-    /// Faux tant que la première lecture n'est pas finie : « 0 » n'est dit qu'après.
     @State private var hasLoaded = false
     @State private var confirmation: ModInstallBackupsConfirmation?
-    /// Compte rendu de la dernière restauration, calculé par
-    /// `ModInstallBackupManager` (B4-T2), rendu en panneau (H-T6).
     @State private var restoreReport: ModInstallRestoreReport?
-    /// Backup in flight (double-click guard, row spinner).
     @State private var busyBackupId: UUID? = nil
-    /// Recherche, tri, dépliage : 1 494 sauvegardes pour 145 mods.
-    @State private var search = ""
-    @State private var sort: BackupBrowser.Sort = .mostRecent
     @State private var expandedGroups: Set<String> = []
+    @State private var selection: Set<String> = []
+    @State private var sortOrder: [KeyPathComparator<InstallBackupTableRow>] = [
+        .init(\.sortDate, order: .reverse)
+    ]
 
     private let backupManager = ModInstallBackupManager.shared
 
+    private var activeSort: BackupBrowser.Sort {
+        guard let first = sortOrder.first else { return .mostRecent }
+        switch first.keyPath {
+        case \.sortName:
+            return first.order == .forward ? .nameAscending : .nameDescending
+        case \.sortCount:
+            return .count
+        default:
+            return .mostRecent
+        }
+    }
+
+    private var groups: [BackupBrowser.ModGroup] {
+        let base = BackupBrowser.groups(from: backups, search: search, sort: activeSort)
+        if let first = sortOrder.first, first.keyPath == \.sortDate, first.order == .forward {
+            return base.reversed()
+        }
+        if let first = sortOrder.first, first.keyPath == \.sortCount, first.order == .forward {
+            return base.reversed()
+        }
+        return base
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Le titre est celui de la page et du segment (I-T8) : ici, la
-            // recherche, le tri, le compte et le rechargement en une rangée.
-            searchAndSortBar
-            retentionInfoBanner
-            Divider()
-
-            // Content
-            if !hasLoaded {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if backups.isEmpty {
-                emptyState
-            } else if groups.isEmpty {
-                noMatchState
-            } else {
-                backupList
+            if let report = restoreReport {
+                restoreReportBanner(report)
+                Divider()
             }
 
-            // Panneau fixe, pas une alerte : sept champs (H-T6).
-            if let report = restoreReport {
-                Divider()
-                restoreReportPanel(report)
+            if !hasLoaded {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if backups.isEmpty {
+                ContentUnavailableView {
+                    Label(localization.L(L10n.ModInstall.noBackups), systemImage: "tray")
+                } description: {
+                    Text(localization.L(L10n.ModInstall.noBackupsHint))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if groups.isEmpty {
+                ContentUnavailableView {
+                    Label(String(format: localization.L(L10n.ModInstall.backupsNoMatch), search),
+                          systemImage: "magnifyingglass")
+                } actions: {
+                    Button(localization.L(L10n.Discovery.clearSearch)) {
+                        search = ""
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                backupTable
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            statusBar
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Lire avant de nettoyer (qui supprime sous verrou, et peut durer), relire s'il
-        // a retiré quelque chose ; tâche de la vue : la page restait sur « 0 · 0 » (R0).
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button(action: loadBackups) {
+                    Label(localization.L(L10n.ModInstall.refreshBackups), systemImage: "arrow.clockwise")
+                }
+                .help(localization.L(L10n.ModInstall.refreshBackups))
+            }
+        }
         .task {
             let manager = backupManager
             backups = await Task.detached(priority: .userInitiated) { manager.loadBackups() }.value
@@ -68,13 +135,8 @@ struct ModInstallBackupsView: View {
                 backups = await Task.detached(priority: .userInitiated) { manager.loadBackups() }.value
             }
         }
-        // I-T5 : la demande peut précéder la vue (changement d'onglet).
         .onAppear { consumePendingBackupsFocus() }
         .onChange(of: vm.navigationStore.pendingBackupsFocus) { _, _ in consumePendingBackupsFocus() }
-        // Un seul présentateur pour les trois confirmations restantes — voir
-        // `ModInstallBackupsConfirmation`. `presenting:` porte la valeur ;
-        // les actions lisent `pending`, jamais `confirmation` (déjà remis à
-        // `nil` au moment où l'action s'exécute, après la fermeture).
         .alert(confirmationTitle,
                isPresented: Binding(get: { confirmation != nil },
                                     set: { if !$0 { confirmation = nil } }),
@@ -102,6 +164,241 @@ struct ModInstallBackupsView: View {
         }
     }
 
+    // MARK: - Finder-Style Table
+
+    private var backupTable: some View {
+        let shown = groups
+        let autoExpand = !search.trimmingCharacters(in: .whitespaces).isEmpty && shown.count == 1
+        let backupById = Dictionary(uniqueKeysWithValues: backups.map { ("backup:\($0.id.uuidString)", $0) })
+
+        return Table(of: InstallBackupTableRow.self, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn(localization.L(L10n.Mods.tableName), value: \.sortName) { row in
+                switch row.kind {
+                case .group(let group):
+                    HStack(spacing: 7) {
+                        Image(systemName: "folder.fill")
+                            .foregroundStyle(.tint)
+                            .frame(width: 16, alignment: .center)
+                        Text(group.displayName)
+                            .font(AppDesign.Font.body(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .help(group.folderName)
+                case .backup(let backup):
+                    HStack(spacing: 7) {
+                        Image(systemName: reasonIcon(for: backup.reason))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16, alignment: .center)
+                        Text("v\(backup.modMetadata.version)")
+                            .font(AppDesign.Font.body(.medium))
+                            .monospacedDigit()
+                        if !backup.modMetadata.author.isEmpty {
+                            Text("· \(backup.modMetadata.author)")
+                                .font(AppDesign.Font.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .help(backup.originalFolderName)
+                }
+            }
+            .width(min: 180, ideal: 280)
+
+            TableColumn(localization.L(L10n.Mods.tableType), value: \.sortCount) { row in
+                switch row.kind {
+                case .group(let group):
+                    Text(group.backups.count == 1
+                         ? localization.L(L10n.ModInstall.backupsGroupSingle)
+                         : String(format: localization.L(L10n.ModInstall.backupsGroupSummary),
+                                  Int64(group.backups.count), Int64(group.versions.count)))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                case .backup(let backup):
+                    Text(reasonText(for: backup.reason))
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .width(min: 100, ideal: 140)
+
+            TableColumn(localization.L(L10n.Mods.detailUpdated), value: \.sortDate) { row in
+                switch row.kind {
+                case .group(let group):
+                    Text(group.backups.first?.formattedDate ?? "")
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                case .backup(let backup):
+                    Text(backup.formattedDate)
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+            }
+            .width(min: 110, ideal: 145)
+
+            TableColumn("") { row in
+                if case .backup(let backup) = row.kind {
+                    if busyBackupId == backup.id {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    } else {
+                        HStack(spacing: 4) {
+                            Spacer(minLength: 0)
+                            Button {
+                                confirmation = .restore(backup)
+                            } label: {
+                                Image(systemName: "arrow.uturn.backward")
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(busyBackupId != nil)
+                            .help(localization.L(L10n.ModInstall.restoreBackup))
+
+                            Button(role: .destructive) {
+                                askDelete(backup)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(AppDesign.Color.error)
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(busyBackupId != nil)
+                            .help(localization.L(L10n.ModInstall.deleteBackup))
+                        }
+                    }
+                }
+            }
+            .width(min: 60, ideal: 68, max: 76)
+        } rows: {
+            ForEach(shown) { group in
+                DisclosureTableRow(InstallBackupTableRow.group(group), isExpanded: Binding(
+                    get: { expandedGroups.contains(group.id) || autoExpand },
+                    set: { expanded in
+                        if expanded { expandedGroups.insert(group.id) }
+                        else { expandedGroups.remove(group.id) }
+                    }
+                )) {
+                    ForEach(group.backups) { backup in
+                        TableRow(InstallBackupTableRow.backup(backup))
+                    }
+                }
+            }
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if ids.count == 1, let id = ids.first {
+                if let backup = backupById[id] {
+                    Button(localization.L(L10n.ModInstall.restoreBackup)) {
+                        confirmation = .restore(backup)
+                    }
+                    Divider()
+                    Button(localization.L(L10n.ModInstall.deleteBackup), role: .destructive) {
+                        askDelete(backup)
+                    }
+                } else if id.hasPrefix("group:") {
+                    let groupId = String(id.dropFirst("group:".count))
+                    let isOpen = expandedGroups.contains(groupId)
+                    Button(localization.L(isOpen ? L10n.Main.collapse : L10n.Main.expand)) {
+                        if isOpen { expandedGroups.remove(groupId) }
+                        else { expandedGroups.insert(groupId) }
+                    }
+                }
+            }
+        } primaryAction: { ids in
+            guard ids.count == 1, let id = ids.first, id.hasPrefix("group:") else { return }
+            let groupId = String(id.dropFirst("group:".count))
+            if expandedGroups.contains(groupId) { expandedGroups.remove(groupId) }
+            else { expandedGroups.insert(groupId) }
+        }
+    }
+
+    // MARK: - Status Bar & Restore Report
+
+    private var statusBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: AppDesign.Spacing.sm) {
+                let count = hasLoaded
+                    ? String(format: localization.L(L10n.ModInstall.backupsModsCount),
+                             Int64(groups.count), Int64(backups.count))
+                    : "…"
+                Text(count)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Button(localization.L(L10n.Maintenance.backupsTrashLink)) {
+                    vm.navigationStore.openMaintenance()
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
+            .padding(.horizontal, AppDesign.Spacing.xl)
+            .padding(.vertical, AppDesign.Spacing.xs)
+        }
+        .background(.bar)
+    }
+
+    private func restoreReportBanner(_ report: ModInstallRestoreReport) -> some View {
+        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
+            HStack {
+                Label(localization.L(L10n.ModInstall.restoreReportTitle), systemImage: "checkmark.circle.fill")
+                    .font(AppDesign.Font.headline)
+                    .foregroundStyle(AppDesign.Color.success)
+                Spacer()
+                SeverityBadge(severity: report.landedEnabled ? .info : .warning,
+                              label: localization.L(report.landedEnabled ? L10n.ModInstall.landedActiveBadge
+                                                                        : L10n.ModInstall.landedPausedBadge))
+                Button {
+                    restoreReport = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(localization.L(L10n.Main.close))
+            }
+
+            HStack(spacing: AppDesign.Spacing.lg) {
+                LabeledContent(localization.L(L10n.ModInstall.labelName), value: "\(report.modName) v\(report.version)")
+                LabeledContent(localization.L(L10n.ModInstall.labelFilesWritten), value: "\(report.fileCount)")
+                Spacer()
+                Button(localization.L(L10n.ModInstall.revealInFinder)) {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: report.destinationPath)])
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .font(AppDesign.Font.footnote)
+
+            Text(report.displayPath)
+                .font(AppDesign.Font.monoIconXS)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(report.displayPath)
+
+            if !report.replacedVersions.isEmpty {
+                let replacedText = report.replacedVersions.joined(separator: ", ")
+                LabeledContent(localization.L(L10n.ModInstall.labelKeptVersions), value: replacedText)
+                    .font(AppDesign.Font.footnote)
+                    .foregroundStyle(.secondary)
+                    .help(replacedText)
+            }
+        }
+        .padding(.horizontal, AppDesign.Spacing.xl)
+        .padding(.vertical, AppDesign.Spacing.md)
+        .background(AppDesign.Color.controlBg)
+    }
+
+    // MARK: - Helpers & Actions
+
     private var confirmationTitle: String {
         switch confirmation {
         case .error: return localization.L(L10n.ModInstall.operationFailed)
@@ -111,78 +408,6 @@ struct ModInstallBackupsView: View {
         }
     }
 
-    /// Les sept champs de `ModInstallRestoreReport` en lignes étiquetées.
-    /// `landedEnabled` porte son propre badge (`SeverityBadge`) : un mod qui
-    /// atterrit en pause n'est pas chargé par SMAPI, et rien d'autre à
-    /// l'écran ne le dit.
-    private func restoreReportPanel(_ report: ModInstallRestoreReport) -> some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            HStack {
-                Text(localization.L(L10n.ModInstall.restoreReportTitle))
-                    .font(AppDesign.Font.headline)
-                Spacer()
-                Button {
-                    restoreReport = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(AppDesign.Font.caption)
-                        .foregroundColor(AppDesign.Color.secondary)
-                }
-                .buttonStyle(.plain).focusRing().iconHelp(localization.L(L10n.Main.close))
-                .pointingHandCursor()
-            }
-            StatColumn(label: localization.L(L10n.ModInstall.labelName), value: report.modName)
-            StatColumn(label: localization.L(L10n.ModInstall.labelVersion), value: report.version)
-            // `help:` porte le texte entier — le chemin et la liste de
-            // versions sont précisément les deux champs qui justifiaient un
-            // panneau plutôt qu'un paragraphe ; sans lui, un chemin long ou
-            // plusieurs versions remplacées se coupent sans recours (revue
-            // 2026-09-02).
-            StatColumn(label: localization.L(L10n.ModInstall.labelFolder), value: report.displayPath,
-                       help: report.displayPath)
-            StatColumn(label: localization.L(L10n.ModInstall.labelFilesWritten), value: "\(report.fileCount)")
-            SeverityBadge(severity: report.landedEnabled ? .info : .warning,
-                          label: localization.L(report.landedEnabled ? L10n.ModInstall.landedActiveBadge
-                                                            : L10n.ModInstall.landedPausedBadge))
-            if !report.replacedVersions.isEmpty {
-                let replacedText = report.replacedVersions.joined(separator: ", ")
-                StatColumn(label: localization.L(L10n.ModInstall.labelKeptVersions),
-                           value: replacedText, help: replacedText)
-            }
-            Button(localization.L(L10n.ModInstall.revealInFinder)) {
-                NSWorkspace.shared.activateFileViewerSelecting(
-                    [URL(fileURLWithPath: report.destinationPath)])
-            }
-            .buttonStyle(.bordered).focusRing()
-            .pointingHandCursor()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppDesign.Spacing.lg)
-        .background(AppDesign.Color.controlBg)
-    }
-
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            IconTile(icon: "tray", tint: AppDesign.Color.accent, size: 64)
-            Text(localization.L(L10n.ModInstall.noBackups))
-                .font(AppDesign.Font.rowTitle)
-                .foregroundColor(.secondary)
-            Text(localization.L(L10n.ModInstall.noBackupsHint))
-                .font(AppDesign.Font.caption)
-                .foregroundColor(AppDesign.Color.dimmedSecondary(0.7))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
-    }
-
-    /// Groupes recalculés à chaque frappe (tri négligeable).
-    private var groups: [BackupBrowser.ModGroup] {
-        BackupBrowser.groups(from: backups, search: search, sort: sort)
-    }
-
-    /// « Sauvegardes de ce mod » (I-T5) : filtre et déplie ce mod, une fois.
     private func consumePendingBackupsFocus() {
         let navigation = vm.navigationStore
         guard let folder = navigation.pendingBackupsFocus else { return }
@@ -191,280 +416,13 @@ struct ModInstallBackupsView: View {
         navigation.pendingBackupsFocus = nil
     }
 
-    private var searchAndSortBar: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                TextField(localization.L(L10n.ModInstall.backupsSearch), text: $search)
-                    .textFieldStyle(.plain)
-                    .font(AppDesign.Font.caption)
-                    .searchFieldShortcut($searchFocused)
-                if !search.isEmpty {
-                    Button {
-                        search = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(AppDesign.Font.footnote)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain).focusRing().iconHelp(localization.L(L10n.Discovery.clearSearch))
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .controlBackgroundColor)))
-
-            Picker(localization.L(L10n.ModInstall.backupsSort), selection: $sort) {
-                Text(localization.L(L10n.ModInstall.sortRecent)).tag(BackupBrowser.Sort.mostRecent)
-                Text(localization.L(L10n.ModInstall.sortNameAsc)).tag(BackupBrowser.Sort.nameAscending)
-                Text(localization.L(L10n.ModInstall.sortNameDesc)).tag(BackupBrowser.Sort.nameDescending)
-                Text(localization.L(L10n.ModInstall.sortCount)).tag(BackupBrowser.Sort.count)
-            }
-            .pickerStyle(.menu)
-            .fixedSize()
-            .font(AppDesign.Font.caption)
-
-            Spacer(minLength: AppDesign.Spacing.sm)
-            // Clé dédiée : mettre en minuscules le titre « Gérer les
-            // sauvegardes » donnait « 12 gérer les sauvegardes ».
-            let count = hasLoaded ? String(format: localization.L(L10n.ModInstall.backupsModsCount), Int64(groups.count), Int64(backups.count)) : "…"
-            Text(count)
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-                .lineLimit(1).help(hasLoaded ? count : "")
-            Button(action: loadBackups) { Image(systemName: "arrow.clockwise") }
-            .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-            .controlSize(.small)
-            .iconHelp(localization.L(L10n.ModInstall.refreshBackups))
-        }
-        .padding(.horizontal, AppDesign.Spacing.xl)
-        .padding(.vertical, AppDesign.Spacing.sm)
-    }
-
-    private var noMatchState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 26))
-                .foregroundColor(AppDesign.Color.dimmedSecondary(0.6))
-            Text(String(format: localization.L(L10n.ModInstall.backupsNoMatch), search))
-                .font(AppDesign.Font.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
-    }
-
-    private var backupList: some View {
-        // Calculés **une fois** par passe de rendu : lire la propriété dans
-        // chaque carte referait le regroupement complet à chaque ligne, soit
-        // 145 balayages de 1 494 sauvegardes pour un seul affichage.
-        let shown = groups
-        // Une recherche qui ne laisse qu'un mod le déplie d'office :
-        // chercher, c'est déjà avoir choisi. Sans recherche, non — sinon
-        // celui qui n'a qu'un mod se retrouve avec un chevron inerte.
-        let autoExpand = !search.trimmingCharacters(in: .whitespaces).isEmpty && shown.count == 1
-        return BackToTopScrollView(localization) {
-            // Paresseuse : tout déplier ferait construire des milliers de
-            // lignes d'un coup sur un parc réel.
-            LazyVStack(spacing: AppDesign.Spacing.sm) {
-                ForEach(shown) { group in
-                    modGroupCard(group, autoExpand: autoExpand)
-                }
-            }
-            .padding(AppDesign.Spacing.xl)
-        }
-    }
-
-    /// Un mod, replié par défaut.
-    private func modGroupCard(_ group: BackupBrowser.ModGroup,
-                              autoExpand: Bool) -> some View {
-        let isExpanded = expandedGroups.contains(group.id) || autoExpand
-        return VStack(alignment: .leading, spacing: 0) {
-            Button {
-                if expandedGroups.contains(group.id) {
-                    expandedGroups.remove(group.id)
-                } else {
-                    expandedGroups.insert(group.id)
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(AppDesign.Font.iconXS(.semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 12)
-                    IconTile(icon: "shippingbox", tint: AppDesign.Color.accent, size: 30)  // C2a : un stock, pas une alerte
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(group.displayName)
-                            .font(AppDesign.Font.body(.medium))
-                        Text(group.folderName)
-                            .font(AppDesign.Font.monoIconXS)
-                            .foregroundColor(AppDesign.Color.dimmedSecondary(0.7))
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(group.backups.count == 1
-                             ? localization.L(L10n.ModInstall.backupsGroupSingle)
-                             : String(format: localization.L(L10n.ModInstall.backupsGroupSummary),
-                                      Int64(group.backups.count), Int64(group.versions.count)))
-                            .font(AppDesign.Font.footnote)
-                            .foregroundColor(.secondary)
-                        Text(group.backups.first?.formattedDate ?? "")
-                            .font(AppDesign.Font.iconXS)
-                            .foregroundColor(AppDesign.Color.dimmedSecondary(0.8))
-                    }
-                }
-                .contentShape(Rectangle())
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-            }
-            .buttonStyle(.plain).focusRing()
-            .pointingHandCursor().accessibilityHint(localization.L(isExpanded ? L10n.Main.collapse : L10n.Main.expand)) // E9
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(group.versions) { version in
-                        // L'intitulé de version ne s'affiche que s'il y en a
-                        // plusieurs : sur ce parc, la moitié des mods n'a
-                        // qu'une sauvegarde, et le rappeler serait du bruit.
-                        if group.versions.count > 1 {
-                            Text("v\(version.version)")
-                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 2)
-                        }
-                        ForEach(version.backups) { backup in
-                            backupRow(backup)
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 12)
-            }
-        }
-        .cardSurface(padding: 0)
-    }
-
-    private func backupRow(_ backup: ModInstallBackup) -> some View {
-        HStack(spacing: 12) {
-            // Reason icon badge
-            ZStack {
-                Circle()
-                    .fill(Color.pink.opacity(0.12))
-                    .frame(width: 34, height: 34)
-                Image(systemName: reasonIcon(for: backup.reason))
-                    .font(AppDesign.Font.body)
-                    .foregroundColor(.pink)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(backup.modMetadata.name)
-                    .font(AppDesign.Font.body(.medium))
-                Text("v\(backup.modMetadata.version) • \(backup.modMetadata.author)")
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                Text(backup.originalFolderName)
-                    .font(AppDesign.Font.monoIconXS)
-                    .foregroundColor(AppDesign.Color.dimmedSecondary(0.7))
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(backup.formattedDate)
-                    .font(AppDesign.Font.footnote)
-                    .foregroundColor(.secondary)
-                Text(reasonText(for: backup.reason))
-                    .font(AppDesign.Font.iconXS)
-                    .foregroundColor(AppDesign.Color.dimmedSecondary(0.8))
-            }
-
-            // Action buttons: while this row's operation is in flight, the
-            // buttons collapse to a single spinner (and every other row is
-            // disabled via the `.disabled(busyBackupId != nil)` below).
-            if busyBackupId == backup.id {
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(width: 56, alignment: .center)
-                    .help(localization.L(L10n.ModInstall.manageBackups))
-            } else {
-                HStack(spacing: 6) {
-                    Button {
-                        confirmation = .restore(backup)
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(AppDesign.Font.caption)
-                    }
-                    .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-                    .controlSize(.small)
-                    .disabled(busyBackupId != nil)
-                    .iconHelp(localization.L(L10n.ModInstall.restoreBackup))
-
-                    Button {
-                        askDelete(backup)
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(AppDesign.Font.caption)
-                    }
-                    .buttonStyle(.bordered).focusRing(cornerRadius: 5)
-                    .controlSize(.small)
-                    .disabled(busyBackupId != nil)
-                    .iconHelp(localization.L(L10n.ModInstall.deleteBackup))
-                }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        // Pas de cadre à elle : la ligne vit désormais **dans** la carte de
-        // son mod, et un encadré dans un encadré donnait une boîte par
-        // sauvegarde à l'intérieur de la boîte du mod.
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.primary.opacity(0.035))
-        )
-        .opacity(busyBackupId == backup.id ? 0.6 : 1.0)
-        .contextMenu {
-            Button(localization.L(L10n.ModInstall.restoreBackup)) {
-                confirmation = .restore(backup)
-            }
-            Divider()
-            Button(localization.L(L10n.ModInstall.deleteBackup), role: .destructive) {
-                askDelete(backup)
-            }
-        }
-        .disabled(busyBackupId != nil)
-    }
-
-    private var retentionInfoBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "info.circle.fill")
-                .font(AppDesign.Font.body).foregroundColor(.accentColor.opacity(0.7))
-            Text(BackupRetentionSummary.automatic(localized: localization.L)) // R1 : la phrase unique
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-            Spacer() // R1 — un mod supprimé n'est pas ici : il est dans la corbeille des mods.
-            Button(localization.L(L10n.Maintenance.backupsTrashLink)) { vm.navigationStore.openMaintenance() }
-                .buttonStyle(.link).clickableCursor().focusRing(cornerRadius: 4).font(AppDesign.Font.footnote)
-        }
-        .padding(.horizontal, AppDesign.Spacing.xl)
-        .padding(.bottom, AppDesign.Spacing.sm)
-    }
-
     private func loadBackups() {
         backups = backupManager.loadBackups()
     }
 
-
     private func performRestore(_ backup: ModInstallBackup) {
         guard busyBackupId == nil else { return }
         guard !vm.gameDir.isEmpty else {
-            // Ce garde s'exécute dans le même battement que la fermeture de
-            // l'alerte qui a déclenché `performRestore` (le bouton « Restaurer »)
-            // — `confirmation` vient d'être remis à `nil` par le binding.
-            // Différer d'un tick évite d'écrire la nouvelle valeur dans la
-            // même transaction que cette remise à zéro (patron des autres
-            // sites d'erreur de ce fichier, tous en `DispatchQueue.main.async`).
             DispatchQueue.main.async {
                 confirmation = .error(localization.L(L10n.Settings.gameDirNotSet))
             }
@@ -480,14 +438,6 @@ struct ModInstallBackupsView: View {
                     busyBackupId = nil
                     vm.log(restoreReportMessage(report), level: .info)
                     restoreReport = report
-                    // Restaurer, c'est poser une version connue sur le
-                    // disque : la même chose qu'une installation, et le
-                    // même ancrage. Sans lui, l'ancre reste sur la version
-                    // remplacée — `afterDiskChange` refuse de la faire
-                    // descendre, tenant une régression pour une mise à jour
-                    // inachevée — et smapi.io continue de recevoir la
-                    // version d'avant : le retour arrière que l'utilisateur
-                    // vient de faire lui serait annoncé « à jour ».
                     vm.anchorInstalledMods(installedFolderPaths: [report.destinationPath])
                     vm.refresh()
                     loadBackups()
@@ -503,7 +453,7 @@ struct ModInstallBackupsView: View {
 
     private func askDelete(_ backup: ModInstallBackup) {
         guard busyBackupId == nil else { return }
-        busyBackupId = backup.id   // R1 : la règle « seule copie » parcourt la sauvegarde
+        busyBackupId = backup.id
         Task {
             let files = await soleCopy(of: backup)
             (busyBackupId, confirmation) = (nil, .delete(backup, soleCopy: files))

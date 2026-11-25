@@ -1,92 +1,114 @@
 import SwiftUI
 
-/// Les trois confirmations de la vue passent par **un seul** modificateur
-/// `.alert` — patron `ModConfigBackupsConfirmation` (`ModConfigBackupsView.swift`) :
-/// deux présentateurs sur la même vue ne se présentent pas tous les deux.
+/// Single `.alert` presenter for all Maintenance confirmations.
 private enum MaintenanceConfirmation {
-    /// Le cran de purge : combien garder par mod, et ce que la confirmation
-    /// doit nommer (entrées condamnées, poids libéré).
     case purge(keepPerMod: Int, doomed: Int, freedBytes: Int64)
     case cleanStale(orphans: Int, keys: Int)
     case removeProtected(session: String, modName: String)
-    /// X103-B — purge de la corbeille : toute entière, ou une entrée nommée.
-    /// Le nom d'événement et l'entrée sont portés par la confirmation (pas
-    /// d'état de vue en plus).
     case purgeTrashAll(events: Int)
     case purgeTrashEntry(event: String, entry: String)
-    /// X103-C — les archives Nexus conservées : toutes (`nil`), ou une seule.
     case purgeArchives(only: NexusArchiveEntry?)
 }
 
-/// L'écran « Entretien » (X25) : ce que StarHubFR occupe, et de quoi le rendre
-/// sans jamais détruire la seule copie d'un fichier écrit par l'utilisateur.
-///
-/// Trois états distincts — chargement, « rien à faire », rapport garni — parce
-/// que « pas encore mesuré » et « rien à mesurer » ne s'affichent pas pareil.
+/// Maintenance hub: macOS System Settings Storage-style native `Form().formStyle(.grouped)`
+/// with top-level mod actions in the native `.toolbar`.
 struct MaintenanceView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
 
     @State private var confirmation: MaintenanceConfirmation?
-    /// X103-C — l'écran doit dire ce que la fonction *ferait* quand elle est
-    /// éteinte, plutôt que de rester vide sans explication.
     @AppStorage(UDKey.keepNexusArchives) private var keepNexusArchives: Bool = false
 
-    // MARK: - Corps
-
     var body: some View {
-        VStack(spacing: 0) {
-            MaintenanceModActions(vm: vm, localization: localization) // sorti des Réglages
-            Divider()
+        Group {
             if let report = vm.maintenanceReport {
-                // La corbeille (X103-B) se montre même sur un entretien sans
-                // objet : des sauvegardes à rien à dire et des mods en
-                // corbeille sont deux vérités indépendantes.
                 if !report.isEmpty || !vm.trashEvents.isEmpty || keepNexusArchives
                     || !vm.nexusArchives.isEmpty {
-                    BackToTopScrollView(localization) {
-                        // I-T33 — garde les sections à état comme vues
-                        // autonomes, mais diffère celles qui sont hors écran.
-                        LazyVStack(alignment: .leading, spacing: 18) {
-                            if report.isEmpty {
-                                nothingToDoInline
-                            } else {
-                                content(report)
+                    Form {
+                        if report.isEmpty {
+                            Section {
+                                Label(localization.L(L10n.Maintenance.nothingToDo), systemImage: "sparkles")
+                                    .foregroundStyle(.secondary)
                             }
-                            if !vm.trashEvents.isEmpty { trashSection.cardSurface() }
-                            if keepNexusArchives || !vm.nexusArchives.isEmpty { archivesSection.cardSurface() }
+                        } else {
+                            MaintenanceStorageCard(
+                                report: report,
+                                localization: localization,
+                                onPurge: { keep, doomed, freed in
+                                    confirmation = .purge(keepPerMod: keep, doomed: doomed, freedBytes: freed)
+                                },
+                                onCleanStale: {
+                                    confirmation = .cleanStale(
+                                        orphans: report.orphanSessions.count,
+                                        keys: report.stalePreferenceKeys.count
+                                    )
+                                },
+                                openBackups: { vm.navigationStore.openBackups(segment: $0) }
+                            )
+
+                            if report.protectedCount > 0 {
+                                protectedSection(report)
+                            }
                         }
-                        .padding(AppDesign.Spacing.xl)
+
+                        MaintenanceTrashSection(
+                            viewModel: vm,
+                            localization: localization,
+                            onPurgeAll: { confirmation = .purgeTrashAll(events: $0) },
+                            onPurgeEntry: { confirmation = .purgeTrashEntry(event: $0, entry: $1) }
+                        )
+
+                        MaintenanceArchivesSection(
+                            vm: vm,
+                            localization: localization,
+                            keepNexusArchives: keepNexusArchives,
+                            onPurgeAll: { confirmation = .purgeArchives(only: nil) },
+                            onDelete: { confirmation = .purgeArchives(only: $0) }
+                        )
                     }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
                 } else {
-                    emptyState
+                    ContentUnavailableView {
+                        Label(localization.L(L10n.Maintenance.nothingToDo), systemImage: "sparkles")
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
-                loadingState
+                VStack(spacing: AppDesign.Spacing.md) {
+                    ProgressView()
+                    Text(localization.L(L10n.Maintenance.loading))
+                        .font(AppDesign.Font.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(AppDesign.Color.windowBg)
         .navigationSubtitle(headerSubtitle)
         .toolbar {
-            if vm.isBuildingMaintenanceReport {
-                ToolbarItem {
-                    HStack(spacing: 6) {
-                        ProgressView().controlSize(.small)
-                        Text(localization.L(L10n.Maintenance.loading))
-                            .font(AppDesign.Font.caption)
-                            .foregroundStyle(.secondary)
+            ToolbarItemGroup(placement: .automatic) {
+                MaintenanceModActions(vm: vm, localization: localization)
+
+                if vm.isBuildingMaintenanceReport {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button {
+                        vm.buildMaintenanceReport()
+                        vm.refreshTrash()
+                        vm.refreshNexusArchives()
+                    } label: {
+                        Label(localization.L(L10n.ModInstall.refreshBackups), systemImage: "arrow.clockwise")
                     }
+                    .help(localization.L(L10n.ModInstall.refreshBackups))
                 }
             }
         }
-        // Passe de 0,86 s : au `.onAppear` seulement, sans chevauchement
-        // (garde de `buildMaintenanceReport`) ; l'ancien rapport reste affiché.
         .onAppear {
             vm.buildMaintenanceReport()
             vm.refreshTrash()
             vm.refreshNexusArchives()
         }
-        // Un seul présentateur pour les confirmations — voir `MaintenanceConfirmation`.
         .alert(alertTitle,
                isPresented: Binding(get: { confirmation != nil },
                                     set: { if !$0 { confirmation = nil } }),
@@ -145,7 +167,7 @@ struct MaintenanceView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Protected Backups Section
 
     private var headerSubtitle: String {
         vm.maintenanceReport.map {
@@ -154,103 +176,48 @@ struct MaintenanceView: View {
         } ?? ""
     }
 
-    private func content(_ report: MaintenanceInventory.Report) -> some View {
-        LazyVStack(alignment: .leading, spacing: 18) {
-            MaintenanceStorageCard(report: report, localization: localization, onPurge: { keep, doomed, freed in
-                confirmation = .purge(keepPerMod: keep, doomed: doomed, freedBytes: freed)
-            }, openBackups: { vm.navigationStore.openBackups(segment: $0) })
-            if !report.orphanSessions.isEmpty || !report.stalePreferenceKeys.isEmpty {
-                cleanSection(report)
-            }
-            if report.protectedCount > 0 {
-                protectedSection(report).cardSurface()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// Le « rien à faire » de l'entretien, en version encastrée — la
-    /// corbeille peut avoir des choses à dire juste en dessous.
-    private var nothingToDoInline: some View {
-        VStack(spacing: AppDesign.Spacing.md) {
-            IconTile(icon: "sparkles", tint: AppDesign.Color.success, size: 48)
-            Text(localization.L(L10n.Maintenance.nothingToDo))
-                .multilineTextAlignment(.center)
-                .font(AppDesign.Font.rowTitle)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, AppDesign.Spacing.xl)
-    }
-
-    private var trashSection: some View {
-        MaintenanceTrashSection(
-            viewModel: vm, localization: localization,
-            onPurgeAll: { confirmation = .purgeTrashAll(events: $0) },
-            onPurgeEntry: { confirmation = .purgeTrashEntry(event: $0, entry: $1) })
-    }
-
-    /// X103-C — les archives Nexus, regroupées par mod.
-    private var archivesSection: some View {
-        MaintenanceArchivesSection(vm: vm, localization: localization,
-                                   keepNexusArchives: keepNexusArchives,
-                                   onPurgeAll: { confirmation = .purgeArchives(only: nil) },
-                                   onDelete: { confirmation = .purgeArchives(only: $0) })
-    }
-
-    private func cleanSection(_ report: MaintenanceInventory.Report) -> some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-            Button {
-                confirmation = .cleanStale(orphans: report.orphanSessions.count,
-                                           keys: report.stalePreferenceKeys.count)
-            } label: {
-                Label(localization.L(L10n.Maintenance.actionClean),
-                      systemImage: "paintbrush")
-                    .font(AppDesign.Font.body(.medium))
-            }
-            .buttonStyle(.bordered).focusRing()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
-    }
-
-    /// Les sauvegardes qui ne partent pas, et pourquoi. La raison distingue
-    /// « le mod n'est plus installé » (on ne peut que montrer le fichier) de
-    /// « la mise à jour l'a emporté » (on peut le remettre).
     private func protectedSection(_ report: MaintenanceInventory.Report) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(String(format: localization.L(L10n.Maintenance.protectedTitle),
-                        report.protectedCount))
-                .font(AppDesign.Font.body(.semibold))
+        Section(String(format: localization.L(L10n.Maintenance.protectedTitle), report.protectedCount)) {
             ForEach(protectedRows(report)) { row in
-                protectedCard(row)
+                protectedRowView(row)
             }
         }
     }
 
-    private func protectedCard(_ row: ProtectedRow) -> some View {
+    private func protectedRowView(_ row: ProtectedRow) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: row.isGone ? AppDesign.Status.warning.symbol
-                                             : "arrow.uturn.backward")
-                    .foregroundColor(AppDesign.Color.warning)
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Image(systemName: row.isGone ? AppDesign.Status.warning.symbol : "arrow.uturn.backward")
+                    .foregroundStyle(AppDesign.Color.warning)
                 Text(row.modFolder)
                     .font(AppDesign.Font.body(.medium))
                 Spacer()
                 Text(row.timestamp.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Button(role: .destructive) {
+                    confirmation = .removeProtected(session: row.session, modName: row.modFolder)
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(AppDesign.Color.error)
+                }
+                .buttonStyle(.borderless)
+                .help(localization.L(L10n.Maintenance.actionRemoveAnyway))
             }
+
             ForEach(row.files, id: \.relativePath) { file in
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: AppDesign.Spacing.sm) {
                     Text(file.relativePath)
                         .font(AppDesign.Font.monoCaption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     Spacer()
                     Text(localization.L(row.isGone ? L10n.Maintenance.reasonGone
-                                         : L10n.Maintenance.reasonMissing))
+                                                   : L10n.Maintenance.reasonMissing))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     if row.isGone {
                         Button(localization.L(L10n.Maintenance.actionReveal)) {
                             if let path = vm.maintenanceProtectedFilePath(
@@ -258,60 +225,24 @@ struct MaintenanceView: View {
                                 vm.revealProtectedBackup(atPath: path)
                             }
                         }
+                        .buttonStyle(.bordered)
                         .controlSize(.small)
                     } else {
-                        // I-T8 — la remise vit dans « Sauvegardes des mods »,
-                        // segment Fichiers récupérables : aperçu compris.
                         Button(localization.L(L10n.Maintenance.actionOpenRecovery)) {
                             vm.navigationStore.openBackups(segment: .files)
                         }
+                        .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
                 }
+                .padding(.leading, AppDesign.Spacing.md)
             }
-            Button(localization.L(L10n.Maintenance.actionRemoveAnyway), role: .destructive) {
-                confirmation = .removeProtected(session: row.session,
-                                                modName: row.modFolder)
-            }
-            .controlSize(.small)
-            .foregroundColor(AppDesign.Color.error)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: AppDesign.Radius.md))
+        .padding(.vertical, 2)
     }
 
-    // MARK: - États
+    // MARK: - Helpers
 
-    private var loadingState: some View {
-        VStack(spacing: AppDesign.Spacing.lg) {
-            Spacer()
-            ProgressView()
-            Text(localization.L(L10n.Maintenance.loading))
-                .font(AppDesign.Font.rowTitle)
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: AppDesign.Spacing.lg) {
-            Spacer()
-            IconTile(icon: "sparkles", tint: AppDesign.Color.success, size: 64)
-            Text(localization.L(L10n.Maintenance.nothingToDo))
-                .multilineTextAlignment(.center)
-                .font(AppDesign.Font.rowTitle)
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Aides
-
-    /// Une ligne par sauvegarde protégée. Identifiée par la session, jamais par
-    /// position — deux mods peuvent partager un nom logique.
     private struct ProtectedRow: Identifiable {
         let session: String
         let modFolder: String

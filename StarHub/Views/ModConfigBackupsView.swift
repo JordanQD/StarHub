@@ -1,67 +1,118 @@
 import SwiftUI
 
-/// Les trois confirmations de la vue passent par **un seul** modificateur
-/// `.alert` — patron `SaveEditorConfirmation` (`SavesView.swift`) : deux
-/// présentateurs sur la même vue ne se présentent pas tous les deux
-/// (mesuré le 2026-09-02, dans les deux sens).
+/// Single `.alert` presenter for config-backup confirmations.
 private enum ModConfigBackupsConfirmation {
-    /// Les éléments voyagent avec la demande : relire la sélection au moment
-    /// de l'action restaurerait ce qu'une autre vue avait coché.
     case restore(ModConfigBackup, [ModConfigBackupItem])
-    /// Extension de R1 : les fichiers dont elle est la seule copie, lus avant d'ouvrir.
     case delete(ModConfigBackup, soleCopy: [String])
     case cleanup(String)
 }
 
+/// Finder-style expandable table view for managing mod configuration backups.
 struct ModConfigBackupsView: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
-    /// R8 — le mod venu de l'éditeur de config (« Toutes les sauvegardes de ce mod… »).
     @Binding var modFilter: String?
+    @Binding var search: String
 
     @State private var backups: [ModConfigBackup] = []
-    /// Par mod d'abord : on vient chercher les versions d'un mod, pas une date.
     @AppStorage("configBackupsByDate") private var byDate = false
-    @State private var search = ""
     @State private var expandedMods: Set<String> = []
     @State private var comparing: ConfigBackupBrowser.Version?
 
-    /// Ce que la recherche et le filtre de l'éditeur laissent d'une sauvegarde.
-    private func visibleItems(_ backup: ModConfigBackup) -> [ModConfigBackupItem] {
-        let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return backup.items.filter { (modFilter == nil || $0.modFolderName == modFilter)
-            && ConfigBackupBrowser.matches($0, needle) }
-    }
-    private var shown: [ModConfigBackup] { backups.filter { !visibleItems($0).isEmpty } }
-    private var groups: [ConfigBackupBrowser.ModGroup] {
-        ConfigBackupBrowser.groups(from: backups, search: search).filter { modFilter == nil || $0.folderName == modFilter }
-    }
     @State private var expandedBackupId: UUID?
     @State private var selectedItemIds: Set<UUID> = []
+    @State private var dateSelection: Set<String> = []
     @State private var isBusy = false
-
     @State private var confirmation: ModConfigBackupsConfirmation?
 
-    /// `nil` when a backup can be created; otherwise the localized reason
-    /// shown as a tooltip on the disabled button.
+    private struct DateTableRow: Identifiable {
+        enum Kind {
+            case backup(ModConfigBackup)
+            case item(ModConfigBackup, ModConfigBackupItem)
+        }
+        let id: String
+        let kind: Kind
+
+        static func backup(_ b: ModConfigBackup) -> Self {
+            Self(id: "b:\(b.id.uuidString)", kind: .backup(b))
+        }
+        static func item(_ b: ModConfigBackup, _ i: ModConfigBackupItem) -> Self {
+            Self(id: "i:\(b.id.uuidString):\(i.id.uuidString)", kind: .item(b, i))
+        }
+    }
+
+    private func visibleItems(_ backup: ModConfigBackup) -> [ModConfigBackupItem] {
+        let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return backup.items.filter {
+            (modFilter == nil || $0.modFolderName == modFilter)
+                && ConfigBackupBrowser.matches($0, needle)
+        }
+    }
+
+    private var shown: [ModConfigBackup] {
+        backups.filter { !visibleItems($0).isEmpty }
+    }
+
+    private var groups: [ConfigBackupBrowser.ModGroup] {
+        ConfigBackupBrowser.groups(from: backups, search: search)
+            .filter { modFilter == nil || $0.folderName == modFilter }
+    }
+
     private var createDisabledReason: String? {
         if vm.gameDir.isEmpty { return localization.L(L10n.ModConfigBackups.noGameDir) }
         if vm.enabledMods.isEmpty { return localization.L(L10n.ModConfigBackups.noEnabledMods) }
         return nil
     }
 
+    private var expandedBackup: ModConfigBackup? {
+        guard byDate, let id = expandedBackupId else { return nil }
+        return shown.first { $0.id == id }
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
+        Group {
             if byDate ? shown.isEmpty : groups.isEmpty {
                 emptyState
             } else if byDate {
-                list
+                byDateTable
             } else {
-                ModConfigBackupsByMod(localization: localization, groups: groups, expanded: $expandedMods,
-                                      restore: { confirmation = .restore($0, [$1].compactMap(\.configOnly)) }, compare: { comparing = $0 },
-                                      showRecoverable: { vm.navigationStore.backupsSegment = .files })
+                ModConfigBackupsByMod(
+                    localization: localization,
+                    groups: groups,
+                    expanded: $expandedMods,
+                    restore: { confirmation = .restore($0, [$1].compactMap(\.configOnly)) },
+                    compare: { comparing = $0 },
+                    showRecoverable: { vm.navigationStore.backupsSegment = .files }
+                )
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            statusBar
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .toolbar {
+            ToolbarItemGroup(placement: .automatic) {
+                Menu {
+                    Picker(localization.L(L10n.A11y.configBackupsGrouping), selection: $byDate) {
+                        Text(localization.L(L10n.ModConfigBackups.byMod)).tag(false)
+                        Text(localization.L(L10n.ModConfigBackups.byDate)).tag(true)
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label(localization.L(byDate ? L10n.ModConfigBackups.byDate : L10n.ModConfigBackups.byMod),
+                          systemImage: "rectangle.3.group")
+                }
+                .help(localization.L(L10n.A11y.configBackupsGrouping))
+
+                Button(action: createBackup) {
+                    if isBusy {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label(localization.L(L10n.ModConfigBackups.createBackup), systemImage: "plus")
+                    }
+                }
+                .disabled(isBusy || createDisabledReason != nil)
+                .help(createDisabledReason ?? localization.L(L10n.ModConfigBackups.createBackup))
             }
         }
         .onAppear { reload() }
@@ -69,14 +120,9 @@ struct ModConfigBackupsView: View {
             ConfigBackupCompareSheet(localization: localization, version: version,
                                      currentURL: currentConfigURL(version.item.modFolderName))
         }
-        // Venu de l'éditeur : ce mod, déplié, dans la vue par mod.
         .onChange(of: modFilter, initial: true) { _, folder in
             if let folder { expandedMods.insert(folder); byDate = false }
         }
-        // Un seul présentateur pour les trois confirmations — voir
-        // `ModConfigBackupsConfirmation`. `presenting:` porte la valeur ;
-        // les actions lisent `pending`, jamais `confirmation` (déjà remis à
-        // `nil` au moment où l'action s'exécute, après la fermeture).
         .alert(confirmationTitle,
                isPresented: Binding(get: { confirmation != nil },
                                     set: { if !$0 { confirmation = nil } }),
@@ -104,6 +150,205 @@ struct ModConfigBackupsView: View {
         }
     }
 
+    // MARK: - By-Date Finder Table
+
+    private var byDateTable: some View {
+        let backupById = Dictionary(uniqueKeysWithValues: shown.map { ("b:\($0.id.uuidString)", $0) })
+
+        return Table(of: DateTableRow.self, selection: $dateSelection) {
+            TableColumn(localization.L(L10n.Mods.tableName)) { row in
+                switch row.kind {
+                case .backup(let backup):
+                    HStack(spacing: 7) {
+                        Image(systemName: "archivebox")
+                            .foregroundStyle(.tint)
+                            .frame(width: 16, alignment: .center)
+                        Text(backup.formattedDate)
+                            .font(AppDesign.Font.body(.medium))
+                            .monospacedDigit()
+                    }
+                case .item(_, let item):
+                    Toggle(isOn: Binding(
+                        get: { selectedItemIds.contains(item.id) },
+                        set: { isOn in
+                            if isOn { selectedItemIds.insert(item.id) }
+                            else { selectedItemIds.remove(item.id) }
+                        }
+                    )) {
+                        Text(item.modDisplayName)
+                            .font(AppDesign.Font.body)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .toggleStyle(.checkbox)
+                    .disabled(item.configOnly == nil)
+                }
+            }
+            .width(min: 200, ideal: 280)
+
+            TableColumn(localization.L(L10n.Mods.tableType)) { row in
+                switch row.kind {
+                case .backup(let backup):
+                    Text("\(String(format: localization.L(L10n.ModConfigBackups.filesCount), backup.totalFiles)) · \(backup.formattedSize)")
+                        .font(AppDesign.Font.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                case .item(_, let item):
+                    let subtitle = item.parentFolderName.map {
+                        "\(item.files.joined(separator: ", ")) — \(String(format: localization.L(L10n.ModConfigBackups.partOfGroup), $0))"
+                    } ?? item.files.joined(separator: ", ")
+                    Text(subtitle)
+                        .font(AppDesign.Font.monoIconXS)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .width(min: 160, ideal: 240)
+
+            TableColumn("") { row in
+                if case .backup(let backup) = row.kind {
+                    HStack {
+                        Spacer(minLength: 0)
+                        Button(role: .destructive) {
+                            askDelete(backup)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(AppDesign.Color.error)
+                        }
+                        .buttonStyle(.borderless)
+                        .help(localization.L(L10n.ModConfigBackups.deleteBackup))
+                    }
+                }
+            }
+            .width(min: 36, ideal: 44, max: 52)
+        } rows: {
+            ForEach(shown) { backup in
+                DisclosureTableRow(DateTableRow.backup(backup), isExpanded: Binding(
+                    get: { expandedBackupId == backup.id },
+                    set: { isOpen in
+                        if isOpen {
+                            expandedBackupId = backup.id
+                            selectedItemIds = Set(backup.items.filter { $0.modFolderName == modFilter }.map(\.id))
+                        } else if expandedBackupId == backup.id {
+                            expandedBackupId = nil
+                            selectedItemIds = []
+                        }
+                    }
+                )) {
+                    ForEach(visibleItems(backup)) { item in
+                        TableRow(DateTableRow.item(backup, item))
+                    }
+                }
+            }
+        }
+        .contextMenu(forSelectionType: String.self) { ids in
+            if ids.count == 1, let id = ids.first, let backup = backupById[id] {
+                let isOpen = expandedBackupId == backup.id
+                Button(localization.L(isOpen ? L10n.Main.collapse : L10n.Main.expand)) {
+                    toggleExpand(backup)
+                }
+                Divider()
+                Button(localization.L(L10n.ModConfigBackups.deleteBackup), role: .destructive) {
+                    askDelete(backup)
+                }
+            }
+        } primaryAction: { ids in
+            guard ids.count == 1, let id = ids.first, let backup = backupById[id] else { return }
+            toggleExpand(backup)
+        }
+    }
+
+    // MARK: - Empty State & Status Bar
+
+    @ViewBuilder
+    private var emptyState: some View {
+        let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if backups.isEmpty || needle.isEmpty {
+            ContentUnavailableView {
+                Label(localization.L(L10n.ModConfigBackups.noBackups), systemImage: "archivebox")
+            } actions: {
+                if createDisabledReason == nil {
+                    Button {
+                        createBackup()
+                    } label: {
+                        Label(localization.L(L10n.ModConfigBackups.createBackup), systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isBusy)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView {
+                Label(String(format: localization.L(L10n.ModInstall.backupsNoMatch), needle),
+                      systemImage: "magnifyingglass")
+            } actions: {
+                Button(localization.L(L10n.Discovery.clearSearch)) {
+                    search = ""
+                }
+                .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var statusBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: AppDesign.Spacing.sm) {
+                Text(byDate
+                     ? String(format: localization.L(L10n.ModConfigBackups.headerCount), Int64(shown.count))
+                     : String(format: localization.L(L10n.ModConfigBackups.modsCount), Int64(groups.count)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let modFilter {
+                    Button {
+                        self.modFilter = nil
+                    } label: {
+                        Label(modFilter, systemImage: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .help(localization.L(L10n.Backups.configFilterClear))
+                }
+
+                Spacer(minLength: AppDesign.Spacing.sm)
+
+                if let activeBackup = expandedBackup {
+                    let items = visibleItems(activeBackup)
+                    let restorableCount = items.filter { selectedItemIds.contains($0.id) && $0.configOnly != nil }.count
+                    Button(localization.L(L10n.ModConfigBackups.checkAll)) {
+                        selectedItemIds = Set(items.filter { $0.configOnly != nil }.map(\.id))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+
+                    Button(localization.L(L10n.ModConfigBackups.checkNone)) {
+                        selectedItemIds = []
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+
+                    Button(String(format: localization.L(L10n.ModConfigBackups.restoreCount), restorableCount)) {
+                        let picked = items.filter { selectedItemIds.contains($0.id) }.compactMap(\.configOnly)
+                        confirmation = .restore(activeBackup, picked)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                    .disabled(restorableCount == 0)
+                }
+            }
+            .padding(.horizontal, AppDesign.Spacing.xl)
+            .padding(.vertical, AppDesign.Spacing.xs)
+        }
+        .background(.bar)
+    }
+
+    // MARK: - Actions & Helpers
+
     private var confirmationTitle: String {
         switch confirmation {
         case .restore: return localization.L(L10n.ModConfigBackups.restoreWarning)
@@ -112,96 +357,6 @@ struct ModConfigBackupsView: View {
         case nil: return ""
         }
     }
-
-    // MARK: - Header
-
-    /// Le titre est celui de la page et du segment : ici, le compte et le
-    /// geste de création.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: AppDesign.Spacing.sm) {
-        HStack {
-            Text(byDate ? String(format: localization.L(L10n.ModConfigBackups.headerCount), Int64(shown.count))
-                        : String(format: localization.L(L10n.ModConfigBackups.modsCount), Int64(groups.count)))
-                .font(AppDesign.Font.footnote).foregroundColor(.secondary)
-            if let modFilter {
-                Button { self.modFilter = nil } label: { Label(modFilter, systemImage: "xmark.circle.fill") }
-                    .buttonStyle(.bordered).focusRing(cornerRadius: 5).controlSize(.small)
-                    .help(localization.L(L10n.Backups.configFilterClear))
-            }
-
-            Spacer()
-
-            Button(action: createBackup) {
-                HStack(spacing: 4) {
-                    if isBusy {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                    Text(localization.L(isBusy ? L10n.ModConfigBackups.creatingBackup : L10n.ModConfigBackups.createBackup))
-                }
-            }
-            .buttonStyle(.borderedProminent).focusRing(cornerRadius: 5)
-            .controlSize(.small)
-            .disabled(isBusy || createDisabledReason != nil)
-            .help(createDisabledReason ?? "")
-        }
-        HStack(spacing: AppDesign.Spacing.md) {
-            Picker(localization.L(L10n.A11y.configBackupsGrouping), selection: $byDate) {
-                Text(localization.L(L10n.ModConfigBackups.byMod)).tag(false)
-                Text(localization.L(L10n.ModConfigBackups.byDate)).tag(true)
-            }
-            .pickerStyle(.segmented).labelsHidden().fixedSize()
-            TextField(localization.L(L10n.ModConfigBackups.search), text: $search)
-                .textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-        }
-        }
-        .padding(.horizontal, AppDesign.Spacing.xl)
-        .padding(.vertical, AppDesign.Spacing.sm)
-    }
-
-    // MARK: - Empty state
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            IconTile(icon: "archivebox", tint: AppDesign.Color.accent, size: 64)
-            // Des sauvegardes existent, la recherche les écarte : ne pas dire qu'il n'y en a aucune.
-            let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
-            Text(backups.isEmpty || needle.isEmpty ? localization.L(L10n.ModConfigBackups.noBackups)
-                                                   : String(format: localization.L(L10n.ModInstall.backupsNoMatch), needle))
-                .multilineTextAlignment(.center).font(AppDesign.Font.rowTitle).foregroundColor(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - List
-
-    private var list: some View {
-        BackToTopScrollView(localization) {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(shown) { backup in
-                    ModConfigBackupRow(
-                        vm: vm,
-                        localization: localization,
-                        backup: backup,
-                        items: visibleItems(backup),
-                        isExpanded: expandedBackupId == backup.id,
-                        selectedItemIds: expandedBackupId == backup.id ? $selectedItemIds : .constant([]),
-                        onToggleExpand: { toggleExpand(backup) },
-                        onRestoreSelected: {
-                            confirmation = .restore(backup, visibleItems(backup).filter { selectedItemIds.contains($0.id) }.compactMap(\.configOnly))
-                        },
-                        onDelete: { askDelete(backup) }
-                    )
-                }
-            }
-            .padding(AppDesign.Spacing.xl)
-        }
-    }
-
-    // MARK: - Actions
 
     private func reload() {
         Task { backups = await Task.detached(priority: .userInitiated) { ModConfigBackupManager.shared.loadBackups() }.value }
@@ -212,7 +367,7 @@ struct ModConfigBackupsView: View {
             expandedBackupId = nil
             selectedItemIds = []
         } else {
-            expandedBackupId = backup.id  // rien de coché, sauf le mod demandé par l'éditeur
+            expandedBackupId = backup.id
             selectedItemIds = Set(backup.items.filter { $0.modFolderName == modFilter }.map(\.id))
         }
     }
@@ -229,14 +384,6 @@ struct ModConfigBackupsView: View {
                 DispatchQueue.main.async {
                     self.backups = fetched
                     self.isBusy = false
-                    // Pose spontanée (fin de tâche de fond, pas un geste de
-                    // l'utilisateur) : `isBusy` ne verrouille que le bouton
-                    // de création, pas la liste — restaurer/supprimer une
-                    // ligne pendant la création reste possible et ouvre déjà
-                    // une confirmation. Sur un bouton destructeur, écraser
-                    // cette confirmation ferait valider autre chose que ce
-                    // que l'utilisateur croit voir. On préfère perdre le
-                    // message de fin de purge que détourner son clic.
                     if deletedCount > 0 && self.confirmation == nil {
                         self.confirmation = .cleanup(String(format: self.localization.L(L10n.ModConfigBackups.cleanupComplete), deletedCount))
                     }
@@ -250,10 +397,6 @@ struct ModConfigBackupsView: View {
         }
     }
 
-    /// `ModConfigBackupManager.BackupError` cases are messages this app
-    /// authors itself, so they get a proper localized string; any other
-    /// error (file I/O, etc.) falls back to its (English) system
-    /// description substituted into the localized generic template.
     private func localizedMessage(for error: Error, genericKey: String) -> String {
         if let backupError = error as? ModConfigBackupManager.BackupError {
             switch backupError {
@@ -265,9 +408,6 @@ struct ModConfigBackupsView: View {
         return String(format: localization.L(genericKey), error.localizedDescription)
     }
 
-    /// Ce que la restauration annonce : « restaurée avec succès » seulement
-    /// si rien n'a sauté (mod plus installé, dossier absent, écriture
-    /// refusée) — avant, zéro fichier écrit s'annonçait comme douze.
     private func restoreReportMessage(_ report: ModConfigRestoreReport) -> String {
         if report.isComplete {
             return localization.L(L10n.ModConfigBackups.backupRestored)
@@ -290,8 +430,6 @@ struct ModConfigBackupsView: View {
         return lines.joined(separator: "\n\n")
     }
 
-    /// Le `config.json` actuel d'un mod (dossier physique : un mod en pause
-    /// vit dans `.X`) ; `nil` s'il n'est plus installé.
     private func currentConfigURL(_ folder: String) -> URL? {
         let model = vm
         return model.scanStore.mods.flattenedMods.first { $0.folderName == folder }.map {
@@ -300,13 +438,9 @@ struct ModConfigBackupsView: View {
         }
     }
 
-    /// La confirmation nomme ce qui sera remplacé : `config.json` seul
-    /// (`ModConfigBackupItem.configOnly`), jamais les i18n de la sauvegarde.
     private func restoreWarning(_ items: [ModConfigBackupItem]) -> String {
         let lines = items.prefix(8).map { "• \($0.modDisplayName)" }
             + (items.count > 8 ? ["…"] : [])
-        // Jeu ouvert : un mod chargé défera la restauration à son prochain
-        // enregistrement. Prévenu, pas bloqué, comme l'éditeur de config.
         let model = vm
         let active = ConfigRestoreWhileRunning.activeNames(items, mods: model.scanStore.mods,
                                                            gameRunning: model.isGameRunning())
@@ -321,9 +455,6 @@ struct ModConfigBackupsView: View {
         guard !selected.isEmpty else { return }
         isBusy = true
         let model = vm, gameDir = model.gameDir
-        // Tous les mods, pas seulement les actifs : le filet pris avant
-        // d'écraser doit couvrir les mods **en pause**, où vivent presque
-        // toutes les configurations du parc.
         let currentMods = model.scanStore.mods
         DispatchQueue.global(qos: .userInitiated).async {
             do {
@@ -339,10 +470,7 @@ struct ModConfigBackupsView: View {
                     self.isBusy = false
                     model.alertStore.show(self.restoreReportMessage(report))
                     model.log(self.restoreReportMessage(report),
-                                level: report.isComplete ? .info : .warning)
-                    // Des `config.json` viennent d'être réécrits, et le parc
-                    // n'a pas bougé : sans ça, le rapport de raccourcis reste
-                    // sur l'état d'avant la restauration (X66).
+                              level: report.isComplete ? .info : .warning)
                     model.rescanKeybindsAfterConfigWrite()
                 }
             } catch {
@@ -354,8 +482,6 @@ struct ModConfigBackupsView: View {
         }
     }
 
-    /// Même règle que les sauvegardes d'installation : la présence sur le
-    /// disque tranche, mod en pause compris. Lue hors du fil principal.
     private func askDelete(_ backup: ModConfigBackup) {
         let modsRoot = (vm.gameDir as NSString).appendingPathComponent("Mods")
         Task {

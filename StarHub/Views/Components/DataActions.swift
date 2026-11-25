@@ -25,10 +25,7 @@ struct SavesDataActions: View {
     }
 }
 
-/// Bandeau d'« Entretien » : mettre les mods en pause à la corbeille des
-/// mods, et zipper tout le dossier Mods — mods en pause compris — là où
-/// l'utilisateur le choisit (`FolderArchiveSheet`). Toujours visible, quel que
-/// soit l'état du rapport d'entretien.
+/// Toolbar actions for Maintenance: archive `Mods/` or move disabled mods to trash.
 struct MaintenanceModActions: View {
     var vm: StarHubTHViewModel
     @ObservedObject var localization: LocalizationStore
@@ -37,36 +34,23 @@ struct MaintenanceModActions: View {
     @State private var archive: FolderArchiveRequest?
 
     var body: some View {
-        AdaptiveLabels {
-            HStack(spacing: AppDesign.Spacing.sm) {
-                Button(role: .destructive) {
-                    targets = vm.disabledModTargets()
-                    // Rien à mettre à la corbeille : le dire, plutôt qu'ouvrir
-                    // une alerte destructive qui n'emporterait rien.
-                    if targets.isEmpty {
-                        vm.showModal(message: localization.L(L10n.VM.cleanModsNotFound))
-                    } else {
-                        confirming = true
-                    }
-                } label: {
-                    Label(localization.L(L10n.Settings.clearDisabledMods), systemImage: "trash")
-                }
-                .help(localization.L(L10n.Settings.clearDisabledMods)).focusRing(cornerRadius: 5)
-
-                Button(action: archiveMods) {
-                    Label(localization.L(L10n.Settings.backupMods), systemImage: "archivebox")
-                }
-                .help(localization.L(L10n.Settings.hintCompressMods)).focusRing(cornerRadius: 5)
-            }
+        Button(action: archiveMods) {
+            Label(localization.L(L10n.Settings.backupMods), systemImage: "archivebox")
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, AppDesign.Spacing.xl)
-        .padding(.vertical, AppDesign.Spacing.sm)
+        .help(localization.L(L10n.Settings.hintCompressMods))
         .sheet(item: $archive) { FolderArchiveSheet(localization: localization, request: $0) }
-        // La corbeille des mods est restaurable depuis cet écran même : la
-        // confirmation chiffre ce qui part avant le clic.
+
+        Button(role: .destructive) {
+            targets = vm.disabledModTargets()
+            if targets.isEmpty {
+                vm.showModal(message: localization.L(L10n.VM.cleanModsNotFound))
+            } else {
+                confirming = true
+            }
+        } label: {
+            Label(localization.L(L10n.Settings.clearDisabledMods), systemImage: "trash")
+        }
+        .help(localization.L(L10n.Settings.clearDisabledMods))
         .alert(localization.L(L10n.Settings.clearDisabledMods), isPresented: $confirming) {
             Button(localization.L(L10n.Settings.deleteJunkMods), role: .destructive) {
                 vm.cleanDisabledMods(targets: targets)
@@ -78,8 +62,6 @@ struct MaintenanceModActions: View {
         }
     }
 
-    /// Sans jeu désigné, pas de `Mods/` à archiver : le dire plutôt qu'ouvrir
-    /// une feuille vide.
     private func archiveMods() {
         guard let request = FolderArchiveRequest.mods(from: vm, localization) else {
             vm.showModal(message: localization.L(L10n.Settings.gameDirNotSet))
